@@ -35,11 +35,16 @@ class LTSACall {
     }
   }
 
-  fun safetyCheck(compositeState: CompositeState): List<String>? {
+  fun propertyCheck(compositeState: CompositeState): List<String>? {
     val ltsOutput = StringLTSOutput()
     compositeState.analyse(ltsOutput)
-    println(ltsOutput.getText())
-    return if (compositeState.errorTrace != null) compositeState.errorTrace.map { (it as String) } else null
+    val out = ltsOutput.getText()
+//    println(out)
+    return if (out.contains("""property.*violation""".toRegex())) {
+      compositeState.errorTrace.map { (it as String) }
+    } else {
+      null
+    }
   }
 
   fun getAllAlphabet(compositeState: CompositeState): MutableSet<String> {

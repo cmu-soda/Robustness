@@ -3,7 +3,7 @@ package edu.cmu.isr.ltsa
 class LStar(val Σ: Set<String>, val M1: String, val M2: String, val P: String) {
   private val S = mutableSetOf<String>("λ")
   private val E = mutableSetOf<String>("λ")
-  private val T = mutableMapOf<String, Boolean>("λ" to true)
+  private val T = mutableMapOf<String, Boolean>("" to true)
 
   fun run(): String {
     while (true) {
@@ -47,7 +47,9 @@ class LStar(val Σ: Set<String>, val M1: String, val M2: String, val P: String) 
     S.forall { s ->
       Σ.forall { a ->
         val re = S.exists { s_ -> E.forall { e -> T[concat(s, a, e)] == T[concat(s_, e)] } }
-        sa.add(concat(s, a))
+        if (!re) {
+          sa.add(concat(s, a))
+        }
         re
       }
     }
@@ -76,10 +78,10 @@ class LStar(val Σ: Set<String>, val M1: String, val M2: String, val P: String) 
    */
   private fun membershipQuery(σ: List<String>): Boolean {
     val ltsaCall = LTSACall()
-    val fsp = "A = (${σ.joinToString(" -> ")} -> A)."
+    val fsp = "A = (${σ.joinToString(" -> ")} -> A) + {${Σ.joinToString(", ")}}."
     val compositeState = ltsaCall.doCompile(arrayOf(fsp, M1, P).joinToString("\n"))
     ltsaCall.doCompose(compositeState)
-    return ltsaCall.safetyCheck(compositeState) == null
+    return ltsaCall.propertyCheck(compositeState) == null
   }
 
   private fun concat(vararg words: String): String {
