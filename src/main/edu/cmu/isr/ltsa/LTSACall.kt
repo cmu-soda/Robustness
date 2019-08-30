@@ -39,7 +39,7 @@ class LTSACall {
     fun safetyCheck(compositeState: CompositeState) : List<String>? {
         val ltsOutput = StringLTSOutput()
         compositeState.analyse(ltsOutput)
-//        println(ltsOutput.getText())
+        println(ltsOutput.getText())
         return if (compositeState.errorTrace != null) compositeState.errorTrace.map { (it as String) } else null
     }
 
