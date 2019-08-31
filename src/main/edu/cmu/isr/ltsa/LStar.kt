@@ -1,11 +1,49 @@
 package edu.cmu.isr.ltsa
 
-class LStar(val Σ: Set<String>, val U: String) {
+class LStar(val M1: String, val M2: String, val P: String) {
+  private val Σ: Set<String>
   private val S = mutableSetOf<String>("")
   private val E = mutableSetOf<String>("")
   private val T = mutableMapOf<String, Boolean>("" to true)
 
+  init {
+    println("========== Parsing the alphabets ==========")
+    val ltsaCall = LTSACall()
+    val αM1 = ltsaCall.getAllAlphabet(ltsaCall.doCompile(M1))
+    val αM2 = ltsaCall.getAllAlphabet(ltsaCall.doCompile(M2))
+    val αP = ltsaCall.getAllAlphabet(ltsaCall.doCompile(P))
+    Σ = (αM1 union αP) intersect αM2
+  }
+
   fun run(): String {
+    val ltsaCall = LTSACall()
+    while (true) {
+      println("========== Find assumption for M1 ==========")
+      println("Σ of the language: ${Σ}")
+      val A = lstar()
+      println("========== Validate assumption with the environment M2 ==========")
+      val counterExample = ltsaCall.propertyCheck(ltsaCall.doCompile("$M2\nproperty $A"))
+      if (counterExample == null) {
+        println("========== Find the weakest assumption for M1 ==========\n$A")
+        return A
+      } else {
+        println("========== Counterexample found with environment M2 ==========\n$counterExample")
+        val projected = counterExample.filter { it in Σ }
+        val A_c = "AC = (${projected.joinToString(" -> ")} -> AC) + {${Σ.joinToString(", ")}}."
+        if (ltsaCall.propertyCheck(ltsaCall.doCompile("$A_c\n$M1\n$P")) == null) {
+          println("========== Weaken the assumption for M1 ==========")
+//          T[projected.joinToString(",")] = false
+//          witnessOfCounterExample(projected)
+          S.add(projected.joinToString(","))
+          T[projected.joinToString(",")] = true
+        } else {
+          throw Error("P is violated in M1 || M2.")
+        }
+      }
+    }
+  }
+
+  fun lstar(): String {
     while (true) {
       update_T_withQueries()
       while (true) {
@@ -44,25 +82,27 @@ class LStar(val Σ: Set<String>, val U: String) {
 
   private fun checkCorrectness(C: String): List<String>? {
     val ltsaCall = LTSACall()
-    val compositeState = ltsaCall.doCompile(arrayOf(C, U).joinToString("\n"))
-    ltsaCall.doCompose(compositeState)
-    return ltsaCall.propertyCheck(compositeState)
+    return ltsaCall.propertyCheck(ltsaCall.doCompile("$C\n$M1\n$P"))
   }
 
   private fun buildConjecture(): String {
     val F = S.filter { T[it] == true }
+    val F_map = F.foldIndexed(mutableMapOf<String, String>()) { i, m, s ->
+      m[s] = if (s == "") "C" else "C$i"
+      m
+    }
     val δ = mutableSetOf<Triple<String, String, String>>()
     for (s in F) {
       for (a in Σ) {
         val s_ = S.find { s_ -> E.forall { e -> T[concat(s, a, e)] == T[concat(s_, e)] } }
         if (s_ in F) {
-          δ.add(Triple(if (s == "") "C" else s.toUpperCase(), a, if (s_ == "") "C" else s_!!.toUpperCase()))
+          δ.add(Triple(F_map[s]!!, a, F_map[s_]!!))
         }
       }
     }
     println("Desire state machine: $δ")
-    val sm = F.fold(mutableMapOf<String, MutableList<String>>()) { m, s ->
-      m[if (s == "") "C" else s.toUpperCase()] = mutableListOf()
+    val sm = F_map.values.fold(mutableMapOf<String, MutableList<String>>()) { m, s ->
+      m[s] = mutableListOf()
       m
     }
     for (t in δ) {
@@ -119,11 +159,17 @@ class LStar(val Σ: Set<String>, val U: String) {
     if (σ in T) {
       return T[σ]!!
     }
+    val splited = σ.split(",")
+    for (i in splited.indices) {
+      val subQuery = splited.subList(0, i + 1).joinToString(",")
+      if (subQuery in T && T[subQuery] == false) {
+        return false
+      }
+    }
+
     val ltsaCall = LTSACall()
     val fsp = "A = (${σ.replace(",", " -> ")} -> A) + {${Σ.joinToString(", ")}}."
-    val compositeState = ltsaCall.doCompile(arrayOf(fsp, U).joinToString("\n"))
-    ltsaCall.doCompose(compositeState)
-    return ltsaCall.propertyCheck(compositeState) == null
+    return ltsaCall.propertyCheck(ltsaCall.doCompile("$fsp\n$M1\n$P")) == null
   }
 
   private fun concat(vararg words: String): String {
