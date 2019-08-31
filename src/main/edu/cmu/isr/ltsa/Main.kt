@@ -10,8 +10,8 @@ fun main() {
   val alphabet_Order = ltsaCall.getAllAlphabet(ltsaCall.doCompile(fsp_Order))
 
   val alphabet = (alphabet_Input union alphabet_Order) intersect alphabet_Output
-  val lStar = LStar(alphabet, fsp_Input, fsp_Output, fsp_Order)
+  val lStar = LStar(alphabet, "$fsp_Input\n$fsp_Order")
   println("\n========== Algorithm starts ==========")
   println("Σ of the language: ${lStar.Σ}")
-  lStar.run()
+  val A = lStar.run()
 }
