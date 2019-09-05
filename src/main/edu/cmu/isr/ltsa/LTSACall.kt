@@ -57,4 +57,9 @@ class LTSACall {
     alphabet.remove("tau")
     return alphabet
   }
+
+  fun minimise(compositeState: CompositeState) {
+    val ltsOutput = StringLTSOutput()
+    compositeState.minimise(ltsOutput)
+  }
 }

@@ -1,4 +1,6 @@
-package edu.cmu.isr.ltsa
+package edu.cmu.isr.ltsa.lstar
+
+import edu.cmu.isr.ltsa.LTSACall
 
 fun main() {
   val ltsaCall = LTSACall()

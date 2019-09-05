@@ -1,4 +1,6 @@
-package edu.cmu.isr.ltsa
+package edu.cmu.isr.ltsa.lstar
+
+import edu.cmu.isr.ltsa.LTSACall
 
 class LStar(val M1: String, val M2: String, val P: String) {
   private val Σ: Set<String>
