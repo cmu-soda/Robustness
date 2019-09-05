@@ -1,0 +1,19 @@
+range B= 0..1
+
+SENDER = (in -> SENDING[0]),
+SENDING[b:B] = (send[b] -> SENDING[b]
+	          | getack[1-b] -> SENDING[b]
+	          | getack[b] -> in -> SENDING[1-b]).
+
+RECEIVER = (rec[0] -> out -> ACKING[0]),
+ACKING[b:B] = (ack[b] -> ACKING[b]
+	         | rec[b] -> ACKING[b]
+	         | rec[1-b] -> out -> ACKING[1-b]).
+
+BUFFER = (get[b:B] -> put[b] -> BUFFER
+	    | get[b:B] -> BUFFER).
+
+||MEDIUM = (a:BUFFER || b:BUFFER)
+          /{send/a.get,rec/a.put,ack/b.get,getack/b.put}.
+
+||SYSTEM = (SENDER || MEDIUM || RECEIVER)@{in,out}.

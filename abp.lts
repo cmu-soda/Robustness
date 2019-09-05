@@ -1,0 +1,26 @@
+range BIT = 0 .. 1
+
+Transmitter = Accept[0],
+Accept[b:BIT] = (accept -> Send[b]),
+Send[b:BIT] = (send[b] -> Sending[b]),
+Sending[b:BIT] = (txto -> Send[b]
+				| ack[b] -> Accept[!b]
+				| ack[!b] -> Sending[b]).
+
+Receiver = Reply[1],
+Deliver[b:BIT] = (deliver -> Reply[b]),
+Reply[b:BIT] = (reply[b] -> Replying[b]),
+Replying[b:BIT] = (rxto -> Reply[b]
+				 | rec[!b] -> Deliver[!b]
+				 | rec[b] -> Replying[b]).
+
+Channel = ( in[b:BIT] -> lose -> Channel
+		  | in[b:BIT] -> out[b] -> Channel)
+		  @ {in, out}.
+
+||ABP = (trans:Channel || tx:Transmitter || rx:Receiver || ack:Channel)
+	/ {deliver/rx.deliver, accept/tx.accept, trans.in/tx.send,
+	   rx.rec/trans.out, ack.in/rx.reply, ack.out/tx.ack}.
+//	@ {accept, deliver}.
+
+property AD = (accept -> deliver -> AD).
