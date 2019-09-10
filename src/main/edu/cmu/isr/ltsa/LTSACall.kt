@@ -62,4 +62,13 @@ class LTSACall {
     val ltsOutput = StringLTSOutput()
     compositeState.minimise(ltsOutput)
   }
+
+  fun getCompositeName(compositeState: CompositeState): String {
+    doCompose(compositeState)
+    return if (compositeState.name != "DEFAULT") {
+      compositeState.name
+    } else {
+      (compositeState.machines[0] as CompactState).name
+    }
+  }
 }

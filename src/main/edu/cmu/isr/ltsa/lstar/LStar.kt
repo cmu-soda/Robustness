@@ -7,25 +7,41 @@ class LStar(val M1: String, val M2: String, val P: String) {
   private val S = mutableSetOf<String>("")
   private val E = mutableSetOf<String>("")
   private val T = mutableMapOf<String, Boolean>("" to true)
+  private val nameM1: String
+  private val nameM2: String
+  private val nameP: String
 
   init {
     println("========== Parsing the alphabets ==========")
     val ltsaCall = LTSACall()
-    val αM1 = ltsaCall.getAllAlphabet(ltsaCall.doCompile(M1))
-    val αM2 = ltsaCall.getAllAlphabet(ltsaCall.doCompile(M2))
-    val αP = ltsaCall.getAllAlphabet(ltsaCall.doCompile(P))
+    var sm = ltsaCall.doCompile(M1)
+    val αM1 = ltsaCall.getAllAlphabet(sm)
+    nameM1 = ltsaCall.getCompositeName(sm)
+
+    sm = ltsaCall.doCompile(M2)
+    val αM2 = ltsaCall.getAllAlphabet(sm)
+    nameM2 = ltsaCall.getCompositeName(sm)
+
+    sm = ltsaCall.doCompile(P)
+    val αP = ltsaCall.getAllAlphabet(sm)
+    nameP = ltsaCall.getCompositeName(sm)
+
+    println("========== M1, M2, P model information ==========")
+    println("Machines: M1 = $nameM1, M2 = $nameM2, P = $nameP")
     Σ = (αM1 union αP) intersect αM2
+    println("Σ of the language: $Σ")
   }
 
   fun run(): String {
     val ltsaCall = LTSACall()
     while (true) {
       println("========== Find assumption for M1 ==========")
-      println("Σ of the language: ${Σ}")
       val A = lstar()
       val A_fsp = conjectureToFSP(A)
-      println("========== Validate assumption with the environment M2 ==========")
-      val counterExample = ltsaCall.propertyCheck(ltsaCall.doCompile("$M2\nproperty $A_fsp"))
+      println("========== Validate conjecture assumption with the environment M2 ==========")
+      val counterExample = ltsaCall.propertyCheck(
+        ltsaCall.doCompile("$M2\nproperty $A_fsp\n||Composite = ($nameM2 || C).", "Composite")
+      )
       if (counterExample == null) {
         println("========== Find the weakest assumption for M1 ==========\n$A_fsp")
         return A_fsp
@@ -33,7 +49,10 @@ class LStar(val M1: String, val M2: String, val P: String) {
         println("========== Counterexample found with environment M2 ==========\n$counterExample")
         val projected = counterExample.filter { it in Σ }
         val A_c = "AC = (${projected.joinToString(" -> ")} -> AC) + {${Σ.joinToString(", ")}}."
-        if (ltsaCall.propertyCheck(ltsaCall.doCompile("$A_c\n$M1\n$P")) == null) {
+        val check = ltsaCall.propertyCheck(
+          ltsaCall.doCompile("$A_c\n$M1\n$P\n||Composite = (AC || $nameM1 || $nameP).", "Composite")
+        )
+        if (check == null) {
           println("========== Weaken the assumption for M1 ==========")
           witnessOfCounterExample(A, projected)
         } else {
@@ -93,7 +112,9 @@ class LStar(val M1: String, val M2: String, val P: String) {
   private fun checkCorrectness(C: Set<Triple<String, String, String>>): List<String>? {
     val ltsaCall = LTSACall()
     val fsp = conjectureToFSP(C)
-    return ltsaCall.propertyCheck(ltsaCall.doCompile("$fsp\n$M1\n$P"))
+    return ltsaCall.propertyCheck(
+      ltsaCall.doCompile("$fsp\n$M1\n$P\n||Composite = (C || $nameM1 || $nameP).", "Composite")
+    )
   }
 
   private fun buildConjecture(): Set<Triple<String, String, String>> {
@@ -197,7 +218,9 @@ class LStar(val M1: String, val M2: String, val P: String) {
 
     val ltsaCall = LTSACall()
     val fsp = "A = (${σ.replace(",", " -> ")} -> A) + {${Σ.joinToString(", ")}}."
-    return ltsaCall.propertyCheck(ltsaCall.doCompile("$fsp\n$M1\n$P")) == null
+    return ltsaCall.propertyCheck(
+      ltsaCall.doCompile("$fsp\n$M1\n$P\n||Composite = (A || $nameM1 || $nameP).", "Composite")
+    ) == null
   }
 
   private fun concat(vararg words: String): String {
