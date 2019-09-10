@@ -1,9 +1,17 @@
-Input = (input -> send -> ack -> Input)+{e.lose}.
+/**
+ * Protocol to send and receive message through two robust channels.
+ */
+INPUT = (input -> send -> getack -> INPUT).
 
-Output = (rec -> output -> ack -> Output)+{e.lose}.
+OUTPUT = (rec -> output -> ack -> OUTPUT).
 
-||Sys = (Input || Output)/{e.in/send, e.out/rec}.
+||SYS = (INPUT || OUTPUT)
+      / {e.trans.in/send, e.trans.out/rec, e.ack.in/ack, e.ack.out/getack}.
+
+CHANNEL = (in -> out -> CHANNEL)+{lose}.
+
+||ENV = (e.trans:CHANNEL || e.ack:CHANNEL).
 
 property P = (input -> output -> P).
 
-Channel = (e.in -> e.out -> Channel)+{e.lose}.
+||TEST = (SYS || ENV || P)@{input, output}.

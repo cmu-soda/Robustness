@@ -1,19 +1,23 @@
 range B= 0..1
 
-SENDER = (in -> SENDING[0]),
+INPUT = (input -> SENDING[0]),
 SENDING[b:B] = (send[b] -> SENDING[b]
-              | getack[1-b] -> SENDING[b]
-              | getack[b] -> in -> SENDING[1-b]).
+              | getack[b] -> input -> SENDING[!b]
+              | getack[!b] -> SENDING[b]).
 
-RECEIVER = (rec[0] -> out -> ACKING[0]),
+OUTPUT = (rec[0] -> output -> ACKING[0]),
 ACKING[b:B] = (ack[b] -> ACKING[b]
              | rec[b] -> ACKING[b]
-             | rec[1-b] -> out -> ACKING[1-b]).
+             | rec[!b] -> output -> ACKING[!b]).
 
-BUFFER = (get[b:B] -> put[b] -> BUFFER
-        | get[b:B] -> BUFFER).
+||SYS = (INPUT || OUTPUT)
+      / {e.trans.in/send, e.trans.out/rec, e.ack.in/ack, e.ack.out/getack}.
 
-||MEDIUM = (a:BUFFER || b:BUFFER)
-         / {send/a.get,rec/a.put,ack/b.get,getack/b.put}.
+CHANNEL = (in[b:B] -> out[b] -> CHANNEL
+         | in[b:B] -> lose -> CHANNEL).
 
-||SYSTEM = (SENDER || MEDIUM || RECEIVER)@{in,out}.
+||ENV = (e.trans:CHANNEL || e.ack:CHANNEL).
+
+property P = (input -> output -> P).
+
+||TEST = (SYS || ENV || P)@{input, output}.

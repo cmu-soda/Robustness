@@ -8,53 +8,52 @@ import java.util.*
 fun main() {
 //  val sys = "Mutex = (e.acquire -> e.release -> Mutex | w.acquire -> w.release -> Mutex).\n" +
 //      "Writer = (w.acquire -> CS), CS = (w.enterCS -> w.exitCS -> CS | w.release -> Writer).\n" +
-//      "||Sys = (Mutex || Writer)."
+//      "||SYS = (Mutex || Writer)."
 //  val property = "property P = (e.enterCS -> e.exitCS -> P | w.enterCS -> w.exitCS -> P)."
-  val sys = "Input = (input -> send -> ack -> Input)+{e.lose}.\n" +
-      "Output = (rec -> output -> ack -> Output)+{e.lose}.\n" +
-      "||Sys = (Input || Output)/{e.in/send, e.out/rec}."
+
+  val sys = "L1_SENDER = (input -> e.send_s -> (e.send_s -> e.ack_s -> L1_SENDER | e.ack_s -> L1_SENDER)).\n" +
+      "RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).\n" +
+      "||SYS = (L1_SENDER || RECEIVER)."
   val property = "property P = (input -> output -> P)."
+
   var sm = step1(sys, property)
-  println("========== Step 1 ==========")
-  println(sm)
-  // TODO(if error state is not reachable, the property is true in any environment)
   sm = step2(sm)
-  println("========== Step2 ==========")
-  println(sm)
-  // TODO(if the initial state becomes an error state, no environment can prevent the system from reaching error state)
   sm = step3(sm)
   println("========== Step3, Generated Assumption ==========")
-  println(sm)
   println(sm.buildFSP())
 }
 
 private fun step1(sys: String, property: String): StateMachine {
   val ltsaCall = LTSACall()
   // Compile the temporary spec to get all the alphabets.
-  var composite = "$sys\n$property\n||Composite = (Sys || P)."
+  var composite = "$sys\n$property\n||Composite = (SYS || P)."
   val alphabet = ltsaCall.getAllAlphabet(ltsaCall.doCompile(composite, "Composite"))
   // Assume that the environment actions are all prefixed with 'e'.
-  val envLabels = alphabet.filter { it.startsWith("e.") }
+  // If 'range' is used in the spec, remove the '\.\d+' suffix.
+  val envLabels = alphabet.filter { it.startsWith("e.") }.map { it.replace("""\.\d+""".toRegex(), "") }
   // Do step 1: composition and minimization which only expose labels of the environment.
-  composite = "$sys\n$property\n||Composite = (Sys || P)" + "@{${envLabels.joinToString(", ")}}."
+  composite = "$sys\n$property\n||Composite = (SYS || P)" + "@{${envLabels.joinToString(", ")}}."
   val compositeState = ltsaCall.doCompile(composite, "Composite")
   // Compose and minimise
   ltsaCall.doCompose(compositeState)
   ltsaCall.minimise(compositeState)
   // Get the composed state machine
   val m = compositeState.composition
-  val transitions = mutableListOf<Triple<Int, Int, Int>>()
+  val trans = mutableListOf<Triple<Int, Int, Int>>()
   for (s in m.states.indices) {
     for (a in m.alphabet.indices) {
       val nexts: IntArray? = EventState.nextState(m.states[s], a)
       if (nexts != null) {
         for (n in nexts) {
-          transitions.add(Triple(s, a, n))
+          trans.add(Triple(s, a, n))
         }
       }
     }
   }
-  return StateMachine(transitions, m.alphabet)
+  if (0 !in getReachable(setOf(-1), trans)) {
+    throw Error("Error state is not reachable from the initial state, P holds under any environment.")
+  }
+  return StateMachine(trans, m.alphabet)
 }
 
 private fun step2(sm: StateMachine): StateMachine {
@@ -64,16 +63,13 @@ private fun step2(sm: StateMachine): StateMachine {
   val tau = sm.alphabet.indexOf("tau")
   while (true) {
     val s = trans.find { it.second == tau && it.third == -1 } ?: break
+    if (s.first == 0) {
+      throw Error("Initial state becomes the error state, no environment can prevent the system from reaching error state")
+    }
     trans = trans.filter { it.first != s.first }.map { if (it.third == s.first) it.copy(third = -1) else it }
   }
   // Eliminate the states that are not backward reachable from the error state
-  var reachable = setOf(-1)
-  while (true) {
-    val s = reachable union trans.filter { it.third in reachable }.map { it.first }
-    if (s.size == reachable.size)
-      break
-    reachable = s
-  }
+  val reachable = getReachable(setOf(-1), trans)
   trans = trans.filter { it.first in reachable }
   // Remove duplicate transitions
   trans = removeDuplicate(trans)
@@ -126,6 +122,16 @@ private class StateMachine(val transitions: List<Triple<Int, Int, Int>>, val alp
 
   private fun processName(i: Int): String {
     return if (i == 0) "A" else "A_${i}"
+  }
+}
+
+private fun getReachable(initial: Set<Int>, trans: List<Triple<Int, Int, Int>>) : Set<Int> {
+  var reachable = initial
+  while (true) {
+    val s = reachable union trans.filter { it.third in reachable }.map { it.first }
+    if (s.size == reachable.size)
+      return reachable
+    reachable = s
   }
 }
 

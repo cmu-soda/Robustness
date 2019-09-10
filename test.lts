@@ -1,0 +1,15 @@
+P_SENDER = (send_s -> ack_s -> P_SENDER).
+L1_SENDER = (send_s -> (send_s -> ack_s -> L1_SENDER | ack_s -> L1_SENDER)).
+RECEIVER = (send_r -> ack_r -> RECEIVER).
+P_CHANNEL = (send_s -> send_r -> ack_r -> ack_s -> P_CHANNEL).
+LOSS_1_CHANNEL = (send_s ->
+    (send_r -> ack_r -> ack_s -> LOSS_1_CHANNEL
+   | drop -> send_s -> send_r -> ack_r -> ack_s -> LOSS_1_CHANNEL)
+).
+
+property P = (send_s -> P1),
+P1 = (send_s -> P1 | ack_s -> P).
+
+||SYS1 = (P_SENDER || RECEIVER || P_CHANNEL || P).
+||SYS2 = (P_SENDER || RECEIVER || LOSS_1_CHANNEL || P).
+||SYS3 = (L1_SENDER || RECEIVER || LOSS_1_CHANNEL || P).
