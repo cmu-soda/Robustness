@@ -1,0 +1,9 @@
+Input = (input -> send -> ack -> Input)+{e.lose}.
+
+Output = (rec -> output -> ack -> Output)+{e.lose}.
+
+||Sys = (Input || Output)/{e.in/send, e.out/rec}.
+
+property P = (input -> output -> P).
+
+Channel = (e.in -> e.out -> Channel)+{e.lose}.

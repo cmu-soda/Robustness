@@ -6,16 +6,25 @@ import java.util.*
 
 
 fun main() {
-  val sys = "Mutex = (e.acquire -> e.release -> Mutex | w.acquire -> w.release -> Mutex).\n" +
-      "Writer = (w.acquire -> CS), CS = (w.enterCS -> w.exitCS -> CS | w.release -> Writer).\n" +
-      "||Sys = (Mutex || Writer)."
-  val property = "property P = (e.enterCS -> e.exitCS -> P | w.enterCS -> w.exitCS -> P)."
+//  val sys = "Mutex = (e.acquire -> e.release -> Mutex | w.acquire -> w.release -> Mutex).\n" +
+//      "Writer = (w.acquire -> CS), CS = (w.enterCS -> w.exitCS -> CS | w.release -> Writer).\n" +
+//      "||Sys = (Mutex || Writer)."
+//  val property = "property P = (e.enterCS -> e.exitCS -> P | w.enterCS -> w.exitCS -> P)."
+  val sys = "Input = (input -> send -> ack -> Input)+{e.lose}.\n" +
+      "Output = (rec -> output -> ack -> Output)+{e.lose}.\n" +
+      "||Sys = (Input || Output)/{e.in/send, e.out/rec}."
+  val property = "property P = (input -> output -> P)."
   var sm = step1(sys, property)
+  println("========== Step 1 ==========")
+  println(sm)
   // TODO(if error state is not reachable, the property is true in any environment)
   sm = step2(sm)
+  println("========== Step2 ==========")
+  println(sm)
   // TODO(if the initial state becomes an error state, no environment can prevent the system from reaching error state)
   sm = step3(sm)
-  println("========== Generated Assumption ==========")
+  println("========== Step3, Generated Assumption ==========")
+  println(sm)
   println(sm.buildFSP())
 }
 
@@ -95,6 +104,8 @@ private fun step3(sm: StateMachine): StateMachine {
   // delete all error states
   val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
   trans = trans.filter { it.first !in errStates && it.third !in errStates }.toMutableList()
+  // 0 should be the initial state
+  trans.sortBy { it.first }
   return StateMachine(trans, sm.alphabet)
 }
 
