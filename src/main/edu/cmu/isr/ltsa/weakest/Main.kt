@@ -14,9 +14,14 @@ fun main() {
 //      "||SYS = (Mutex || Writer)."
 //  val property = "property P = (e.enterCS -> e.exitCS -> P | w.enterCS -> w.exitCS -> P)."
 
-  val sys = "P_SENDER = (input -> e.send_s -> e.ack_s -> P_SENDER).\n" +
+//  val sys = "P_SENDER = (input -> e.send_s -> e.ack_s -> P_SENDER).\n" +
+//      "RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).\n" +
+//      "||SYS = (P_SENDER || RECEIVER)."
+//  val property = "property P = (input -> output -> P)."
+
+  val sys = "L1_SENDER = (input -> e.send_s -> (e.send_s -> e.ack_s -> L1_SENDER | e.ack_s -> L1_SENDER)).\n" +
       "RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).\n" +
-      "||SYS = (P_SENDER || RECEIVER)."
+      "||SYS = (L1_SENDER || RECEIVER)."
   val property = "property P = (input -> output -> P)."
 
   var sm = step1(sys, property)

@@ -1,0 +1,24 @@
+// Perfect channel results
+C = (e.send_s -> C1 | e.ack_s -> C | e.ack_r -> C),
+C1 = (e.send_s -> C | e.send_r -> C1 | e.ack_r -> C) + {e.send_s, e.ack_s, e.send_r, e.ack_r}.
+
+A = (e.send_s -> A_1 | e.ack_s -> A_9 | e.ack_r -> A_9),
+A_1 = (e.send_r -> A_4 | e.send_s -> A_9 | e.ack_r -> A_9),
+A_4 = (e.ack_r -> A_7 | e.send_s -> A_9 | e.send_r -> A_9),
+A_5 = (e.send_s -> A_7 | e.ack_s -> A_9 | e.ack_r -> A_9),
+A_7 = (e.ack_s -> A | e.send_s -> A_9 | e.ack_r -> A_9),
+A_8 = (e.ack_r -> A_1 | e.send_s -> A_9 | e.send_r -> A_9),
+A_9 = (e.send_s -> A_9 | e.ack_s -> A_9 | e.send_r -> A_9 | e.ack_r -> A_9).
+
+// Loss-1 channel results
+A = (e.send_s -> A_1 | e.ack_s -> A_13 | e.ack_r -> A_13),
+A_1 = (e.send_s -> A_3 | e.send_r -> A_5 | e.ack_r -> A_13),
+A_3 = (e.send_r -> A_7 | e.send_s -> A_13 | e.ack_r -> A_13),
+A_5 = (e.send_s -> A_7 | e.ack_r -> A_9 | e.send_r -> A_13),
+A_6 = (e.send_s -> A_9 | e.ack_s -> A_13 | e.ack_r -> A_13),
+A_7 = (e.ack_r -> A_10 | e.send_s -> A_13 | e.send_r -> A_13),
+A_9 = (e.send_s -> A_10 | e.ack_s -> A | e.ack_r -> A_13),
+A_10 = (e.ack_s -> A | e.send_s -> A_13 | e.ack_r -> A_13),
+A_11 = (e.send_s -> A_12 | e.ack_r -> A_1 | e.send_r -> A_13),
+A_12 = (e.ack_r -> A_3 | e.send_s -> A_13 | e.send_r -> A_13),
+A_13 = (e.send_s -> A_13 | e.ack_s -> A_13 | e.send_r -> A_13 | e.ack_r -> A_13).
