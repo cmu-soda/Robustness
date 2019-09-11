@@ -9,11 +9,11 @@ fun main() {
 //  val M2 = "Output = (send -> SEND), SEND = (send -> SEND | output -> ack -> Output)."
 //  val P = "property Order = (input -> output -> Order)."
 
-  val M1 = "P_SENDER = (send_s -> ack_s -> P_SENDER).\n" +
-      "RECEIVER = (send_r -> ack_r -> RECEIVER).\n" +
+  val M1 = "P_SENDER = (input -> e.send_s -> e.ack_s -> P_SENDER).\n" +
+      "RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).\n" +
       "||SYS = (P_SENDER || RECEIVER)."
-  val M2 = "P_CHANNEL = (send_s -> send_r -> ack_r -> ack_s -> P_CHANNEL)."
-  val P = "property P = (send_s -> P1), P1 = (send_s -> P1 | ack_s -> P)."
+  val M2 = "P_CHANNEL = (e.send_s -> e.send_r -> e.ack_r -> e.ack_s -> P_CHANNEL)."
+  val P = "property P = (input -> output -> P)."
 
   val lStar = LStar(M1, M2, P)
   lStar.run()

@@ -3,6 +3,9 @@ package edu.cmu.isr.ltsa.weakest
 import edu.cmu.isr.ltsa.LTSACall
 import lts.EventState
 import java.util.*
+import kotlin.math.min
+
+typealias Transitions = List<Triple<Int, Int, Int>>
 
 
 fun main() {
@@ -11,9 +14,9 @@ fun main() {
 //      "||SYS = (Mutex || Writer)."
 //  val property = "property P = (e.enterCS -> e.exitCS -> P | w.enterCS -> w.exitCS -> P)."
 
-  val sys = "L1_SENDER = (input -> e.send_s -> (e.send_s -> e.ack_s -> L1_SENDER | e.ack_s -> L1_SENDER)).\n" +
+  val sys = "P_SENDER = (input -> e.send_s -> e.ack_s -> P_SENDER).\n" +
       "RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).\n" +
-      "||SYS = (L1_SENDER || RECEIVER)."
+      "||SYS = (P_SENDER || RECEIVER)."
   val property = "property P = (input -> output -> P)."
 
   var sm = step1(sys, property)
@@ -70,7 +73,7 @@ private fun step2(sm: StateMachine): StateMachine {
   }
   // Eliminate the states that are not backward reachable from the error state
   val reachable = getReachable(setOf(-1), trans)
-  trans = trans.filter { it.first in reachable }
+  trans = trans.filter { it.first in reachable && it.third in reachable }
   // Remove duplicate transitions
   trans = removeDuplicate(trans)
   return StateMachine(trans, sm.alphabet)
@@ -80,7 +83,8 @@ private fun step2(sm: StateMachine): StateMachine {
 private fun step3(sm: StateMachine): StateMachine {
   val tau = sm.alphabet.indexOf("tau")
   // tau elimination
-  val nfaTrans = sm.transitions.filter { it.second != tau }
+//  val nfaTrans = sm.transitions.filter { it.second != tau }
+  val nfaTrans = tauElimination(sm.transitions, tau)
   // subset construction
   val (dfa, dfaStates) = subsetConstruct(nfaTrans, sm.alphabet)
   // make complete
@@ -105,7 +109,7 @@ private fun step3(sm: StateMachine): StateMachine {
   return StateMachine(trans, sm.alphabet)
 }
 
-private class StateMachine(val transitions: List<Triple<Int, Int, Int>>, val alphabet: Array<String>) {
+private class StateMachine(val transitions: Transitions, val alphabet: Array<String>) {
   override fun toString(): String {
     return transitions.map { Triple(it.first, this.alphabet[it.second], it.third) }.joinToString("\n")
   }
@@ -125,7 +129,7 @@ private class StateMachine(val transitions: List<Triple<Int, Int, Int>>, val alp
   }
 }
 
-private fun getReachable(initial: Set<Int>, trans: List<Triple<Int, Int, Int>>) : Set<Int> {
+private fun getReachable(initial: Set<Int>, trans: Transitions): Set<Int> {
   var reachable = initial
   while (true) {
     val s = reachable union trans.filter { it.third in reachable }.map { it.first }
@@ -135,7 +139,27 @@ private fun getReachable(initial: Set<Int>, trans: List<Triple<Int, Int, Int>>) 
   }
 }
 
-private fun subsetConstruct(nfaTrans: List<Triple<Int, Int, Int>>, alphabet: Array<String>)
+private fun tauElimination(trans: Transitions, tau: Int): Transitions {
+  var ts = trans.toMutableList()
+  while (true) {
+    val t = ts.find { it.second == tau } ?: break
+    val s = min(t.first, t.third)
+    ts.remove(t)
+    ts = ts.map {
+      var copy = it
+      if (it.first == t.first || it.first == t.third) {
+        copy = copy.copy(first = s)
+      }
+      if (it.third == t.first || it.third == t.third) {
+        copy = copy.copy(third = s)
+      }
+      copy
+    }.toMutableList()
+  }
+  return removeDuplicate(ts)
+}
+
+private fun subsetConstruct(nfaTrans: Transitions, alphabet: Array<String>)
     : Pair<StateMachine, List<Set<Int>>> {
   val dfaStates = mutableListOf(setOf(0))  // initial state of the DFA is {0}
   val dfaTrans = mutableListOf<Triple<Int, Int, Int>>()
@@ -162,7 +186,7 @@ private fun subsetConstruct(nfaTrans: List<Triple<Int, Int, Int>>, alphabet: Arr
   return Pair(StateMachine(dfaTrans, alphabet), dfaStates)
 }
 
-private fun removeDuplicate(trans: List<Triple<Int, Int, Int>>): List<Triple<Int, Int, Int>> {
+private fun removeDuplicate(trans: Transitions): Transitions {
   return trans.fold(mutableListOf()) { l, t ->
     if (!l.contains(t))
       l.add(t)
@@ -170,6 +194,6 @@ private fun removeDuplicate(trans: List<Triple<Int, Int, Int>>): List<Triple<Int
   }
 }
 
-private fun nextState(trans: List<Triple<Int, Int, Int>>, s: Int, a: Int): List<Int> {
+private fun nextState(trans: Transitions, s: Int, a: Int): List<Int> {
   return trans.filter { it.first == s && it.second == a }.map { it.third }
 }
