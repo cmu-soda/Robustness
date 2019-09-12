@@ -11,6 +11,11 @@ A_8 = (e.ack_r -> A_1 | e.send_s -> A_9 | e.send_r -> A_9),
 A_9 = (e.send_s -> A_9 | e.ack_s -> A_9 | e.send_r -> A_9 | e.ack_r -> A_9).
 
 // Loss-1 channel results
+C = (e.send_s -> C1 | e.ack_s -> C | e.ack_r -> C),
+C1 = (e.send_s -> C1 | e.send_r -> C2 | e.ack_r -> C),
+C2 = (e.send_s -> C1 | e.send_r -> C | e.ack_r -> C3),
+C3 = (e.send_s -> C | e.ack_s -> C | e.ack_r -> C) + {e.send_s, e.ack_s, e.send_r, e.ack_r}.
+
 A = (e.send_s -> A_1 | e.ack_s -> A_13 | e.ack_r -> A_13),
 A_1 = (e.send_s -> A_3 | e.send_r -> A_5 | e.ack_r -> A_13),
 A_3 = (e.send_r -> A_7 | e.send_s -> A_13 | e.ack_r -> A_13),

@@ -48,7 +48,7 @@ class LStar(val M1: String, val M2: String, val P: String) {
       } else {
         println("========== Counterexample found with environment M2 ==========\n$counterExample")
         val projected = counterExample.filter { it in Σ }
-        val A_c = "AC = (${projected.joinToString(" -> ")} -> AC) + {${Σ.joinToString(", ")}}."
+        val A_c = "AC = (${projected.joinToString(" -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
         val check = ltsaCall.propertyCheck(
           ltsaCall.doCompile("$A_c\n$M1\n$P\n||Composite = (AC || $nameM1 || $nameP).", "Composite")
         )
@@ -217,7 +217,7 @@ class LStar(val M1: String, val M2: String, val P: String) {
     }
 
     val ltsaCall = LTSACall()
-    val fsp = "A = (${σ.replace(",", " -> ")} -> A) + {${Σ.joinToString(", ")}}."
+    val fsp = "A = (${σ.replace(",", " -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
     return ltsaCall.propertyCheck(
       ltsaCall.doCompile("$fsp\n$M1\n$P\n||Composite = (A || $nameM1 || $nameP).", "Composite")
     ) == null
