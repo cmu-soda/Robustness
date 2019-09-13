@@ -19,10 +19,20 @@ fun main() {
 //      "||SYS = (P_SENDER || RECEIVER)."
 //  val property = "property P = (input -> output -> P)."
 
-  val sys = "L1_SENDER = (input -> e.send_s -> (e.send_s -> e.ack_s -> L1_SENDER | e.ack_s -> L1_SENDER)).\n" +
-      "RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).\n" +
-      "||SYS = (L1_SENDER || RECEIVER)."
+//  val sys = "L1_SENDER = (input -> e.send_s -> (e.send_s -> e.ack_s -> L1_SENDER | e.ack_s -> L1_SENDER)).\n" +
+//      "RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).\n" +
+//      "||SYS = (L1_SENDER || RECEIVER)."
+//  val property = "property P = (input -> output -> P)."
+
+  val sys = "SENDER = (input -> e.send -> (timeout -> e.send -> e.getack -> SENDER | e.getack -> SENDER)).\n" +
+      "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
+      "||SYS = (SENDER || RECEIVER)."
   val property = "property P = (input -> output -> P)."
+
+//  val sys = "SENDER = (input -> e.send -> e.getack -> SENDER).\n" +
+//      "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
+//      "||SYS = (SENDER || RECEIVER)."
+//  val property = "property P = (input -> output -> P)."
 
   var sm = step1(sys, property)
   sm = step2(sm)
@@ -93,19 +103,9 @@ private fun step3(sm: StateMachine): StateMachine {
   // subset construction
   val (dfa, dfaStates) = subsetConstruct(nfaTrans, sm.alphabet)
   // make complete
-  var trans = dfa.transitions.toMutableList()
-  val i_alphabet = sm.alphabet.indices.filter { it != tau }
-  val theta = dfaStates.size
-  for (s in dfaStates.indices) {
-    for (a in i_alphabet) {
-      if (trans.find { it.first == s && it.second == a } == null) {
-        trans.add(Triple(s, a, theta))
-      }
-    }
-  }
-  for (a in i_alphabet) {
-    trans.add(Triple(theta, a, theta))
-  }
+  // TODO(uncomment to enable makeComplete)
+  var trans = makeComplete(dfa, dfaStates, tau)
+//  var trans = dfa.transitions
   // delete all error states
   val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
   trans = trans.filter { it.first !in errStates && it.third !in errStates }.toMutableList()
@@ -132,6 +132,23 @@ private class StateMachine(val transitions: Transitions, val alphabet: Array<Str
   private fun processName(i: Int): String {
     return if (i == 0) "A" else "A_${i}"
   }
+}
+
+private fun makeComplete(dfa: StateMachine, dfaStates: List<Set<Int>>, tau: Int): Transitions {
+  val trans = dfa.transitions.toMutableList()
+  val i_alphabet = dfa.alphabet.indices.filter { it != tau }
+  val theta = dfaStates.size
+  for (s in dfaStates.indices) {
+    for (a in i_alphabet) {
+      if (trans.find { it.first == s && it.second == a } == null) {
+        trans.add(Triple(s, a, theta))
+      }
+    }
+  }
+  for (a in i_alphabet) {
+    trans.add(Triple(theta, a, theta))
+  }
+  return trans
 }
 
 private fun getReachable(initial: Set<Int>, trans: Transitions): Set<Int> {
