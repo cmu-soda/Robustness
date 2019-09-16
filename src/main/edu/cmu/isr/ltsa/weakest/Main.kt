@@ -14,25 +14,15 @@ fun main() {
 //      "||SYS = (Mutex || Writer)."
 //  val property = "property P = (e.enterCS -> e.exitCS -> P | w.enterCS -> w.exitCS -> P)."
 
-//  val sys = "P_SENDER = (input -> e.send_s -> e.ack_s -> P_SENDER).\n" +
-//      "RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).\n" +
-//      "||SYS = (P_SENDER || RECEIVER)."
-//  val property = "property P = (input -> output -> P)."
-
-//  val sys = "L1_SENDER = (input -> e.send_s -> (e.send_s -> e.ack_s -> L1_SENDER | e.ack_s -> L1_SENDER)).\n" +
-//      "RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).\n" +
+//  val sys = "L1_SENDER = (input -> e.send -> (timeout -> e.send -> e.getack -> L1_SENDER | e.getack -> L1_SENDER)).\n" +
+//      "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
 //      "||SYS = (L1_SENDER || RECEIVER)."
 //  val property = "property P = (input -> output -> P)."
 
-  val sys = "SENDER = (input -> e.send -> (timeout -> e.send -> e.getack -> SENDER | e.getack -> SENDER)).\n" +
+  val sys = "SENDER = (input -> e.send -> e.getack -> SENDER).\n" +
       "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
       "||SYS = (SENDER || RECEIVER)."
   val property = "property P = (input -> output -> P)."
-
-//  val sys = "SENDER = (input -> e.send -> e.getack -> SENDER).\n" +
-//      "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
-//      "||SYS = (SENDER || RECEIVER)."
-//  val property = "property P = (input -> output -> P)."
 
   var sm = step1(sys, property)
   sm = step2(sm)
@@ -104,8 +94,8 @@ private fun step3(sm: StateMachine): StateMachine {
   val (dfa, dfaStates) = subsetConstruct(nfaTrans, sm.alphabet)
   // make complete
   // TODO(uncomment to enable makeComplete)
-  var trans = makeComplete(dfa, dfaStates, tau)
-//  var trans = dfa.transitions
+//  var trans = makeComplete(dfa, dfaStates, tau)
+  var trans = dfa.transitions
   // delete all error states
   val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
   trans = trans.filter { it.first !in errStates && it.third !in errStates }.toMutableList()

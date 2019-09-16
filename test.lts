@@ -1,20 +1,18 @@
-P_SENDER = (input -> e.send_s -> e.ack_s -> P_SENDER).
+SENDER = (input -> e.send -> e.getack -> SENDER).
+L1_SENDER = (input -> e.send -> (timeout -> e.send -> e.getack -> L1_SENDER | e.getack -> L1_SENDER)).
+RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).
 
-L1_SENDER = (input -> e.send_s ->
-    (e.send_s -> e.ack_s -> L1_SENDER | e.ack_s -> L1_SENDER)
-).
+CHANNEL = (send -> rec -> ack -> getack -> CHANNEL).
+L1_CHANNEL = (send -> rec -> ack -> getack -> L1_CHANNEL
+            // It is possible to drop, but after a drop, the next send is guaranteed to succeed.
+            | send -> drop -> send -> rec -> ack -> getack -> L1_CHANNEL).
 
-RECEIVER = (e.send_r -> output -> e.ack_r -> RECEIVER).
-
-P_CHANNEL = (e.send_s -> e.send_r -> e.ack_r -> e.ack_s -> P_CHANNEL).
-
-LOSS_1_CHANNEL = (e.send_s ->
-    (e.send_r -> e.ack_r -> e.ack_s -> LOSS_1_CHANNEL
-   | e.drop -> e.send_s -> e.send_r -> e.ack_r -> e.ack_s -> LOSS_1_CHANNEL)
-).
+range B 0..1
+L1_CHANNEL2 = (send -> )
 
 property P = (input -> output -> P).
 
-||SYS1 = (P_SENDER || RECEIVER || P_CHANNEL || P).
-||SYS2 = (P_SENDER || RECEIVER || LOSS_1_CHANNEL || P).
-||SYS3 = (L1_SENDER || RECEIVER || LOSS_1_CHANNEL || P).
+||T1 = (SENDER || RECEIVER || e:CHANNEL || P).
+||T2 = (SENDER || RECEIVER || e:L1_CHANNEL || P).
+||T3 = (L1_SENDER || RECEIVER || e:CHANNEL || P).
+||T4 = (L1_SENDER || RECEIVER || e:L1_CHANNEL || P).

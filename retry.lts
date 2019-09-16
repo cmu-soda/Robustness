@@ -1,8 +1,0 @@
-TRANSMITTER = (accept -> send -> WAIT),
-WAIT = (ack -> TRANSMITTER | timeout -> send -> ack -> TRANSMITTER).
-
-RECEIVER = (rec -> deliver -> reply -> RECEIVER).
-
-CHANNEL = (in -> lose -> in -> out -> CHANNEL | in -> out -> CHANNEL).
-
-||SYS = (TRANSMITTER || RECEIVER || CHANNEL)/{send/in, rec/out, reply/ack, timeout/lose}.
