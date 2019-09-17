@@ -7,9 +7,6 @@ L1_CHANNEL = (send -> rec -> ack -> getack -> L1_CHANNEL
             // It is possible to drop, but after a drop, the next send is guaranteed to succeed.
             | send -> drop -> send -> rec -> ack -> getack -> L1_CHANNEL).
 
-range B 0..1
-L1_CHANNEL2 = (send -> )
-
 property P = (input -> output -> P).
 
 ||T1 = (SENDER || RECEIVER || e:CHANNEL || P).
