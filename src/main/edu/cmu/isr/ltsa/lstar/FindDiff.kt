@@ -2,14 +2,31 @@ package edu.cmu.isr.ltsa.lstar
 
 import edu.cmu.isr.ltsa.LTSACall
 
-class LStar(val M1: String, val M2: String, val P: String) {
+private typealias Transition = Set<Triple<String, String, String>>
+
+fun main() {
+  // Find a state machine L(C) = L(M2) - L(M1).
+  val M1 = "P_ENV = (e.send -> A_3 | e.rec -> A_1),\n" +
+      "A_1 = (e.send -> A_2 | e.ack -> P_ENV),\n" +
+      "A_2 = (e.getack -> A_1 | e.ack -> A_3),\n" +
+      "A_3 = (e.getack -> P_ENV | e.rec -> A_2)."
+  val M2 = "L1_ENV = (e.send -> A_1 | e.rec -> A_2),\n" +
+      "A_1 = (e.send -> A_3 | e.getack -> L1_ENV | e.rec -> A_4),\n" +
+      "A_2 = (e.send -> A_4 | e.ack -> L1_ENV),\n" +
+      "A_3 = (e.getack -> L1_ENV | e.rec -> A_5),\n" +
+      "A_4 = (e.send -> A_5 | e.getack -> A_2 | e.ack -> A_1),\n" +
+      "A_5 = (e.getack -> A_2 | e.ack -> A_3)."
+
+  FindDiffLStar(M1, M2).run()
+}
+
+private class FindDiffLStar(val M1: String, val M2: String) {
   private val Σ: Set<String>
   private val S = mutableSetOf<String>("")
   private val E = mutableSetOf<String>("")
   private val T = mutableMapOf<String, Boolean>("" to true)
   private val nameM1: String
   private val nameM2: String
-  private val nameP: String
 
   init {
     println("========== Parsing the alphabets ==========")
@@ -22,47 +39,13 @@ class LStar(val M1: String, val M2: String, val P: String) {
     val αM2 = ltsaCall.getAllAlphabet(sm)
     nameM2 = ltsaCall.getCompositeName(sm)
 
-    sm = ltsaCall.doCompile(P)
-    val αP = ltsaCall.getAllAlphabet(sm)
-    nameP = ltsaCall.getCompositeName(sm)
-
     println("========== M1, M2, P model information ==========")
-    println("Machines: M1 = $nameM1, M2 = $nameM2, P = $nameP")
-    Σ = (αM1 union αP) intersect αM2
+    println("Machines: M1 = $nameM1, M2 = $nameM2")
+    Σ = (αM1 union αM2)
     println("Σ of the language: $Σ")
   }
 
-  fun run(): String {
-    val ltsaCall = LTSACall()
-    while (true) {
-      println("========== Find assumption for M1 ==========")
-      val A = lstar()
-      val A_fsp = conjectureToFSP(A)
-      println("========== Validate conjecture assumption with the environment M2 ==========")
-      val counterExample = ltsaCall.propertyCheck(
-        ltsaCall.doCompile("$M2\nproperty $A_fsp\n||Composite = ($nameM2 || C).", "Composite")
-      )
-      if (counterExample == null) {
-        println("========== Find the weakest assumption for M1 ==========\n$A_fsp")
-        return A_fsp
-      } else {
-        println("========== Counterexample found with environment M2 ==========\n$counterExample")
-        val projected = counterExample.filter { it in Σ }
-        val A_c = "AC = (${projected.joinToString(" -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
-        val check = ltsaCall.propertyCheck(
-          ltsaCall.doCompile("$A_c\n$M1\n$P\n||Composite = (AC || $nameM1 || $nameP).", "Composite")
-        )
-        if (check == null) {
-          println("========== Weaken the assumption for M1 ==========")
-          witnessOfCounterExample(A, projected)
-        } else {
-          throw Error("P is violated in M1 || M2.")
-        }
-      }
-    }
-  }
-
-  fun lstar(): Set<Triple<String, String, String>> {
+  fun run(): Transition {
     while (true) {
       update_T_withQueries()
       while (true) {
@@ -81,6 +64,63 @@ class LStar(val M1: String, val M2: String, val P: String) {
         witnessOfCounterExample(C, counterExample)
       }
     }
+  }
+
+  private fun update_T_withQueries() {
+    // Update T by making membership queries on (S \cup S . Σ) . E
+    val queries = (S union S.flatMap { s -> Σ.map { a -> concat(s, a) } })
+      .flatMap { s -> E.map { e -> concat(s, e) } }
+    for (query in queries) {
+      T[query] = membershipQuery(query)
+    }
+    println("========== Updated T ==========")
+    println(T)
+  }
+
+  /**
+   * @param σ: the membership query to answer.
+   */
+  private fun membershipQuery(σ: String): Boolean {
+    if (σ in T) {
+      return T[σ]!!
+    }
+    val splited = σ.split(",")
+    for (i in splited.indices) {
+      val subQuery = splited.subList(0, i + 1).joinToString(",")
+      if (subQuery in T && T[subQuery] == false) {
+        return false
+      }
+    }
+
+    val ltsaCall = LTSACall()
+    val alphabet = Σ.joinToString(", ")
+    val fsp = "A = (${σ.replace(",", " -> ")} -> STOP) + {$alphabet}."
+    val m1 = "$fsp\nproperty ${M1.slice(0 until M1.length - 1)}@{$alphabet}.\n||Composite = (A || $nameM1)."
+    val inM1 = ltsaCall.propertyCheck(ltsaCall.doCompile(m1, "Composite")) == null
+    val m2 = "$fsp\nproperty ${M2.slice(0 until M2.length - 1)}@{$alphabet}.\n||Composite = (A || $nameM2)."
+    val inM2 = ltsaCall.propertyCheck(ltsaCall.doCompile(m2, "Composite")) == null
+    return inM2 && !inM1
+  }
+
+  private fun isClosed(): Set<String> {
+    val sa = mutableSetOf<String>()
+    // (S, E, T) is closed when \forall s \in S, \forall a \in Σ, \exists s' \in S, \forall e \in E: T(sae) = T(s'e)
+    S.forall { s ->
+      Σ.forall { a ->
+        val re = S.exists { s_ -> E.forall { e -> T[concat(s, a, e)] == T[concat(s_, e)] } }
+        // if (S, E, T) is not closed, add sa to S.
+        if (!re) {
+          sa.add(concat(s, a))
+        }
+        re
+      }
+    }
+    if (sa.isEmpty()) {
+      println("(S, E, T) is closed.")
+    } else {
+      println("(S, E, T) is not closed, add $sa to S.")
+    }
+    return sa
   }
 
   private fun witnessOfCounterExample(C: Set<Triple<String, String, String>>, counterExample: List<String>) {
@@ -112,9 +152,7 @@ class LStar(val M1: String, val M2: String, val P: String) {
   private fun checkCorrectness(C: Set<Triple<String, String, String>>): List<String>? {
     val ltsaCall = LTSACall()
     val fsp = conjectureToFSP(C)
-    return ltsaCall.propertyCheck(
-      ltsaCall.doCompile("$fsp\n$M1\n$P\n||Composite = (C || $nameM1 || $nameP).", "Composite")
-    )
+    TODO("Should include all the traces of M2 except that the trace is also in M1")
   }
 
   private fun buildConjecture(): Set<Triple<String, String, String>> {
@@ -167,60 +205,6 @@ class LStar(val M1: String, val M2: String, val P: String) {
     C.append('.')
     println("Constructed state machine:\n$C")
     return C.toString()
-  }
-
-  private fun isClosed(): Set<String> {
-    val sa = mutableSetOf<String>()
-    // (S, E, T) is closed when \forall s \in S, \forall a \in Σ, \exists s' \in S, \forall e \in E: T(sae) = T(s'e)
-    S.forall { s ->
-      Σ.forall { a ->
-        val re = S.exists { s_ -> E.forall { e -> T[concat(s, a, e)] == T[concat(s_, e)] } }
-        // if (S, E, T) is not closed, add sa to S.
-        if (!re) {
-          sa.add(concat(s, a))
-        }
-        re
-      }
-    }
-    if (sa.isEmpty()) {
-      println("(S, E, T) is closed.")
-    } else {
-      println("(S, E, T) is not closed, add $sa to S.")
-    }
-    return sa
-  }
-
-  private fun update_T_withQueries() {
-    // Update T by making membership queries on (S \cup S . Σ) . E
-    val queries = (S union S.flatMap { s -> Σ.map { a -> concat(s, a) } })
-      .flatMap { s -> E.map { e -> concat(s, e) } }
-    for (query in queries) {
-      T[query] = membershipQuery(query)
-    }
-    println("========== Updated T ==========")
-    println(T)
-  }
-
-  /**
-   * @param σ: the membership query to answer.
-   */
-  private fun membershipQuery(σ: String): Boolean {
-    if (σ in T) {
-      return T[σ]!!
-    }
-    val splited = σ.split(",")
-    for (i in splited.indices) {
-      val subQuery = splited.subList(0, i + 1).joinToString(",")
-      if (subQuery in T && T[subQuery] == false) {
-        return false
-      }
-    }
-
-    val ltsaCall = LTSACall()
-    val fsp = "A = (${σ.replace(",", " -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
-    return ltsaCall.propertyCheck(
-      ltsaCall.doCompile("$fsp\n$M1\n$P\n||Composite = (A || $nameM1 || $nameP).", "Composite")
-    ) == null
   }
 
   private fun concat(vararg words: String): String {

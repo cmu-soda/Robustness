@@ -1,4 +1,4 @@
-package edu.cmu.isr.ltsa
+package edu.cmu.isr.ltsa.weakest
 
 import java.util.*
 import kotlin.math.min

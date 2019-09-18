@@ -1,7 +1,6 @@
 package edu.cmu.isr.ltsa.weakest
 
 import edu.cmu.isr.ltsa.LTSACall
-import edu.cmu.isr.ltsa.StateMachine
 import lts.EventState
 
 fun main() {
