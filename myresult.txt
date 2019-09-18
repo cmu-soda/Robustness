@@ -1,13 +1,18 @@
-// Allowed behavior of env for perfect sender and receiver
-A = (e.send -> A_3 | e.rec -> A_1),
-A_1 = (e.send -> A_2 | e.ack -> A),
-A_2 = (e.getack -> A_1 | e.ack -> A_3),
-A_3 = (e.getack -> A | e.rec -> A_2).
+PERFECT_ENV = (e.send -> PERFECT_ENV_3 | e.rec -> PERFECT_ENV_1),
+PERFECT_ENV_1 = (e.send -> PERFECT_ENV_2 | e.ack -> PERFECT_ENV),
+PERFECT_ENV_2 = (e.getack -> PERFECT_ENV_1 | e.ack -> PERFECT_ENV_3),
+PERFECT_ENV_3 = (e.getack -> PERFECT_ENV | e.rec -> PERFECT_ENV_2)+{e.send, e.getack, e.drop, e.rec, e.ack}.
 
-// Allowed behavior of env for loss-1 sender and receiver
-LA = (e.send -> A_1 | e.rec -> A_2),
-A_1 = (e.send -> A_3 | e.getack -> LA | e.rec -> A_4),
-A_2 = (e.send -> A_4 | e.ack -> LA),
-A_3 = (e.getack -> LA | e.rec -> A_5),
-A_4 = (e.send -> A_5 | e.getack -> A_2 | e.ack -> A_1),
-A_5 = (e.getack -> A_2 | e.ack -> A_3).
+L1_ENV = (e.send -> L1_ENV_7 | e.rec -> L1_ENV_1),
+L1_ENV_1 = (e.send -> L1_ENV_2 | e.ack -> L1_ENV),
+L1_ENV_2 = (e.drop -> L1_ENV_3 | e.getack -> L1_ENV_1 | e.ack -> L1_ENV_7),
+L1_ENV_3 = (e.send -> L1_ENV_4 | e.ack -> L1_ENV_6),
+L1_ENV_4 = (e.getack -> L1_ENV_1 | e.ack -> L1_ENV_5),
+L1_ENV_5 = (e.getack -> L1_ENV | e.rec -> L1_ENV_4),
+L1_ENV_6 = (e.send -> L1_ENV_5 | e.rec -> L1_ENV_3),
+L1_ENV_7 = (e.drop -> L1_ENV_6 | e.getack -> L1_ENV | e.rec -> L1_ENV_2)+{e.send, e.drop, e.getack, e.rec, e.ack}.
+
+LN_ENV = (e.send -> LN_ENV_3 | e.rec -> LN_ENV_1),
+LN_ENV_1 = (e.send -> LN_ENV_2 | e.ack -> LN_ENV),
+LN_ENV_2 = (e.getack -> LN_ENV_1 | e.drop -> LN_ENV_1 | e.ack -> LN_ENV_3),
+LN_ENV_3 = (e.getack -> LN_ENV | e.drop -> LN_ENV | e.rec -> LN_ENV_2)+{e.send, e.getack, e.drop, e.rec, e.ack}.

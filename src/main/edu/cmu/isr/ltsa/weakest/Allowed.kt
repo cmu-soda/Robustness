@@ -4,16 +4,23 @@ import edu.cmu.isr.ltsa.LTSACall
 import lts.EventState
 
 fun main() {
-//  val sys = "SENDER = (input -> e.send -> e.getack -> SENDER).\n" +
+//  val sys = "SENDER = (input -> e.send -> e.getack -> SENDER)+{e.drop}.\n" +
 //      "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
 //      "||SYS = (SENDER || RECEIVER)."
+//  print(exposeEnv(sys).buildFSP("PERFECT_ENV"))
 
-  val sys = "L1_SENDER = (input -> e.send -> (timeout -> e.send -> e.getack -> L1_SENDER | e.getack -> L1_SENDER)).\n" +
+//  val sys = "L1_SENDER = (input -> e.send -> (e.drop -> e.send -> e.getack -> L1_SENDER | e.getack -> L1_SENDER)).\n" +
+//      "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
+//      "||SYS = (L1_SENDER || RECEIVER)."
+//  print(exposeEnv(sys).buildFSP("L1_ENV"))
+
+  val sys = "LN_SENDER = (input -> SEND),\n" +
+      "SEND = (e.send -> WAIT),\n" +
+      "WAIT = (e.getack -> LN_SENDER | e.drop -> SEND).\n" +
       "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
-      "||SYS = (L1_SENDER || RECEIVER)."
+      "||SYS = (LN_SENDER || RECEIVER)."
+  print(exposeEnv(sys).buildFSP("LN_ENV"))
 
-  val sm = exposeEnv(sys)
-  print(sm.buildFSP())
 }
 
 fun exposeEnv(sys: String): StateMachine {

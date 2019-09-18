@@ -10,19 +10,19 @@ class StateMachine(val transitions: Transitions, val alphabet: Array<String>) {
     return transitions.map { Triple(it.first, this.alphabet[it.second], it.third) }.joinToString("\n")
   }
 
-  fun buildFSP(): String {
+  fun buildFSP(name: String = "A"): String {
+    fun processName(i: Int): String {
+      return if (i == 0) name else "${name}_${i}"
+    }
+
     val groups = transitions.groupBy { it.first }
     val fsp = groups.map { entry ->
-      val name = if (entry.key == 0) "A" else "A_${entry.key}"
       val processes = entry.value.joinToString(" | ") { "${alphabet[it.second]} -> ${processName(it.third)}" }
       "${processName(entry.key)} = ($processes)"
     }.joinToString(",\n")
-    return "$fsp.\n"
+    return "$fsp+{${alphabet.filter { it != "tau" }.joinToString(", ")}}.\n"
   }
 
-  private fun processName(i: Int): String {
-    return if (i == 0) "A" else "A_${i}"
-  }
 }
 
 fun getReachable(initial: Set<Int>, trans: Transitions): Set<Int> {
