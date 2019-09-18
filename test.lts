@@ -2,14 +2,44 @@ SENDER = (input -> e.send -> e.getack -> SENDER).
 L1_SENDER = (input -> e.send -> (timeout -> e.send -> e.getack -> L1_SENDER | e.getack -> L1_SENDER)).
 RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).
 
-CHANNEL = (send -> rec -> ack -> getack -> CHANNEL).
-L1_CHANNEL = (send -> rec -> ack -> getack -> L1_CHANNEL
-            // It is possible to drop, but after a drop, the next send is guaranteed to succeed.
-            | send -> drop -> send -> rec -> ack -> getack -> L1_CHANNEL).
+CHANNEL = (e.send -> e.rec -> e.ack -> e.getack -> CHANNEL).
 
-property P = (input -> output -> P).
+L1_CHANNEL1 = (e.send -> SEND),
+SEND = (e.rec -> ACK | e.send -> SEND),
+ACK = (e.ack -> GETACK | e.send -> ACK),
+GETACK = (e.getack -> L1_CHANNEL1 | e.send -> GETACK).
 
-||T1 = (SENDER || RECEIVER || e:CHANNEL || P).
-||T2 = (SENDER || RECEIVER || e:L1_CHANNEL || P).
-||T3 = (L1_SENDER || RECEIVER || e:CHANNEL || P).
-||T4 = (L1_SENDER || RECEIVER || e:L1_CHANNEL || P).
+range B = 0..1
+L1_CHANNEL2 = (e.send -> SEND | e.send -> DROP),
+DROP = (e.drop -> e.send -> SEND),
+SEND = (e.rec -> ACK | e.send -> SEND),
+ACK = (e.ack -> GETACK | e.send -> ACK),
+GETACK = (e.getack -> L1_CHANNEL2 | e.send -> GETACK).
+
+||SYS1 = (SENDER || RECEIVER || CHANNEL).
+||SYS2 = (SENDER || RECEIVER || L1_CHANNEL1).
+||SYS3 = (SENDER || RECEIVER || L1_CHANNEL2).
+||SYS4 = (L1_SENDER || RECEIVER || CHANNEL).
+||SYS5 = (L1_SENDER || RECEIVER || L1_CHANNEL1).
+||SYS6 = (L1_SENDER || RECEIVER || L1_CHANNEL2).
+
+// Allowed behavior of env for perfect sender and receiver
+property A = (e.send -> A_3 | e.rec -> A_1),
+A_1 = (e.send -> A_2 | e.ack -> A),
+A_2 = (e.getack -> A_1 | e.ack -> A_3),
+A_3 = (e.getack -> A | e.rec -> A_2).
+
+// Allowed behavior of env for loss-1 sender and receiver
+property LA = (e.send -> A_1 | e.rec -> A_2),
+A_1 = (e.send -> A_3 | e.getack -> LA | e.rec -> A_4),
+A_2 = (e.send -> A_4 | e.ack -> LA),
+A_3 = (e.getack -> LA | e.rec -> A_5),
+A_4 = (e.send -> A_5 | e.getack -> A_2 | e.ack -> A_1),
+A_5 = (e.getack -> A_2 | e.ack -> A_3).
+
+||T1 = (CHANNEL || A).
+||T2 = (CHANNEL || LA).
+||T3 = (L1_CHANNEL1 || A).
+||T4 = (L1_CHANNEL2 || A).
+||T5 = (L1_CHANNEL1 || LA).
+||T6 = (L1_CHANNEL2 || LA).
