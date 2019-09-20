@@ -16,8 +16,8 @@ fun main() {
 //  val property = "property P = (input -> output -> P)."
 
     val sys = "SENDER = (input -> e.send -> e.getack -> SENDER).\n" +
-            "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
-            "||SYS = (SENDER || RECEIVER)."
+        "RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).\n" +
+        "||SYS = (SENDER || RECEIVER)."
     val property = "property P = (input -> output -> P)."
 
     var sm = exposeEnv(sys, property)

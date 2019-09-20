@@ -66,7 +66,7 @@ fun tauElimination(trans: Transitions, tau: Int): Transitions {
 }
 
 fun subsetConstruct(nfaTrans: Transitions, alphabet: Array<String>)
-        : Pair<StateMachine, List<Set<Int>>> {
+    : Pair<StateMachine, List<Set<Int>>> {
     val dfaStates = mutableListOf(setOf(0))  // initial state of the DFA is {0}
     val dfaTrans = mutableListOf<Triple<Int, Int, Int>>()
     // create a queue for the new dfa states

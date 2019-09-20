@@ -7,15 +7,15 @@ private typealias Transition = Set<Triple<String, String, String>>
 fun main() {
     // Find a state machine L(C) = L(M2) - L(M1).
     val M1 = "P_ENV = (e.send -> A_3 | e.rec -> A_1),\n" +
-            "A_1 = (e.send -> A_2 | e.ack -> P_ENV),\n" +
-            "A_2 = (e.getack -> A_1 | e.ack -> A_3),\n" +
-            "A_3 = (e.getack -> P_ENV | e.rec -> A_2)."
+        "A_1 = (e.send -> A_2 | e.ack -> P_ENV),\n" +
+        "A_2 = (e.getack -> A_1 | e.ack -> A_3),\n" +
+        "A_3 = (e.getack -> P_ENV | e.rec -> A_2)."
     val M2 = "L1_ENV = (e.send -> A_1 | e.rec -> A_2),\n" +
-            "A_1 = (e.send -> A_3 | e.getack -> L1_ENV | e.rec -> A_4),\n" +
-            "A_2 = (e.send -> A_4 | e.ack -> L1_ENV),\n" +
-            "A_3 = (e.getack -> L1_ENV | e.rec -> A_5),\n" +
-            "A_4 = (e.send -> A_5 | e.getack -> A_2 | e.ack -> A_1),\n" +
-            "A_5 = (e.getack -> A_2 | e.ack -> A_3)."
+        "A_1 = (e.send -> A_3 | e.getack -> L1_ENV | e.rec -> A_4),\n" +
+        "A_2 = (e.send -> A_4 | e.ack -> L1_ENV),\n" +
+        "A_3 = (e.getack -> L1_ENV | e.rec -> A_5),\n" +
+        "A_4 = (e.send -> A_5 | e.getack -> A_2 | e.ack -> A_1),\n" +
+        "A_5 = (e.getack -> A_2 | e.ack -> A_3)."
 
     FindDiffLStar(M1, M2).run()
 }
