@@ -20,14 +20,14 @@ fun main() {
             "||SYS = (SENDER || RECEIVER)."
     val property = "property P = (input -> output -> P)."
 
-    var sm = step1(sys, property)
-    sm = step2(sm)
+    var sm = exposeEnv(sys, property)
+    sm = pruneError(sm)
     sm = step3(sm)
     println("========== Step3, Generated Assumption ==========")
     println(sm.buildFSP())
 }
 
-private fun step1(sys: String, property: String): StateMachine {
+fun exposeEnv(sys: String, property: String): StateMachine {
     val ltsaCall = LTSACall()
     // Compile the temporary spec to get all the alphabets.
     var composite = "$sys\n$property\n||Composite = (SYS || P)."
@@ -60,7 +60,7 @@ private fun step1(sys: String, property: String): StateMachine {
     return StateMachine(trans, m.alphabet)
 }
 
-private fun step2(sm: StateMachine): StateMachine {
+fun pruneError(sm: StateMachine): StateMachine {
     var trans = sm.transitions
     // Prune the states where the environment cannot prevent the error state from being entered
     // via one or more tau steps.
@@ -81,16 +81,15 @@ private fun step2(sm: StateMachine): StateMachine {
 }
 
 
-private fun step3(sm: StateMachine): StateMachine {
+fun step3(sm: StateMachine): StateMachine {
     val tau = sm.alphabet.indexOf("tau")
     // tau elimination
-//  val nfaTrans = sm.transitions.filter { it.second != tau }
     val nfaTrans = tauElimination(sm.transitions, tau)
     // subset construction
     val (dfa, dfaStates) = subsetConstruct(nfaTrans, sm.alphabet)
     // make complete
     // TODO(uncomment to enable makeComplete)
-    var trans = makeComplete(dfa, dfaStates, tau)
+    var trans = makeSinkState(dfa, dfaStates, tau)
 //  var trans = dfa.transitions
     // delete all error states
     val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
@@ -100,7 +99,7 @@ private fun step3(sm: StateMachine): StateMachine {
     return StateMachine(trans, sm.alphabet)
 }
 
-private fun makeComplete(dfa: StateMachine, dfaStates: List<Set<Int>>, tau: Int): Transitions {
+fun makeSinkState(dfa: StateMachine, dfaStates: List<Set<Int>>, tau: Int): Transitions {
     val trans = dfa.transitions.toMutableList()
     val i_alphabet = dfa.alphabet.indices.filter { it != tau }
     val theta = dfaStates.size

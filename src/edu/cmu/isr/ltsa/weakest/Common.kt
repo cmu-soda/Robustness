@@ -15,12 +15,22 @@ class StateMachine(val transitions: Transitions, val alphabet: Array<String>) {
             return if (i == 0) name else "${name}_${i}"
         }
 
+        val escaped = alphabet.map(::escapeEvent)
         val groups = transitions.groupBy { it.first }
         val fsp = groups.map { entry ->
-            val processes = entry.value.joinToString(" | ") { "${alphabet[it.second]} -> ${processName(it.third)}" }
+            val processes = entry.value.joinToString(" | ") { "${escaped[it.second]} -> ${processName(it.third)}" }
             "${processName(entry.key)} = ($processes)"
         }.joinToString(",\n")
-        return "$fsp+{${alphabet.filter { it != "tau" }.joinToString(", ")}}.\n"
+        return "$fsp+{${escaped.filter { it != "tau" }.joinToString(", ")}}.\n"
+    }
+
+    private fun escapeEvent(e: String): String {
+        val idx = e.lastIndexOf('.')
+        val suffix = e.substring(idx + 1)
+        if (suffix.toIntOrNull() != null) {
+            return "${e.substring(0, idx)}[$suffix]"
+        }
+        return e
     }
 
 }
