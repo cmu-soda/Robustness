@@ -71,9 +71,9 @@ fun exposeEnv(sys: String): StateMachine {
 fun determinate(sm: StateMachine): StateMachine {
   val tau = sm.alphabet.indexOf("tau")
   // tau elimination
-  val nfaTrans = tauElimination(sm.transitions, tau)
+  val nfaTrans = sm.transitions.tauElimination(tau)
   // subset construction
-  val (dfa, dfaStates) = subsetConstruct(nfaTrans, sm.alphabet)
+  val (dfa, dfaStates) = nfaTrans.subsetConstruct(sm.alphabet)
   var trans = dfa.transitions
   // delete all error states
   val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }

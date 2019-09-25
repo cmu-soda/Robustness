@@ -1,11 +1,37 @@
 package edu.cmu.isr.ltsa.weakest
 
+import lts.CompactState
+import lts.EventState
 import java.util.*
 import kotlin.math.min
 
 typealias Transitions = List<Triple<Int, Int, Int>>
 
-class StateMachine(val transitions: Transitions, val alphabet: Array<String>) {
+class StateMachine {
+    val transitions: Transitions
+    val alphabet: Array<String>
+
+    constructor(m: CompactState) {
+        val trans = mutableListOf<Triple<Int, Int, Int>>()
+        for (s in m.states.indices) {
+            for (a in m.alphabet.indices) {
+                val nexts: IntArray? = EventState.nextState(m.states[s], a)
+                if (nexts != null) {
+                    for (n in nexts) {
+                        trans.add(Triple(s, a, n))
+                    }
+                }
+            }
+        }
+        transitions = trans
+        alphabet = m.alphabet
+    }
+
+    constructor(transitions: Transitions, alphabet: Array<String>) {
+        this.transitions = transitions
+        this.alphabet = alphabet
+    }
+
     override fun toString(): String {
         return transitions.map { Triple(it.first, this.alphabet[it.second], it.third) }.joinToString("\n")
     }
@@ -35,18 +61,18 @@ class StateMachine(val transitions: Transitions, val alphabet: Array<String>) {
 
 }
 
-fun getReachable(initial: Set<Int>, trans: Transitions): Set<Int> {
+fun Transitions.getReachable(initial: Set<Int>): Set<Int> {
     var reachable = initial
     while (true) {
-        val s = reachable union trans.filter { it.third in reachable }.map { it.first }
+        val s = reachable union this.filter { it.third in reachable }.map { it.first }
         if (s.size == reachable.size)
             return reachable
         reachable = s
     }
 }
 
-fun tauElimination(trans: Transitions, tau: Int): Transitions {
-    var ts = trans.toMutableList()
+fun Transitions.tauElimination(tau: Int): Transitions {
+    var ts = this.toMutableList()
     while (true) {
         val t = ts.find { it.second == tau } ?: break
         val s = min(t.first, t.third)
@@ -62,10 +88,10 @@ fun tauElimination(trans: Transitions, tau: Int): Transitions {
             copy
         }.toMutableList()
     }
-    return removeDuplicate(ts)
+    return ts.removeDuplicate()
 }
 
-fun subsetConstruct(nfaTrans: Transitions, alphabet: Array<String>)
+fun Transitions.subsetConstruct(alphabet: Array<String>)
     : Pair<StateMachine, List<Set<Int>>> {
     val dfaStates = mutableListOf(setOf(0))  // initial state of the DFA is {0}
     val dfaTrans = mutableListOf<Triple<Int, Int, Int>>()
@@ -76,7 +102,7 @@ fun subsetConstruct(nfaTrans: Transitions, alphabet: Array<String>)
         val s = q.poll()
         val i_s = dfaStates.indexOf(s)
         for (a in alphabet.indices) {
-            val n = s.flatMap { nextState(nfaTrans, it, a) }.toSet()
+            val n = s.flatMap { this.nextState(it, a) }.toSet()
             if (n.isEmpty())
                 continue
             val i_n = if (n !in dfaStates) {
@@ -92,14 +118,14 @@ fun subsetConstruct(nfaTrans: Transitions, alphabet: Array<String>)
     return Pair(StateMachine(dfaTrans, alphabet), dfaStates)
 }
 
-fun removeDuplicate(trans: Transitions): Transitions {
-    return trans.fold(mutableListOf()) { l, t ->
+fun Transitions.removeDuplicate(): Transitions {
+    return this.fold(mutableListOf()) { l, t ->
         if (!l.contains(t))
             l.add(t)
         l
     }
 }
 
-fun nextState(trans: Transitions, s: Int, a: Int): List<Int> {
-    return trans.filter { it.first == s && it.second == a }.map { it.third }
+fun Transitions.nextState(s: Int, a: Int): List<Int> {
+    return this.filter { it.first == s && it.second == a }.map { it.third }
 }

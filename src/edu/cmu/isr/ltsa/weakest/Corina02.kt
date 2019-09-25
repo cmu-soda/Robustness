@@ -54,7 +54,7 @@ fun exposeEnv(sys: String, property: String): StateMachine {
             }
         }
     }
-    if (0 !in getReachable(setOf(-1), trans)) {
+  if (0 !in trans.getReachable(setOf(-1))) {
         throw Error("Error state is not reachable from the initial state, P holds under any environment.")
     }
     return StateMachine(trans, m.alphabet)
@@ -73,10 +73,10 @@ fun pruneError(sm: StateMachine): StateMachine {
         trans = trans.filter { it.first != s.first }.map { if (it.third == s.first) it.copy(third = -1) else it }
     }
     // Eliminate the states that are not backward reachable from the error state
-    val reachable = getReachable(setOf(-1), trans)
+  val reachable = trans.getReachable(setOf(-1))
     trans = trans.filter { it.first in reachable && it.third in reachable }
     // Remove duplicate transitions
-    trans = removeDuplicate(trans)
+  trans = trans.removeDuplicate()
     return StateMachine(trans, sm.alphabet)
 }
 
@@ -84,9 +84,9 @@ fun pruneError(sm: StateMachine): StateMachine {
 fun step3(sm: StateMachine): StateMachine {
     val tau = sm.alphabet.indexOf("tau")
     // tau elimination
-    val nfaTrans = tauElimination(sm.transitions, tau)
+  val nfaTrans = sm.transitions.tauElimination(tau)
     // subset construction
-    val (dfa, dfaStates) = subsetConstruct(nfaTrans, sm.alphabet)
+  val (dfa, dfaStates) = nfaTrans.subsetConstruct(sm.alphabet)
     // make complete
     // TODO(uncomment to enable makeComplete)
     var trans = makeSinkState(dfa, dfaStates, tau)
