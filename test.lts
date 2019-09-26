@@ -1,32 +1,25 @@
-SENDER = (input -> e.send -> e.getack -> SENDER)+{e.drop}.
+SENDER = (input -> send -> getack -> SENDER).
 
-L1_SENDER = (input -> e.send -> (e.drop -> e.send -> e.getack -> L1_SENDER | e.getack -> L1_SENDER)).
+L1_SENDER = (input -> send -> (timeout -> send -> getack -> L1_SENDER | getack -> L1_SENDER)).
 
 LN_SENDER = (input -> SEND),
-SEND = (e.send -> WAIT),
-WAIT = (e.getack -> LN_SENDER | e.drop -> SEND).
+SEND = (send -> WAIT),
+WAIT = (getack -> LN_SENDER | timeout -> SEND).
 
-RECEIVER = (e.rec -> output -> e.ack -> RECEIVER).
+RECEIVER = (rec -> output -> ack -> RECEIVER).
 
-PERFECT_ENV = (e.send -> PERFECT_ENV_3 | e.rec -> PERFECT_ENV_1),
-PERFECT_ENV_1 = (e.send -> PERFECT_ENV_2 | e.ack -> PERFECT_ENV),
-PERFECT_ENV_2 = (e.getack -> PERFECT_ENV_1 | e.ack -> PERFECT_ENV_3),
-PERFECT_ENV_3 = (e.getack -> PERFECT_ENV | e.rec -> PERFECT_ENV_2)+{e.send, e.getack, e.drop, e.rec, e.ack}.
+range B= 0..1
 
-L1_ENV = (e.send -> L1_ENV_7 | e.rec -> L1_ENV_1),
-L1_ENV_1 = (e.send -> L1_ENV_2 | e.ack -> L1_ENV),
-L1_ENV_2 = (e.drop -> L1_ENV_3 | e.getack -> L1_ENV_1 | e.ack -> L1_ENV_7),
-L1_ENV_3 = (e.send -> L1_ENV_4 | e.ack -> L1_ENV_6),
-L1_ENV_4 = (e.getack -> L1_ENV_1 | e.ack -> L1_ENV_5),
-L1_ENV_5 = (e.getack -> L1_ENV | e.rec -> L1_ENV_4),
-L1_ENV_6 = (e.send -> L1_ENV_5 | e.rec -> L1_ENV_3),
-L1_ENV_7 = (e.drop -> L1_ENV_6 | e.getack -> L1_ENV | e.rec -> L1_ENV_2)+{e.send, e.drop, e.getack, e.rec, e.ack}.
+INPUT = (input -> SENDING[0]),
+SENDING[b:B] = (send[b] -> SENDING[b]
+              | getack[b] -> input -> SENDING[!b]
+              | getack[!b] -> SENDING[b]).
 
-LN_ENV = (e.send -> LN_ENV_3 | e.rec -> LN_ENV_1),
-LN_ENV_1 = (e.send -> LN_ENV_2 | e.ack -> LN_ENV),
-LN_ENV_2 = (e.getack -> LN_ENV_1 | e.drop -> LN_ENV_1 | e.ack -> LN_ENV_3),
-LN_ENV_3 = (e.getack -> LN_ENV | e.drop -> LN_ENV | e.rec -> LN_ENV_2)+{e.send, e.getack, e.drop, e.rec, e.ack}.
+OUTPUT = (rec[0] -> output -> ACKING[0]),
+ACKING[b:B] = (ack[b] -> ACKING[b]
+             | rec[b] -> ACKING[b]
+             | rec[!b] -> output -> ACKING[!b]).
 
-||T1 = (PERFECT_ENV || L1_ENV).
-||T2 = (PERFECT_ENV || LN_ENV).
-||T3 = (L1_ENV || LN_ENV).
+ENV = (send -> rec -> ack -> getack -> ENV).
+
+property P = (input -> output -> P).

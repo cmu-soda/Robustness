@@ -1,24 +1,24 @@
 range B= 0..1
 
 INPUT = (input -> SENDING[0]),
-SENDING[b:B] = (e.send[b] -> SENDING[b]
-              | e.getack[b] -> input -> SENDING[!b]
-              | e.getack[!b] -> SENDING[b]).
+SENDING[b:B] = (send[b] -> SENDING[b]
+              | getack[b] -> input -> SENDING[!b]
+              | getack[!b] -> SENDING[b]).
 
-OUTPUT = (e.rec[0] -> output -> ACKING[0]),
-ACKING[b:B] = (e.ack[b] -> ACKING[b]
-             | e.rec[b] -> ACKING[b]
-             | e.rec[!b] -> output -> ACKING[!b]).
+OUTPUT = (rec[0] -> output -> ACKING[0]),
+ACKING[b:B] = (ack[b] -> ACKING[b]
+             | rec[b] -> ACKING[b]
+             | rec[!b] -> output -> ACKING[!b]).
 
 ||SYS = (INPUT || OUTPUT).
 
 ||SYS = (INPUT || OUTPUT)
-      / {e.trans.in/send, e.trans.out/rec, e.ack.in/ack, e.ack.out/getack}.
+      / {trans.in/send, trans.out/rec, ack.in/ack, ack.out/getack}.
 
 CHANNEL = (in[b:B] -> out[b] -> CHANNEL
          | in[b:B] -> lose -> CHANNEL).
 
-||ENV = (e.trans:CHANNEL || e.ack:CHANNEL).
+||ENV = (trans:CHANNEL || ack:CHANNEL).
 
 property P = (input -> output -> P).
 

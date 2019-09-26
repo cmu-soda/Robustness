@@ -4,16 +4,29 @@ import edu.cmu.isr.ltsa.LTSACall
 
 fun main() {
   val P = "property P = (input -> output -> P)."
-  val ENV = "PERFECT_CH = (send -> rec -> ack -> getack -> PERFECT_CH)."
-  val perfectSys = "SENDER = (input -> send -> getack -> SENDER).\n" +
-      "RECEIVER = (rec -> output -> ack -> RECEIVER).\n" +
+  val ENV = "ENV = (send[0..1] -> rec[0..1] -> ack[0..1] -> getack[0..1] -> ENV)."
+  val perfectSys = "SENDER = (input -> send[0..1] -> getack[0..1] -> SENDER).\n" +
+      "RECEIVER = (rec[0..1] -> output -> ack[0..1] -> RECEIVER).\n" +
       "||SYS = (SENDER || RECEIVER)."
-  val l1Sys = "L1_SENDER = (input -> send -> (timeout -> send -> getack -> L1_SENDER | getack -> L1_SENDER)).\n" +
-      "RECEIVER = (rec -> output -> ack -> RECEIVER).\n" +
+  val l1Sys =
+    "L1_SENDER = (input -> send[0..1] -> (timeout -> send[0..1] -> getack[0..1] -> L1_SENDER | getack[0..1] -> L1_SENDER)).\n" +
+        "RECEIVER = (rec[0..1] -> output -> ack[0..1] -> RECEIVER).\n" +
       "||SYS = (L1_SENDER || RECEIVER)."
+  // TODO("Automatically refine send to send[0..1]")
+  val abpSys = "range B= 0..1\n" +
+      "INPUT = (input -> SENDING[0]),\n" +
+      "SENDING[b:B] = (send[b] -> SENDING[b]\n" +
+      "              | getack[b] -> input -> SENDING[!b]\n" +
+      "              | getack[!b] -> SENDING[b]).\n" +
+      "OUTPUT = (rec[0] -> output -> ACKING[0]),\n" +
+      "ACKING[b:B] = (ack[b] -> ACKING[b]\n" +
+      "             | rec[b] -> ACKING[b]\n" +
+      "             | rec[!b] -> output -> ACKING[!b]).\n" +
+      "||SYS = (INPUT || OUTPUT)."
 
-  val cal = RobustCal(P, ENV, "PERFECT" to perfectSys, "L1" to l1Sys)
-  cal.calculateAll()
+  val cal = RobustCal(P, ENV, "PERFECT" to perfectSys, "L1" to l1Sys, "ABP" to abpSys)
+//  cal.calculateAll()
+  cal.deltaEnv("ABP" to abpSys)
 }
 
 class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, String>) {
@@ -28,18 +41,25 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
 //    TODO("What if one system is aware of drop but the other one is not, which means the other system cannot
 //     have drop event.")
     alphabetR = alphabetSYSs.map { it intersect alphabetENV }.reduce { xs, x -> xs intersect x }
+      .map { it.replace("""\.\d+""".toRegex(), "") }.toSet()
     println("Alphabet for comparing the robustness: $alphabetR")
   }
 
   fun calculateAll() {
     for (s in SYSs) {
-      allowedEnv(s)
+      deltaEnv(s)
     }
   }
 
-  fun allowedEnv(sys: Pair<String, String>) {
-    val sm = composeSysP(sys.second).pruneError().determinate()
-    println("AllowedEnv for ${sys.first}:\n${sm.buildFSP(sys.first)}")
+  fun deltaEnv(sys: Pair<String, String>) {
+    val sm = allowedEnv(sys)
+    val spec = "property $ENV\n${sm.buildFSP(sys.first)}||D_${sys.first} = (ENV || ${sys.first})" +
+        "@{${alphabetR.joinToString(", ")}}."
+    println("Test delta env for ${sys.first}:\n$spec")
+  }
+
+  private fun allowedEnv(sys: Pair<String, String>): StateMachine {
+    return composeSysP(sys.second).pruneError().determinate()
   }
 
   private fun composeSysP(sys: String): StateMachine {
@@ -79,12 +99,30 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     val nfaTrans = this.transitions.tauElimination(tau)
     // subset construction
     val (dfa, dfaStates) = nfaTrans.subsetConstruct(this.alphabet)
-    var trans = dfa.transitions
+//    var trans = dfa.transitions
+    var trans = makeSinkState(dfa, dfaStates, tau)
     // delete all error states
     val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
     trans = trans.filter { it.first !in errStates && it.third !in errStates }.toMutableList()
     // 0 should be the initial state
     trans.sortBy { it.first }
     return StateMachine(trans, this.alphabet)
+  }
+
+  private fun makeSinkState(dfa: StateMachine, dfaStates: List<Set<Int>>, tau: Int): Transitions {
+    val trans = dfa.transitions.toMutableList()
+    val i_alphabet = dfa.alphabet.indices.filter { it != tau }
+    val theta = dfaStates.size
+    for (s in dfaStates.indices) {
+      for (a in i_alphabet) {
+        if (trans.find { it.first == s && it.second == a } == null) {
+          trans.add(Triple(s, a, theta))
+        }
+      }
+    }
+    for (a in i_alphabet) {
+      trans.add(Triple(theta, a, theta))
+    }
+    return trans
   }
 }

@@ -37,12 +37,13 @@ class StateMachine {
     }
 
     fun buildFSP(name: String = "A"): String {
-        fun processName(i: Int): String {
-            return if (i == 0) name else "${name}_${i}"
-        }
-
         val escaped = alphabet.map(::escapeEvent)
         val groups = transitions.groupBy { it.first }
+
+        fun processName(i: Int): String {
+            return if (i == 0) name else if (i in groups.keys) "${name}_$i" else "STOP"
+        }
+
         val fsp = groups.map { entry ->
             val processes = entry.value.joinToString(" | ") { "${escaped[it.second]} -> ${processName(it.third)}" }
             "${processName(entry.key)} = ($processes)"
