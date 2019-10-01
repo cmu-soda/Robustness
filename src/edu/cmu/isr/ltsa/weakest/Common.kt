@@ -37,21 +37,34 @@ class StateMachine {
     }
 
     fun buildFSP(name: String = "A"): String {
+      val tau = alphabet.indexOf("tau")
         val escaped = alphabet.map(::escapeEvent)
         val groups = transitions.groupBy { it.first }
+      val used = transitions.map { it.second }.toSet()
+      val extra = alphabet.indices - used
 
         fun processName(i: Int): String {
             return if (i == 0) name else if (i in groups.keys) "${name}_$i" else "STOP"
         }
 
-        val fsp = groups.map { entry ->
+      var fsp = groups.map { entry ->
             val processes = entry.value.joinToString(" | ") { "${escaped[it.second]} -> ${processName(it.third)}" }
             "${processName(entry.key)} = ($processes)"
         }.joinToString(",\n")
-        return "$fsp+{${escaped.filter { it != "tau" }.joinToString(", ")}}.\n"
+
+      val add = extra.filter { it != tau }.map { escaped[it] }
+      if (add.isNotEmpty()) {
+        fsp = "$fsp+{${add.joinToString(", ")}}"
+      }
+      if (tau in used) {
+        fsp = "$fsp\\{_tau_}"
+      }
+      return "$fsp.\n"
     }
 
     private fun escapeEvent(e: String): String {
+      if (e == "tau")
+        return "_tau_"
         val idx = e.lastIndexOf('.')
         val suffix = e.substring(idx + 1)
         if (suffix.toIntOrNull() != null) {
