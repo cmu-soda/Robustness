@@ -12,13 +12,10 @@ ACKING[b:B] = (ack[b] -> ACKING[b]
 
 ||SYS = (INPUT || OUTPUT).
 
-||SYS = (INPUT || OUTPUT)
-      / {trans.in/send, trans.out/rec, ack.in/ack, ack.out/getack}.
-
 CHANNEL = (in[b:B] -> out[b] -> CHANNEL
          | in[b:B] -> lose -> CHANNEL).
 
-||ENV = (trans:CHANNEL || ack:CHANNEL).
+||ENV = (trans:CHANNEL || ack:CHANNEL)/{send/trans.in, rec/trans.out, ack/ack.in, getack/ack.out}.
 
 property P = (input -> output -> P).
 

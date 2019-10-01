@@ -93,14 +93,13 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     return StateMachine(trans, this.alphabet)
   }
 
-  private fun StateMachine.determinate(): StateMachine {
+  private fun StateMachine.determinate(sink: Boolean = false): StateMachine {
     val tau = this.alphabet.indexOf("tau")
     // tau elimination
     val nfaTrans = this.transitions.tauElimination(tau)
     // subset construction
     val (dfa, dfaStates) = nfaTrans.subsetConstruct(this.alphabet)
-//    var trans = dfa.transitions
-    var trans = makeSinkState(dfa, dfaStates, tau)
+    var trans = if (sink) makeSinkState(dfa, dfaStates, tau) else dfa.transitions
     // delete all error states
     val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
     trans = trans.filter { it.first !in errStates && it.third !in errStates }.toMutableList()
