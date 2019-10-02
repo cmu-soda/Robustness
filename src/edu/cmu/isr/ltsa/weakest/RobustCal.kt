@@ -60,7 +60,8 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     println("========== Delta ${sys.first} ==========")
     println(spec)
     println("===============================")
-    deltaTraces(spec)
+    val traces = deltaTraces(spec)
+    println(traces)
   }
 
   private fun deltaTraces(spec: String): List<Trace> {
@@ -73,15 +74,15 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     val sm = StateMachine(compositeState.composition)
     val traces = mutableListOf<Trace>()
 
-    fun dfs(s: Int, trace: Trace) {
+    fun dfs(s: Int, path: Transitions) {
       val trans = sm.transitions.filter { it.third == s }
-      val visited = trace.flatMap { listOf(it.first, it.third) }
+      val visited = path.flatMap { listOf(it.first, it.third) }
       for (t in trans.filter { it.first !in visited }) {
-        val newTrace = listOf(t) + trace
+        val newPath = listOf(t) + path
         if (t.first == 0) {
-          traces.add(newTrace)
+          traces.add(newPath.map { it.second })
         } else {
-          dfs(t.first, newTrace)
+          dfs(t.first, newPath)
         }
       }
     }
