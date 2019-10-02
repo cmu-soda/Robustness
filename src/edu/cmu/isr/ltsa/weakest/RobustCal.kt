@@ -27,7 +27,8 @@ fun main() {
       "||SYS = (INPUT || OUTPUT)."
 
   val cal = RobustCal(P, ENV, "PERFECT" to perfectSys, "L1" to l1Sys, "ABP" to abpSys)
-  cal.calculateAll()
+//  cal.calculateAll()
+  cal.deltaEnv("L1" to l1Sys)
 }
 
 class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, String>) {
@@ -56,7 +57,37 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     val sm = allowedEnv(sys)
     val spec = "property $ENV\n${sm.buildFSP(sys.first)}||D_${sys.first} = (ENV || ${sys.first})" +
         "@{${alphabetR.joinToString(", ")}}."
-    println("Test delta env for ${sys.first}:\n$spec")
+    println("========== Delta ${sys.first} ==========")
+    println(spec)
+    println("===============================")
+    deltaTraces(spec)
+  }
+
+  private fun deltaTraces(spec: String): List<Trace> {
+    val ltsaCall = LTSACall()
+    val compositeState = ltsaCall.doCompile(spec)
+    // Compose and minimise
+    ltsaCall.doCompose(compositeState)
+    ltsaCall.minimise(compositeState)
+    // Get the composed state machine
+    val sm = StateMachine(compositeState.composition)
+    val traces = mutableListOf<Trace>()
+
+    fun dfs(s: Int, trace: Trace) {
+      val trans = sm.transitions.filter { it.third == s }
+      val visited = trace.flatMap { listOf(it.first, it.third) }
+      for (t in trans.filter { it.first !in visited }) {
+        val newTrace = listOf(t) + trace
+        if (t.first == 0) {
+          traces.add(newTrace)
+        } else {
+          dfs(t.first, newTrace)
+        }
+      }
+    }
+
+    dfs(-1, emptyList())
+    return traces
   }
 
   private fun allowedEnv(sys: Pair<String, String>): StateMachine {
@@ -100,7 +131,7 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     val nfaTrans = this.transitions.tauElimination(tau)
     // subset construction
     val (dfa, dfaStates) = nfaTrans.subsetConstruct(this.alphabet)
-    var trans = if (sink) makeSinkState(dfa, dfaStates, tau) else dfa.transitions
+    var trans = if (sink) dfa.makeSinkState(dfaStates, tau) else dfa.transitions
     // delete all error states
     val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
     trans = trans.filter { it.first !in errStates && it.third !in errStates }.toMutableList()
@@ -109,9 +140,9 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     return StateMachine(trans, this.alphabet)
   }
 
-  private fun makeSinkState(dfa: StateMachine, dfaStates: List<Set<Int>>, tau: Int): Transitions {
-    val trans = dfa.transitions.toMutableList()
-    val i_alphabet = dfa.alphabet.indices.filter { it != tau }
+  private fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>, tau: Int): Transitions {
+    val trans = this.transitions.toMutableList()
+    val i_alphabet = this.alphabet.indices.filter { it != tau }
     val theta = dfaStates.size
     for (s in dfaStates.indices) {
       for (a in i_alphabet) {

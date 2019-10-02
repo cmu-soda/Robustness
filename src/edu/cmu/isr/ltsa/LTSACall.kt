@@ -8,8 +8,8 @@ class LTSACall {
   }
 
   fun doCompile(fsp: String, compositeName: String = "DEFAULT"): CompositeState {
-    println("========== Compile fsp spec ==========")
-    println(fsp)
+//    println("========== Compile fsp spec ==========")
+//    println(fsp)
 
     val ltsInput = StringLTSInput(fsp)
     val ltsOutput = StringLTSOutput()

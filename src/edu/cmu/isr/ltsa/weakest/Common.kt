@@ -6,6 +6,7 @@ import java.util.*
 import kotlin.math.min
 
 typealias Transitions = List<Triple<Int, Int, Int>>
+typealias Trace = List<Triple<Int, Int, Int>>
 
 class StateMachine {
   val transitions: Transitions
