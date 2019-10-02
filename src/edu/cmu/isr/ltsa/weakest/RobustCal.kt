@@ -27,8 +27,9 @@ fun main() {
       "||SYS = (INPUT || OUTPUT)."
 
   val cal = RobustCal(P, ENV, "PERFECT" to perfectSys, "L1" to l1Sys, "ABP" to abpSys)
-//  cal.calculateAll()
-  cal.deltaEnv("L1" to l1Sys)
+  cal.calculateAll()
+//  cal.deltaEnv("L1" to l1Sys)
+//  cal.deltaEnv("PERFECT" to perfectSys)
 }
 
 class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, String>) {
@@ -60,8 +61,9 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     println("========== Delta ${sys.first} ==========")
     println(spec)
     println("===============================")
-    val traces = deltaTraces(spec)
-    println(traces)
+//    val traces = deltaTraces(spec)
+//    val extracted = extractDeltaMachine(sm, traces)
+//    println(extracted.buildFSP("EX_${sys.first}"))
   }
 
   private fun deltaTraces(spec: String): List<Trace> {
@@ -80,7 +82,7 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
       for (t in trans.filter { it.first !in visited }) {
         val newPath = listOf(t) + path
         if (t.first == 0) {
-          traces.add(newPath.map { it.second })
+          traces.add(newPath.map { sm.alphabet[it.second] })
         } else {
           dfs(t.first, newPath)
         }
@@ -89,6 +91,34 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
 
     dfs(-1, emptyList())
     return traces
+  }
+
+  private fun extractDeltaMachine(sm: StateMachine, traces: List<Trace>): StateMachine {
+    val trans = mutableListOf<Triple<Int, Int, Int>>()
+    val visited = mutableSetOf(0)
+
+    fun addFollowing(s: Int) {
+      if (s in visited)
+        return
+      visited.add(s)
+      val next = sm.transitions.filter { it.first == s }
+      trans.addAll(next)
+      for (t in next) {
+        addFollowing(t.third)
+      }
+    }
+
+    for (t in traces) {
+      var s = 0
+      for (a in t) {
+        val tr = sm.transitions.first { it.first == s && sm.alphabet[it.second] == a }
+        if (tr !in trans)
+          trans.add(tr)
+        s = tr.third
+      }
+      addFollowing(s)
+    }
+    return StateMachine(trans, sm.alphabet)
   }
 
   private fun allowedEnv(sys: Pair<String, String>): StateMachine {

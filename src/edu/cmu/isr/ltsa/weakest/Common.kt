@@ -6,7 +6,7 @@ import java.util.*
 import kotlin.math.min
 
 typealias Transitions = List<Triple<Int, Int, Int>>
-typealias Trace = List<Int>
+typealias Trace = List<String>
 
 class StateMachine {
   val transitions: Transitions
@@ -38,6 +38,10 @@ class StateMachine {
   }
 
   fun buildFSP(name: String = "A"): String {
+    if (transitions.isEmpty()) {
+      return "$name = STOP."
+    }
+
     val tau = alphabet.indexOf("tau")
     val escaped = alphabet.map(::escapeEvent)
     val groups = transitions.groupBy { it.first }
