@@ -11,7 +11,7 @@ fun main() {
   val l1Sys =
     "L1_SENDER = (input -> send[0..1] -> (timeout -> send[0..1] -> getack[0..1] -> L1_SENDER | getack[0..1] -> L1_SENDER)).\n" +
         "RECEIVER = (rec[0..1] -> output -> ack[0..1] -> RECEIVER).\n" +
-      "||SYS = (L1_SENDER || RECEIVER)."
+        "||SYS = (L1_SENDER || RECEIVER)."
   // TODO("Automatically refine send to send[0..1]")
   val abpSys = "range B= 0..1\n" +
       "INPUT = (input -> SEND[0]),\n" +
@@ -27,8 +27,7 @@ fun main() {
       "||SYS = (INPUT || OUTPUT)."
 
   val cal = RobustCal(P, ENV, "PERFECT" to perfectSys, "L1" to l1Sys, "ABP" to abpSys)
-//  cal.calculateAll()
-  cal.deltaEnv("ABP" to abpSys)
+  cal.calculateAll()
 }
 
 class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, String>) {
