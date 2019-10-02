@@ -1,18 +1,20 @@
 range BIT = 0 .. 1
 
 TRANSMITTER = ACCEPT[0],
-ACCEPT[b:BIT] = (accept -> SEND[b]),
+ACCEPT[b:BIT] = (input -> SEND[b]),
 SEND[b:BIT] = (send[b] -> SENDING[b]),
 SENDING[b:BIT] = (txto -> SEND[b]
-                | ack[b] -> ACCEPT[!b]
-                | ack[!b] -> SENDING[b]).
+                | getack[b] -> ACCEPT[!b]
+                | getack[!b] -> SENDING[b]).
 
 RECEIVER = REPLY[1],
-DELIVER[b:BIT] = (deliver -> REPLY[b]),
-REPLY[b:BIT] = (reply[b] -> REPLYING[b]),
+DELIVER[b:BIT] = (output -> REPLY[b]),
+REPLY[b:BIT] = (ack[b] -> REPLYING[b]),
 REPLYING[b:BIT] = (rxto -> REPLY[b]
                  | rec[!b] -> DELIVER[!b]
                  | rec[b] -> REPLYING[b]).
+
+||SYS = (TRANSMITTER || RECEIVER)\{txto, rxto}.
 
 //CHANNEL = ( in[b:BIT] -> lose -> Channel
 //          | in[b:BIT] -> out[b] -> Channel)
@@ -25,12 +27,10 @@ LOSE[b:BIT] = (lose -> CHANNEL
              | in[i:BIT] -> TRANSMIT[i]),
 TRANSMIT[b:BIT] = (out[b] -> CHANNEL
                  | in[i:BIT] -> LOSE[i]
-                 | in[i:BIT] -> TRANSMIT[i])
-                 @{in, out}.
+                 | in[i:BIT] -> TRANSMIT[i]).
 
-||ABP = (trans:CHANNEL || tx:TRANSMITTER || rx:RECEIVER || ack:CHANNEL)
-      / {deliver/rx.deliver, accept/tx.accept, trans.in/tx.send,
-         rx.rec/trans.out, ack.in/rx.reply, ack.out/tx.ack}
-      @ {accept, deliver}.
+||ABP = (SYS || trans:CHANNEL || ack:CHANNEL)
+      / {send/trans.in, rec/trans.out, ack/ack.in, getack/ack.out}
+      @ {input, output}.
 
-property AD = (accept -> deliver -> AD).
+property P = (input -> output -> P).
