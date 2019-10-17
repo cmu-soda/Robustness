@@ -1,25 +1,30 @@
-SENDER = (input -> send -> getack -> SENDER).
+property P = (input -> output -> P).
 
-L1_SENDER = (input -> send -> (timeout -> send -> getack -> L1_SENDER | getack -> L1_SENDER)).
-
-LN_SENDER = (input -> SEND),
-SEND = (send -> WAIT),
-WAIT = (getack -> LN_SENDER | timeout -> SEND).
-
-RECEIVER = (rec -> output -> ack -> RECEIVER).
+SENDER = (input -> send[0..1] -> getack[0..1] -> SENDER).
+RECEIVER = (rec[0..1] -> output -> ack[0..1] -> RECEIVER).
+||SYS = (SENDER || RECEIVER).
 
 range B= 0..1
-
-INPUT = (input -> SENDING[0]),
+INPUT = (input -> SEND[0]),
+SEND[b:B] = (send[b] -> SENDING[b]),
 SENDING[b:B] = (send[b] -> SENDING[b]
-              | getack[b] -> input -> SENDING[!b]
+              | getack[b] -> input -> SEND[!b]
               | getack[!b] -> SENDING[b]).
-
-OUTPUT = (rec[0] -> output -> ACKING[0]),
+OUTPUT = (rec[0] -> output -> ACK[0]),
+ACK[b:B] = (ack[b] -> ACKING[b]),
 ACKING[b:B] = (ack[b] -> ACKING[b]
              | rec[b] -> ACKING[b]
-             | rec[!b] -> output -> ACKING[!b]).
+             | rec[!b] -> output -> ACK[!b]).
+||SYS = (INPUT || OUTPUT).
 
-ENV = (send -> rec -> ack -> getack -> ENV).
+ENV = (send[0..1] -> rec[0..1] -> ack[0..1] -> getack[0..1] -> ENV).
 
-property P = (input -> output -> P).
+CHANNEL = (in[b:B] -> out[b] -> CHANNEL | in[b:B] -> lose -> CHANNEL).
+||ENV2 = (tx:CHANNEL || rx:CHANNEL)/{send/tx.in, rec/tx.out, ack/rx.in, getack/rx.out}.
+
+P_CHANNEL = (in[b:B] -> out[b] -> P_CHANNEL).
+||ENV3 = (tx:P_CHANNEL || rx:P_CHANNEL)/{send/tx.in, rec/tx.out, ack/rx.in, getack/rx.out}.
+
+||ENV4 = (tx:CHANNEL || rx:P_CHANNEL)/{send/tx.in, rec/tx.out, ack/rx.in, getack/rx.out}.
+
+ENV5 = (send[b:B] -> rec[b] -> ack[b] -> getack[b] -> ENV5 | send[b:B] -> lose -> ENV5).

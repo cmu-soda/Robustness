@@ -27,9 +27,10 @@ fun main() {
       "||SYS = (INPUT || OUTPUT)."
 
   val cal = RobustCal(P, ENV, "PERFECT" to perfectSys, "L1" to l1Sys, "ABP" to abpSys)
-  cal.calculateAll()
+//  cal.calculateAll()
 //  cal.deltaEnv("L1" to l1Sys)
 //  cal.deltaEnv("PERFECT" to perfectSys)
+  cal.deltaEnv("ABP" to abpSys)
 }
 
 class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, String>) {
