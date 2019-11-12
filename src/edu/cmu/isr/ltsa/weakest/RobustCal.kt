@@ -27,7 +27,7 @@ fun main() {
 //      "||SYS = (INPUT || OUTPUT)."
 
   val ENV = "ENV = (send -> rec -> ack -> getack -> ENV)."
-  val retrySys = "SENDER = (input -> SENDING), SENDING = (send -> (getack -> SENDING | timeout -> SENDING)).\n" +
+  val retrySys = "SENDER = (input -> SENDING), SENDING = (send -> (getack -> SENDER | timeout -> SENDING)).\n" +
       "RECEIVER = (rec -> output -> ack -> RECEIVER).\n" +
       "||SYS = (SENDER || RECEIVER)."
 
