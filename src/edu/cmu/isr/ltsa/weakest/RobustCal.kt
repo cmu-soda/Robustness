@@ -1,44 +1,15 @@
 package edu.cmu.isr.ltsa.weakest
 
 import edu.cmu.isr.ltsa.LTSACall
+import java.io.File
 
 fun main() {
-  val P = "property P = (input -> output -> P)."
-//  val ENV = "ENV = (send[0..1] -> rec[0..1] -> ack[0..1] -> getack[0..1] -> ENV)."
-//  val perfectSys = "SENDER = (input -> send[0..1] -> getack[0..1] -> SENDER).\n" +
-//      "RECEIVER = (rec[0..1] -> output -> ack[0..1] -> RECEIVER).\n" +
-//      "||SYS = (SENDER || RECEIVER)."
-//  val l1Sys =
-//    "L1_SENDER = (input -> send[0..1] -> (timeout -> send[0..1] -> getack[0..1] -> L1_SENDER | getack[0..1] -> L1_SENDER)).\n" +
-//        "RECEIVER = (rec[0..1] -> output -> ack[0..1] -> RECEIVER).\n" +
-//        "||SYS = (L1_SENDER || RECEIVER)."
-//  // TODO("Automatically refine send to send[0..1]")
-//  val abpSys = "range B= 0..1\n" +
-//      "INPUT = (input -> SEND[0]),\n" +
-//      "SEND[b:B] = (send[b] -> SENDING[b]),\n" +
-//      "SENDING[b:B] = (send[b] -> SENDING[b]\n" +
-//      "              | getack[b] -> input -> SEND[!b]\n" +
-//      "              | getack[!b] -> SENDING[b]).\n" +
-//      "OUTPUT = (rec[0] -> output -> ACK[0]),\n" +
-//      "ACK[b:B] = (ack[b] -> ACKING[b]),\n" +
-//      "ACKING[b:B] = (ack[b] -> ACKING[b]\n" +
-//      "             | rec[b] -> ACKING[b]\n" +
-//      "             | rec[!b] -> output -> ACK[!b]).\n" +
-//      "||SYS = (INPUT || OUTPUT)."
+  val p = "property P = (input -> output -> P)."
+  val env = File("./specs/env.lts").readText()
+  val sys = File("./specs/retry.lts").readText()
 
-  val ENV = "ENV = (send -> rec -> ack -> getack -> ENV)."
-  val retrySys = "SENDER = (input -> SENDING), SENDING = (send -> (getack -> SENDER | timeout -> SENDING)).\n" +
-      "RECEIVER = (rec -> output -> ack -> RECEIVER).\n" +
-      "||SYS = (SENDER || RECEIVER)."
-
-//  val cal = RobustCal(P, ENV, "PERFECT" to perfectSys, "L1" to l1Sys, "ABP" to abpSys)
-//  cal.calculateAll()
-//  cal.deltaEnv("L1" to l1Sys)
-//  cal.deltaEnv("PERFECT" to perfectSys)
-//  cal.deltaEnv("ABP" to abpSys)
-
-  val cal = RobustCal(P, ENV, "RETRY" to retrySys)
-  cal.deltaEnv("RETRY" to retrySys)
+  val cal = RobustCal(p, env, "SYS" to sys)
+  cal.deltaEnv("SYS" to sys)
 }
 
 class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, String>) {
@@ -137,6 +108,10 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
   private fun composeSysP(sys: String): StateMachine {
     val ltsaCall = LTSACall()
     val composite = "$sys\n$P\n||C = (SYS || P)@{${alphabetR.joinToString(",")}}."
+
+    println("=============== Step 1: ================")
+    println(composite)
+
     val compositeState = ltsaCall.doCompile(composite, "C")
     // Compose and minimise
     ltsaCall.doCompose(compositeState)
@@ -162,6 +137,10 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     trans = trans.filter { it.first in reachable && it.third in reachable }
     // Remove duplicate transitions
     trans = trans.removeDuplicate()
+
+    println("=============== Step 2: ================")
+    println(StateMachine(trans, this.alphabet).buildFSP("STEP2"))
+
     return StateMachine(trans, this.alphabet)
   }
 
@@ -169,6 +148,10 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     val tau = this.alphabet.indexOf("tau")
     // tau elimination
     val nfaTrans = this.transitions.tauElimination(tau)
+
+    println("=============== Step 3 tau elimination: ================")
+    println(StateMachine(nfaTrans, this.alphabet).buildFSP("STEP3_TE"))
+
     // subset construction
     val (dfa, dfaStates) = nfaTrans.subsetConstruct(this.alphabet)
     var trans = if (sink) dfa.makeSinkState(dfaStates, tau) else dfa.transitions

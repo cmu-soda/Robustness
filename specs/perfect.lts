@@ -1,0 +1,3 @@
+SENDER = (input -> send -> getack -> SENDER).
+RECEIVER = (rec -> output -> ack -> RECEIVER).
+||SYS = (SENDER || RECEIVER).
