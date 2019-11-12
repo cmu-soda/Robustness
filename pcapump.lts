@@ -1,0 +1,88 @@
+const INCORRECT = 0
+const CORRECT = 1
+range VALUE = INCORRECT..CORRECT
+
+const DOSE = 2
+const DELAY = 3
+const LIMIT = 4
+const START = 5
+range PHASE = DOSE..START
+
+PCA = (pressOnOff -> SET_DOSE[INCORRECT][INCORRECT][INCORRECT]),
+
+SET_DOSE[dose:VALUE][delay:VALUE][limit:VALUE] = (
+	// pressClear always set the value to incorrect
+	pressClear -> SET_DOSE[INCORRECT][delay][limit]
+	|
+	// pressLeft and pressRight has no affect to the value
+	pressLeft -> SET_DOSE[dose][delay][limit] | pressRight -> SET_DOSE[dose][delay][limit]
+	|
+	// when the value is incorrect, pressUp remains incorrect or becomes a correct value
+	when (dose == INCORRECT) pressUp -> SET_DOSE[dose][delay][limit]
+	|
+	when (dose == INCORRECT) pressUp -> SET_DOSE[CORRECT][delay][limit]
+	|
+	// when the value is correct, pressUp makes it incorrect
+	when (dose == CORRECT) pressUp -> SET_DOSE[INCORRECT][delay][limit]
+	|
+	pressEnter -> set_dose[dose] -> SET_DELAY[dose][delay][limit]
+	|
+	pressOnOff -> pressOnOff -> PCA
+),
+
+SET_DELAY[dose:VALUE][delay:VALUE][limit:VALUE] = (
+	// pressClear always set the value to incorrect
+	pressClear -> SET_DELAY[dose][INCORRECT][limit]
+	|
+	// pressLeft and pressRight has no affect to the value
+	pressLeft -> SET_DELAY[dose][delay][limit] | pressRight -> SET_DELAY[dose][delay][limit]
+	|
+	// when the value is incorrect, pressUp remains incorrect or becomes a correct value
+	when (delay == INCORRECT) pressUp -> SET_DELAY[dose][delay][limit]
+	|
+	when (delay == INCORRECT) pressUp -> SET_DELAY[dose][CORRECT][limit]
+	|
+	// when the value is correct, pressUp makes it incorrect
+	when (delay == CORRECT) pressUp -> SET_DELAY[dose][INCORRECT][limit]
+	|
+	pressEnter -> set_delay[delay] -> SET_LIMIT[dose][delay][limit]
+	|
+	pressOnOff -> pressOnOff -> PCA
+),
+
+SET_LIMIT[dose:VALUE][delay:VALUE][limit:VALUE] = (
+	// pressClear always set the value to incorrect
+	pressClear -> SET_LIMIT[dose][delay][INCORRECT]
+	|
+	// pressLeft and pressRight has no affect to the value
+	pressLeft -> SET_LIMIT[dose][delay][limit] | pressRight -> SET_LIMIT[dose][delay][limit]
+	|
+	// when the value is incorrect, pressUp remains incorrect or becomes a correct value
+	when (limit == INCORRECT) pressUp -> SET_LIMIT[dose][delay][limit]
+	|
+	when (limit == INCORRECT) pressUp -> SET_LIMIT[dose][delay][CORRECT]
+	|
+	// when the value is correct, pressUp makes it incorrect
+	when (limit == CORRECT) pressUp -> SET_LIMIT[dose][delay][INCORRECT]
+	|
+	pressEnter -> set_limit[limit] -> START[dose][delay][limit]
+	|
+	pressOnOff -> pressOnOff -> PCA
+),
+
+START[dose:VALUE][delay:VALUE][limit:VALUE] = (pressEnter -> SET_DOSE[dose][delay][limit] | pressStart -> enter_admin -> ADMIN[dose][delay][limit] | pressOnOff -> pressOnOff -> PCA),
+
+ADMIN[dose:VALUE][delay:VALUE][limit:VALUE] = (
+	admin -> ADMIN[dose][delay][limit]
+	|
+	pressStop -> pressStop -> leave_admin -> START[dose][delay][limit]
+	|
+	pressOnOff -> pressOnOff -> leave_admin -> PCA
+).
+
+fluent InAdmin = <enter_admin, leave_admin>
+fluent PrescribedDose = <set_dose[CORRECT], set_dose[INCORRECT]>
+fluent PrescribedDelay = <set_delay[CORRECT], set_delay[INCORRECT]>
+fluent PrescribedLimit = <set_limit[CORRECT], set_limit[INCORRECT]>
+
+assert P = [](InAdmin -> (PrescribedDose && PrescribedDelay && PrescribedLimit))
