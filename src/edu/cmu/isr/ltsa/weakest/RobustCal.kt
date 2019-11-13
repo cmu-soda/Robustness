@@ -8,8 +8,8 @@ fun main() {
   val env = File("./specs/env.lts").readText()
   val sys = File("./specs/retry.lts").readText()
 
-  val cal = RobustCal(p, env, "SYS" to sys)
-  cal.deltaEnv("SYS" to sys)
+  val cal = RobustCal(p, env, "WE_S2" to sys)
+  cal.deltaEnv("WE_S2" to sys)
 }
 
 class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, String>) {
@@ -102,7 +102,7 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
   }
 
   private fun allowedEnv(sys: Pair<String, String>): StateMachine {
-    return composeSysP(sys.second).pruneError().determinate()
+    return composeSysP(sys.second).pruneError().determinate(false).minimize()
   }
 
   private fun composeSysP(sys: String): StateMachine {
@@ -144,7 +144,7 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     return StateMachine(trans, this.alphabet)
   }
 
-  private fun StateMachine.determinate(sink: Boolean = false): StateMachine {
+  private fun StateMachine.determinate(sink: Boolean = true): StateMachine {
     val tau = this.alphabet.indexOf("tau")
     // tau elimination
     val nfaTrans = this.transitions.tauElimination(tau)

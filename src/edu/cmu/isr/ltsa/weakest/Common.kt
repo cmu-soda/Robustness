@@ -1,5 +1,6 @@
 package edu.cmu.isr.ltsa.weakest
 
+import edu.cmu.isr.ltsa.LTSACall
 import lts.CompactState
 import lts.EventState
 import java.util.*
@@ -67,6 +68,15 @@ class StateMachine {
     return "$fsp.\n"
   }
 
+  fun minimize(): StateMachine {
+    val fsp = this.buildFSP()
+    val ltsaCall = LTSACall()
+    val composite = ltsaCall.doCompile(fsp)
+    ltsaCall.doCompose(composite)
+    ltsaCall.minimise(composite)
+    return StateMachine(composite.composition)
+  }
+
   private fun escapeEvent(e: String): String {
     if (e == "tau")
       return "_tau_"
@@ -94,18 +104,8 @@ fun Transitions.tauElimination(tau: Int): Transitions {
   var ts = this.toMutableList()
   while (true) {
     val t = ts.find { it.second == tau } ?: break
-    val s = min(t.first, t.third)
     ts.remove(t)
-    ts = ts.map {
-      var copy = it
-      if (it.first == t.first || it.first == t.third) {
-        copy = copy.copy(first = s)
-      }
-      if (it.third == t.first || it.third == t.third) {
-        copy = copy.copy(third = s)
-      }
-      copy
-    }.toMutableList()
+    ts.addAll(ts.filter { it.first == t.third }.map { it.copy(first = t.first) })
   }
   return ts.removeDuplicate()
 }
