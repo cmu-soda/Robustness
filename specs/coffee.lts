@@ -1,0 +1,7 @@
+range B = 0..1
+
+const NotFull = 0
+const Full = 1
+range MugState = NotFull..Full
+
+BrewCoffee[iBrewing:B][iMugState:MugState] = (a -> b -> BrewCoffee).
