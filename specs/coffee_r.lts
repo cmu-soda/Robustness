@@ -1,0 +1,24 @@
+const HandleDown = 0
+const HandleUp = 1
+range HandleState = HandleDown..HandleUp
+
+// There's a cost to enable the system with sensing the mug.
+const NoMug = 0
+const MugPlaced = 1
+range MugState = NoMug..MugPlaced
+
+SYS = Run[HandleDown][NoMug],
+Run[h:HandleState][m:MugState] = (
+    when (h == HandleDown) hLiftHandle -> Run[HandleUp][m]
+  | when (h == HandleUp) hLowerHandle -> Run[HandleDown][m]
+  | when (h == HandleDown && m == NoMug) hPressBrew -> Run[h][m]
+  | when (h == HandleDown && m == MugPlaced) hPressBrew -> brew -> Brewing
+  | when (h == HandleUp) hPressBrew -> Run[h][m]
+  | when (m == NoMug) hPlaceMug -> Run[h][MugPlaced]
+  | when (m == MugPlaced) hTakeMug -> Run[h][NoMug]
+),
+Brewing = (
+    brew -> Brewing
+  | complete -> Run[HandleDown][MugPlaced]
+  | hTakeMug -> Brewing
+).

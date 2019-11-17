@@ -1,7 +1,12 @@
-range B = 0..1
+const HandleDown = 0
+const HandleUp = 1
+range HandleState = HandleDown..HandleUp
 
-const NotFull = 0
-const Full = 1
-range MugState = NotFull..Full
-
-BrewCoffee[iBrewing:B][iMugState:MugState] = (a -> b -> BrewCoffee).
+SYS = Run[HandleDown],
+Run[h:HandleState] = (
+    when (h == HandleDown) hLiftHandle -> Run[HandleUp]
+  | when (h == HandleUp) hLowerHandle -> Run[HandleDown]
+  | when (h == HandleDown) hPressBrew -> brew -> Brewing
+  | when (h == HandleUp) hPressBrew -> Run[h]
+),
+Brewing = (brew -> Brewing | complete -> Run[HandleDown]).

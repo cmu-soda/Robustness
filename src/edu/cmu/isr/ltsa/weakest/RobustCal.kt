@@ -4,110 +4,65 @@ import edu.cmu.isr.ltsa.LTSACall
 import java.io.File
 
 fun main() {
-  val p = "property P = (input -> output -> P)."
-  val env = File("./specs/env.lts").readText()
-  val sys = File("./specs/retry.lts").readText()
+  val p = File("./specs/coffee_p.lts").readText()
+  val env = File("./specs/coffee_human.lts").readText()
+  val sys = File("./specs/coffee_r.lts").readText()
 
-  val cal = RobustCal(p, env, "WE_S2" to sys)
-  cal.deltaEnv("WE_S2" to sys)
+  val cal = RobustCal(p, env, sys)
+  cal.deltaEnv("WE")
 }
 
-class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, String>) {
+class RobustCal(var P: String, var ENV: String, var SYS: String) {
   private val alphabetENV: Set<String>
-  private val alphabetSYSs: List<Set<String>>
+  private val alphabetSYS: Set<String>
   private val alphabetR: Set<String>
 
   init {
+    // Rename constants in the specs
+    P = renameConsts(P, "P")
+    ENV = renameConsts(ENV, "ENV")
+    SYS = renameConsts(SYS, "SYS")
+
+    // Generate alphabets
     val ltsaCall = LTSACall()
     alphabetENV = ltsaCall.getAllAlphabet(ltsaCall.doCompile(ENV, "ENV"))
-    alphabetSYSs = SYSs.map { ltsaCall.getAllAlphabet(ltsaCall.doCompile(it.second, "SYS")) }
+    alphabetSYS = ltsaCall.getAllAlphabet(ltsaCall.doCompile(SYS, "SYS"))
 //    TODO("What if one system is aware of drop but the other one is not, which means the other system cannot
 //     have drop event.")
-    alphabetR = alphabetSYSs.map { it intersect alphabetENV }.reduce { xs, x -> xs intersect x }
-      .map { it.replace("""\.\d+""".toRegex(), "") }.toSet()
+
+    val alphabetP = ltsaCall.getAllAlphabet(ltsaCall.doCompile(P, "P"))
+    val alphabetC = alphabetSYS intersect alphabetENV
+    val alphabetI = alphabetSYS - alphabetC
+    alphabetR = (alphabetC + (alphabetP - alphabetI)).map { it.replace("""\.\d+""".toRegex(), "") }.toSet()
     println("Alphabet for comparing the robustness: $alphabetR")
   }
 
-  fun calculateAll() {
-    for (s in SYSs) {
-      deltaEnv(s)
+  private fun renameConsts(spec: String, prefix: String): String {
+    val p = """(const|range)\s+([_\w]+)\s*=""".toRegex()
+    var re = spec
+    p.findAll(spec).forEach {
+      val name = it.groupValues[2]
+      re = re.replace(name, "${prefix}_$name")
     }
+    return re
   }
 
-  fun deltaEnv(sys: Pair<String, String>) {
-    val sm = allowedEnv(sys)
-    val spec = "property $ENV\n${sm.buildFSP(sys.first)}||D_${sys.first} = (ENV || ${sys.first})" +
+  fun deltaEnv(delta: String, sink: Boolean = false) {
+    val sm = allowedEnv(sink)
+    val spec = "property $ENV\n${sm.buildFSP(delta)}||D_${delta} = (ENV || ${delta})" +
         "@{${alphabetR.joinToString(", ")}}."
-    println("========== Delta ${sys.first} ==========")
+    println("========== Delta ${delta} ==========")
     println(spec)
     println("===============================")
-//    val traces = deltaTraces(spec)
-//    val extracted = extractDeltaMachine(sm, traces)
-//    println(extracted.buildFSP("EX_${sys.first}"))
   }
 
-  private fun deltaTraces(spec: String): List<Trace> {
+  private fun allowedEnv(sink: Boolean): StateMachine {
+    return composeSysP().pruneError().determinate(sink).minimize()
+  }
+
+  private fun composeSysP(): StateMachine {
     val ltsaCall = LTSACall()
-    val compositeState = ltsaCall.doCompile(spec)
-    // Compose and minimise
-    ltsaCall.doCompose(compositeState)
-    ltsaCall.minimise(compositeState)
-    // Get the composed state machine
-    val sm = StateMachine(compositeState.composition)
-    val traces = mutableListOf<Trace>()
-
-    fun dfs(s: Int, path: Transitions) {
-      val trans = sm.transitions.filter { it.third == s }
-      val visited = path.flatMap { listOf(it.first, it.third) }
-      for (t in trans.filter { it.first !in visited }) {
-        val newPath = listOf(t) + path
-        if (t.first == 0) {
-          traces.add(newPath.map { sm.alphabet[it.second] })
-        } else {
-          dfs(t.first, newPath)
-        }
-      }
-    }
-
-    dfs(-1, emptyList())
-    return traces
-  }
-
-  private fun extractDeltaMachine(sm: StateMachine, traces: List<Trace>): StateMachine {
-    val trans = mutableListOf<Triple<Int, Int, Int>>()
-    val visited = mutableSetOf(0)
-
-    fun addFollowing(s: Int) {
-      if (s in visited)
-        return
-      visited.add(s)
-      val next = sm.transitions.filter { it.first == s }
-      trans.addAll(next)
-      for (t in next) {
-        addFollowing(t.third)
-      }
-    }
-
-    for (t in traces) {
-      var s = 0
-      for (a in t) {
-        val tr = sm.transitions.first { it.first == s && sm.alphabet[it.second] == a }
-        if (tr !in trans)
-          trans.add(tr)
-        s = tr.third
-      }
-      addFollowing(s)
-    }
-    return StateMachine(trans, sm.alphabet)
-  }
-
-  private fun allowedEnv(sys: Pair<String, String>): StateMachine {
-    return composeSysP(sys.second).pruneError().determinate(false).minimize()
-  }
-
-  private fun composeSysP(sys: String): StateMachine {
-    val ltsaCall = LTSACall()
-    val composite = "$sys\n$P\n||C = (SYS || P)@{${alphabetR.joinToString(",")}}."
+    val composite = "$SYS\n$P\n||C = (SYS || P)@{${alphabetR.joinToString(",")}}."
 
     println("=============== Step 1: ================")
     println(composite)
@@ -116,6 +71,10 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     // Compose and minimise
     ltsaCall.doCompose(compositeState)
     ltsaCall.minimise(compositeState)
+
+    if (!compositeState.composition.hasERROR())
+      throw Error("The error state is not reachable. The property is true under any environment.")
+
     // Get the composed state machine
     return StateMachine(compositeState.composition)
   }
@@ -144,7 +103,7 @@ class RobustCal(val P: String, val ENV: String, vararg val SYSs: Pair<String, St
     return StateMachine(trans, this.alphabet)
   }
 
-  private fun StateMachine.determinate(sink: Boolean = true): StateMachine {
+  private fun StateMachine.determinate(sink: Boolean): StateMachine {
     val tau = this.alphabet.indexOf("tau")
     // tau elimination
     val nfaTrans = this.transitions.tauElimination(tau)
