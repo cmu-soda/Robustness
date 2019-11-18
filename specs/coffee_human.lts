@@ -1,1 +1,1 @@
-ENV = (hPlaceMug -> hLiftHandle -> hAddOrReplacePod -> hLowerHandle -> hPressBrew -> complete -> hTakeMug -> ENV).
+ENV = (hPlaceMug -> hAddOrReplacePod -> hLowerHandle -> hPressBrew -> complete -> hLiftHandle -> hTakeMug -> ENV).

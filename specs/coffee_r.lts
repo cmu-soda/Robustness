@@ -7,7 +7,7 @@ const NoMug = 0
 const MugPlaced = 1
 range MugState = NoMug..MugPlaced
 
-SYS = Run[HandleDown][NoMug],
+SYS = Run[HandleUp][NoMug],
 Run[h:HandleState][m:MugState] = (
     when (h == HandleDown) hLiftHandle -> Run[HandleUp][m]
   | when (h == HandleUp) hLowerHandle -> Run[HandleDown][m]

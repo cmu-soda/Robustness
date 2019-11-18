@@ -2,7 +2,7 @@ const HandleDown = 0
 const HandleUp = 1
 range HandleState = HandleDown..HandleUp
 
-SYS = Run[HandleDown],
+SYS = Run[HandleUp],
 Run[h:HandleState] = (
     when (h == HandleDown) hLiftHandle -> Run[HandleUp]
   | when (h == HandleUp) hLowerHandle -> Run[HandleDown]
