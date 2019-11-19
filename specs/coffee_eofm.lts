@@ -1,0 +1,44 @@
+range Bool = 0..1
+
+const Ready = 0
+const Executing = 1
+const Done = 2
+range ActState = Ready..Done
+
+const Absent = 0
+const Empty = 1
+const Full = 2
+range MugState = Absent..Full
+
+T = ABrewCoffee[Ready][0][Absent][Ready][Ready],
+
+ABrewCoffee[self:ActState][iBrewing:Bool][iMugState:MugState][aPrepMachine:ActState][aBrew:ActState] = (
+  // Activity state transition model of EOFM
+    when (self == Ready /* no startcondition */ && iBrewing == 0 && iMugState != Full && iBrewing != 1)
+      set_aBrewCoffee[Executing] -> ABrewCoffee[Executing][iBrewing][iMugState][aPrepMachine][aBrew]
+  | when (self == Ready /* no startcondition */ && iBrewing == 1)
+      set_aBrewCoffee[Done] -> ABrewCoffee[Done][iBrewing][iMugState][aPrepMachine][aBrew]
+  | when (self == Executing && aBrew == Done && aPrepMachine != Executing && aBrew != Executing
+          /* no repeatcondition */ && iBrewing != 1)
+      set_aBrewCoffee[Executing] -> ABrewCoffee[Executing][iBrewing][iMugState][aPrepMachine][aBrew]
+  | when (self == Executing && aBrew == Done && aPrepMachine != Executing && aBrew != Executing && iBrewing == 1)
+      set_aBrewCoffee[Done] -> ABrewCoffee[Done][iBrewing][iMugState][aPrepMachine][aBrew]
+  | when (self == Done)
+      set_aBrewCoffee[Ready] -> ABrewCoffee[Ready][iBrewing][iMugState][aPrepMachine][aBrew]
+  | set_iBrewing[i:Bool] -> ABrewCoffee[self][i][iMugState][aPrepMachine][aBrew]
+  | set_iMugState[i:MugState] -> ABrewCoffee[self][iBrewing][i][aPrepMachine][aBrew]
+  | set_aPrepMachine[i:ActState] -> ABrewCoffee[self][iBrewing][iMugState][i][aBrew]
+  | set_aBrew[i:ActState] -> ABrewCoffee[self][iBrewing][iMugState][aPrepMachine][i]
+).
+
+APrepMachine[self:ActState][iHandle:Bool][iMugState:MugState][iPodState:Bool][aPlaceMug:ActState][aAddPod:ActState] = (
+  //TODO
+).
+
+APlaceMug[self:ActState][aPrepMachine:ActState][aAddPod:ActState][iMugState:MugState] = (
+    when (self == Ready && aPrepMachine == Executing && aAddPod != Executing && iMugState == Absent &&
+          iMugState != Empty)
+      set_aPlaceMug[Executing] -> APlaceMug[Executing][aPrepMachine][aAddPod][iMugState]
+  | when (self == Ready && aPrepMachine == Executing && aAddPod != Executing && iMugState == Empty)
+      set_aPlaceMug[Done] -> APlaceMug[Done][aPrepMachine][aAddPod][iMugState]
+).
