@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?oxygen RNGSchema="file:/C:/Users/mlb4b/Documents/NetBeansProjects/HFE/examples/OFMr7.rng" type="xml"?>
+<eofms>
+    <userdefinedtype name="tInterfaceMessage">{SetPCADose, SetDelay, Set1HourLimit, StartBeginsRx, TreatmentAdministering, SystemOff}</userdefinedtype>
+    <userdefinedtype name="tValue">{Correct, Incorrect}</userdefinedtype>
+    
+    <humanoperator name="pPumpProgrammer">
+        
+        <inputvariable name="iInterfaceMessage" userdefinedtype="tInterfaceMessage"/>
+        <inputvariable name="iCurrentValue" userdefinedtype="tValue"/>
+        
+        <!-- I am treating the following as environmental variables-->
+        <inputvariable name="iPrescribedPCADose" userdefinedtype="tValue"/>
+        <inputvariable name="iPrescribedDelay" userdefinedtype="tValue"/>
+        <inputvariable name="iPrescribed1HourLimit" userdefinedtype="tValue"/>
+        
+        
+        <humanaction name="hPressStart" behavior="autoreset"/>
+        <humanaction name="hPressStop" behavior="autoreset"/>
+        <humanaction name="hPressEnter" behavior="autoreset"/>
+        <humanaction name="hPressOnOff" behavior="autoreset"/>
+        <humanaction name="hPressClear" behavior="autoreset"/>
+        <humanaction name="hPressLeft" behavior="autoreset"/>
+        <humanaction name="hPressRight" behavior="autoreset"/>
+        <humanaction name="hPressUp" behavior="autoreset"/>
+        
+        <eofm>
+            <activity name="aTurnOnPump">
+                <precondition>iInterfaceMessage = SystemOff</precondition>
+                <completioncondition>iInterfaceMessage /= SystemOff</completioncondition>
+                <decomposition operator="ord">
+                    <action humanaction="hPressOnOff"/>
+                </decomposition>
+            </activity>
+        </eofm>
+        
+        <eofm>
+            <activity name="aStopInfusing">
+                <precondition>iInterfaceMessage = TreatmentAdministering</precondition>
+                <completioncondition>iInterfaceMessage /= TreatmentAdministering</completioncondition>
+                <decomposition operator="ord">
+                    <action humanaction="hPressStop"/>
+                    <action humanaction="hPressStop"/>
+                </decomposition>
+            </activity>
+        </eofm>
+        
+        <eofm>
+            <activity name="aTurnOffPump">
+                <precondition>iInterfaceMessage /= SystemOff</precondition>
+                <completioncondition>iInterfaceMessage = SystemOff</completioncondition>
+                <decomposition operator="ord">
+                    <activitylink link="aStopInfusing"/>
+                    <activity name="aPressKeysToTurnOffPump">
+                        <decomposition operator="ord">
+                            <action humanaction="hPressOnOff"/>
+                            <action humanaction="hPressOnOff"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>                
+            </activity>
+        </eofm>
+        
+        <eofm>
+            <activity name="aSetPCADose">
+                <precondition>iInterfaceMessage = SetPCADose</precondition>
+                <completioncondition>iInterfaceMessage /= SetPCADose</completioncondition>
+                <decomposition operator="ord">
+                <activity name="aChangePCADoseValue">
+                    <precondition>iCurrentValue /= iPrescribedPCADose</precondition>
+                    <completioncondition>iCurrentValue = iPrescribedPCADose</completioncondition>
+                    <repeatcondition>iCurrentValue /= iPrescribedPCADose</repeatcondition>
+                    <decomposition operator="or_seq">
+                        <activity name="aChangeDigit">
+                            <decomposition operator="ord">
+                                <action humanaction="hPressUp"/>
+                            </decomposition>
+                        </activity>
+                        <activity name="aSelectNextDigit">
+                            <decomposition operator="xor">
+                                <action humanaction="hPressLeft"/>
+                                <action humanaction="hPressRight"/>
+                            </decomposition>
+                        </activity>
+                        <activity name="aClearValue">
+                            <decomposition operator="ord">
+                                <action humanaction="hPressClear"/>
+                            </decomposition>
+                        </activity>
+                    </decomposition>
+                </activity>
+                <activity name="aAccept">
+                    <decomposition operator="ord">
+                        <action humanaction="hPressEnter"/>
+                    </decomposition>
+                </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+        
+        <eofm>
+            <activity name="aSetDelay">
+                <precondition>iInterfaceMessage = SetDelay</precondition>
+                <completioncondition>iInterfaceMessage /= SetDelay</completioncondition>
+                <decomposition operator="ord">
+                    <activity name="aChangeDelayValue">
+                        <precondition>iCurrentValue /= iPrescribedDelay</precondition>
+                        <completioncondition>iCurrentValue = iPrescribedDelay</completioncondition>
+                        <repeatcondition>iCurrentValue /= iPrescribedDelay</repeatcondition>
+                        <decomposition operator="or_seq">
+                            <activitylink link="aChangeDigit"/>
+                            <activitylink link="aSelectNextDigit"/>
+                            <activitylink link="aClearValue"/>
+                        </decomposition>
+                    </activity>
+                    <activitylink link="aAccept"/>
+                </decomposition>
+            </activity>
+        </eofm>
+        
+        <eofm>
+            <activity name="aSet1HourLimit">
+                <precondition>iInterfaceMessage = Set1HourLimit</precondition>
+                <completioncondition>iInterfaceMessage /= Set1HourLimit</completioncondition>
+                <decomposition operator="ord">
+                    <activity name="aChange1HourLimitValue">
+                        <precondition>iCurrentValue /= iPrescribed1HourLimit</precondition>
+                        <completioncondition>iCurrentValue = iPrescribed1HourLimit</completioncondition>
+                        <repeatcondition>iCurrentValue /= iPrescribed1HourLimit</repeatcondition>
+                        <decomposition operator="or_seq">
+                            <activitylink link="aChangeDigit"/>
+                            <activitylink link="aSelectNextDigit"/>
+                            <activitylink link="aClearValue"/>
+                        </decomposition>
+                    </activity>
+                    <activitylink link="aAccept"/>
+                </decomposition>
+            </activity>
+        </eofm>
+        
+        <eofm>
+            <activity name="aStartOrReview">
+                <precondition>iInterfaceMessage = StartBeginsRx</precondition>
+                <completioncondition>iInterfaceMessage /= StartBeginsRx</completioncondition>
+                <decomposition operator="xor">
+                    <activity name="aStartRX">
+                        <decomposition operator="ord">
+                            <action humanaction="hPressStart"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aReviewRx">
+                        <decomposition operator="ord">
+                            <action humanaction="hPressEnter"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+        
+    </humanoperator>
+    
+</eofms>

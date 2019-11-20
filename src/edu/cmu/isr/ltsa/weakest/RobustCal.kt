@@ -6,7 +6,7 @@ import java.io.File
 fun main() {
   val p = File("./specs/coffee_p.lts").readText()
   val env = File("./specs/coffee_human.lts").readText()
-  val sys = File("./specs/coffee.lts").readText()
+  val sys = File("./specs/coffee_r.lts").readText()
 
   val cal = RobustCal(p, env, sys)
   cal.deltaEnv("WE")
