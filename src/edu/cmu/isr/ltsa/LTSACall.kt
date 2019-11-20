@@ -8,72 +8,74 @@ class LTSACall {
   }
 
   fun doCompile(fsp: String, compositeName: String = "DEFAULT"): CompositeState {
-//    println("========== Compile fsp spec ==========")
-//    println(fsp)
-
     val ltsInput = StringLTSInput(fsp)
     val ltsOutput = StringLTSOutput()
     val compiler = LTSCompiler(ltsInput, ltsOutput, System.getProperty("user.dir"))
     try {
-      val compositeState = compiler.compile(compositeName)
-//            println(ltsOutput.getText())
-      return compositeState
+      return compiler.compile(compositeName)
     } catch (e: LTSException) {
       println(e)
       throw Exception("Failed to compile the fsp source string of machine '${compositeName}'.")
     }
   }
+}
 
-  fun doCompose(compositeState: CompositeState) {
-    val ltsOutput = StringLTSOutput()
-    try {
-      compositeState.compose(ltsOutput)
-//            println(ltsOutput.getText())
-    } catch (e: LTSException) {
-      println(e)
-      throw Exception("Failed to compose machine '${compositeState.name}'.")
+fun CompositeState.doCompose(): CompositeState {
+  val ltsOutput = StringLTSOutput()
+  try {
+    this.compose(ltsOutput)
+    return this
+  } catch (e: LTSException) {
+    println(e)
+    throw Exception("Failed to compose machine '${this.name}'.")
+  }
+}
+
+fun CompositeState.propertyCheck(): List<String>? {
+  val ltsOutput = StringLTSOutput()
+  this.analyse(ltsOutput)
+  val out = ltsOutput.getText()
+  return if (out.contains("""property.*violation""".toRegex())) {
+    this.errorTrace.map { (it as String) }
+  } else {
+    null
+  }
+}
+
+fun CompositeState.getAllAlphabet(): MutableSet<String> {
+  val alphabet = this.machines
+    .flatMap { (it as CompactState).alphabet.toList() }
+    .fold(mutableSetOf<String>()) { s, a ->
+      s.add(a)
+      s
     }
-  }
+  alphabet.remove("tau")
+  return alphabet
+}
 
-  fun propertyCheck(compositeState: CompositeState): List<String>? {
-    val ltsOutput = StringLTSOutput()
-    compositeState.analyse(ltsOutput)
-    val out = ltsOutput.getText()
-//    println(out)
-    return if (out.contains("""property.*violation""".toRegex())) {
-      compositeState.errorTrace.map { (it as String) }
-    } else {
-      null
-    }
-  }
+/**
+ * The composite state should be composed first.
+ */
+fun CompositeState.minimise(): CompositeState {
+  val ltsOutput = StringLTSOutput()
+  this.minimise(ltsOutput)
+  return this
+}
 
-  fun getAllAlphabet(compositeState: CompositeState): MutableSet<String> {
-    val alphabet = compositeState.machines
-      .flatMap { (it as CompactState).alphabet.toList() }
-      .fold(mutableSetOf<String>()) { s, a ->
-        s.add(a)
-        s
-      }
-    alphabet.remove("tau")
-    return alphabet
-  }
+/**
+ * The composite state should be composed first.
+ */
+fun CompositeState.determinise(): CompositeState {
+  val ltsOutput = StringLTSOutput()
+  this.determinise(ltsOutput)
+  return this
+}
 
-  fun minimise(compositeState: CompositeState) {
-    val ltsOutput = StringLTSOutput()
-    compositeState.minimise(ltsOutput)
-  }
-
-  fun determinise(compositeState: CompositeState) {
-    val ltsOutput = StringLTSOutput()
-    compositeState.determinise(ltsOutput)
-  }
-
-  fun getCompositeName(compositeState: CompositeState): String {
-    doCompose(compositeState)
-    return if (compositeState.name != "DEFAULT") {
-      compositeState.name
-    } else {
-      (compositeState.machines[0] as CompactState).name
-    }
+fun CompositeState.getCompositeName(): String {
+  doCompose()
+  return if (this.name != "DEFAULT") {
+    this.name
+  } else {
+    (this.machines[0] as CompactState).name
   }
 }

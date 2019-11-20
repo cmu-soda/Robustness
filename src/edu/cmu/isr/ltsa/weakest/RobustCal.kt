@@ -1,6 +1,6 @@
 package edu.cmu.isr.ltsa.weakest
 
-import edu.cmu.isr.ltsa.LTSACall
+import edu.cmu.isr.ltsa.*
 import java.io.File
 
 fun main() {
@@ -25,12 +25,12 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
 
     // Generate alphabets
     val ltsaCall = LTSACall()
-    alphabetENV = ltsaCall.getAllAlphabet(ltsaCall.doCompile(ENV, "ENV"))
-    alphabetSYS = ltsaCall.getAllAlphabet(ltsaCall.doCompile(SYS, "SYS"))
+    alphabetENV = ltsaCall.doCompile(ENV, "ENV").getAllAlphabet()
+    alphabetSYS = ltsaCall.doCompile(SYS, "SYS").getAllAlphabet()
 //    TODO("What if one system is aware of drop but the other one is not, which means the other system cannot
 //     have drop event.")
 
-    val alphabetP = ltsaCall.getAllAlphabet(ltsaCall.doCompile(P, "P"))
+    val alphabetP = ltsaCall.doCompile(P, "P").getAllAlphabet()
     val alphabetC = alphabetSYS intersect alphabetENV
     val alphabetI = alphabetSYS - alphabetC
     alphabetR = (alphabetC + (alphabetP - alphabetI)).map { it.replace("""\.\d+""".toRegex(), "") }.toSet()
@@ -67,10 +67,8 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     println("=============== Step 1: ================")
     println(composite)
 
-    val compositeState = ltsaCall.doCompile(composite, "C")
     // Compose and minimise
-    ltsaCall.doCompose(compositeState)
-    ltsaCall.minimise(compositeState)
+    val compositeState = ltsaCall.doCompile(composite, "C").doCompose().minimise()
 
     if (!compositeState.composition.hasERROR())
       throw Error("The error state is not reachable. The property is true under any environment.")

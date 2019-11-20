@@ -1,6 +1,6 @@
 package edu.cmu.isr.ltsa.lstar
 
-import edu.cmu.isr.ltsa.LTSACall
+import edu.cmu.isr.ltsa.*
 import java.io.File
 
 fun main() {
@@ -25,16 +25,16 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
     println("========== Parsing the alphabets ==========")
     val ltsaCall = LTSACall()
     var sm = ltsaCall.doCompile(M1)
-    val αM1 = ltsaCall.getAllAlphabet(sm)
-    nameM1 = ltsaCall.getCompositeName(sm)
+    val αM1 = sm.getAllAlphabet()
+    nameM1 = sm.getCompositeName()
 
     sm = ltsaCall.doCompile(M2)
-    val αM2 = ltsaCall.getAllAlphabet(sm)
-    nameM2 = ltsaCall.getCompositeName(sm)
+    val αM2 = sm.getAllAlphabet()
+    nameM2 = sm.getCompositeName()
 
     sm = ltsaCall.doCompile(P)
-    val αP = ltsaCall.getAllAlphabet(sm)
-    nameP = ltsaCall.getCompositeName(sm)
+    val αP = sm.getAllAlphabet()
+    nameP = sm.getCompositeName()
 
     println("========== M1, M2, P model information ==========")
     println("Machines: M1 = $nameM1, M2 = $nameM2, P = $nameP")
@@ -49,9 +49,9 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
       val A = lstar()
       val A_fsp = conjectureToFSP(A)
       println("========== Validate conjecture assumption with the environment M2 ==========")
-      val counterExample = ltsaCall.propertyCheck(
-        ltsaCall.doCompile("$M2\nproperty $A_fsp\n||Composite = ($nameM2 || C).", "Composite")
-      )
+      val counterExample = ltsaCall.doCompile(
+        "$M2\nproperty $A_fsp\n||Composite = ($nameM2 || C).", "Composite"
+      ).propertyCheck()
       if (counterExample == null) {
         println("========== Find the weakest assumption for M1 ==========\n$A_fsp")
         return A_fsp
@@ -59,9 +59,9 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
         println("========== Counterexample found with environment M2 ==========\n$counterExample")
         val projected = counterExample.filter { it in Σ }
         val A_c = "AC = (${projected.joinToString(" -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
-        val check = ltsaCall.propertyCheck(
-          ltsaCall.doCompile("$A_c\n$M1\n$P\n||Composite = (AC || $nameM1 || $nameP).", "Composite")
-        )
+        val check = ltsaCall.doCompile(
+          "$A_c\n$M1\n$P\n||Composite = (AC || $nameM1 || $nameP).", "Composite"
+        ).propertyCheck()
         if (check == null) {
           println("========== Weaken the assumption for M1 ==========")
           witnessOfCounterExample(A, projected)
@@ -74,13 +74,13 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
 
   fun lstar(): Set<Triple<String, String, String>> {
     while (true) {
-      update_T_withQueries()
+      updateTwithQueries()
       while (true) {
         val sa = isClosed()
         if (sa.isEmpty())
           break
         S.addAll(sa)
-        update_T_withQueries()
+        updateTwithQueries()
       }
       val C = buildConjecture()
       val counterExample = checkCorrectness(C)
@@ -122,9 +122,9 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
   private fun checkCorrectness(C: Set<Triple<String, String, String>>): List<String>? {
     val ltsaCall = LTSACall()
     val fsp = conjectureToFSP(C)
-    return ltsaCall.propertyCheck(
-      ltsaCall.doCompile("$fsp\n$M1\n$P\n||Composite = (C || $nameM1 || $nameP).", "Composite")
-    )
+    return ltsaCall.doCompile(
+      "$fsp\n$M1\n$P\n||Composite = (C || $nameM1 || $nameP).", "Composite"
+    ).propertyCheck()
   }
 
   private fun buildConjecture(): Set<Triple<String, String, String>> {
@@ -200,7 +200,7 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
     return sa
   }
 
-  private fun update_T_withQueries() {
+  private fun updateTwithQueries() {
     // Update T by making membership queries on (S \cup S . Σ) . E
     val queries = (S union S.flatMap { s -> Σ.map { a -> concat(s, a) } })
       .flatMap { s -> E.map { e -> concat(s, e) } }
@@ -228,9 +228,9 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
 
     val ltsaCall = LTSACall()
     val fsp = "A = (${σ.replace(",", " -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
-    return ltsaCall.propertyCheck(
-      ltsaCall.doCompile("$fsp\n$M1\n$P\n||Composite = (A || $nameM1 || $nameP).", "Composite")
-    ) == null
+    return ltsaCall.doCompile(
+      "$fsp\n$M1\n$P\n||Composite = (A || $nameM1 || $nameP).", "Composite"
+    ).propertyCheck() == null
   }
 
   private fun concat(vararg words: String): String {

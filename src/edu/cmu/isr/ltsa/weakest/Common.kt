@@ -1,13 +1,12 @@
 package edu.cmu.isr.ltsa.weakest
 
-import edu.cmu.isr.ltsa.LTSACall
+import edu.cmu.isr.ltsa.*
 import lts.CompactState
 import lts.EventState
 import java.util.*
 import kotlin.math.min
 
 typealias Transitions = List<Triple<Int, Int, Int>>
-typealias Trace = List<String>
 
 class StateMachine {
   val transitions: Transitions
@@ -71,9 +70,7 @@ class StateMachine {
   fun minimize(): StateMachine {
     val fsp = this.buildFSP()
     val ltsaCall = LTSACall()
-    val composite = ltsaCall.doCompile(fsp)
-    ltsaCall.doCompose(composite)
-    ltsaCall.minimise(composite)
+    val composite = ltsaCall.doCompile(fsp).doCompose().minimise()
     return StateMachine(composite.composition)
   }
 
