@@ -3,10 +3,10 @@ package edu.cmu.isr.ltsa.lstar
 import edu.cmu.isr.ltsa.*
 import java.io.File
 
-fun main() {
+fun main(args: Array<String>) {
   val P = "property P = (input -> output -> P)."
-  val M1 = File("./specs/retry.lts").readText()
-  val M2 = File("./specs/env.lts").readText()
+  val M1 = ClassLoader.getSystemResource("./specs/retry.lts").readText()
+  val M2 = ClassLoader.getSystemResource("./specs/env.lts").readText()
 
   val lStar = CorinaLStar(M1, M2, P)
   lStar.run()

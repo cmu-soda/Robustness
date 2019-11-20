@@ -39,6 +39,6 @@ class StringLTSOutput : lts.LTSOutput {
   }
 
   override fun clearOutput() {
-    text.clear()
+    text.setLength(0)
   }
 }

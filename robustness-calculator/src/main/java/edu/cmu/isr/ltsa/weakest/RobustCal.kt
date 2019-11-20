@@ -1,12 +1,11 @@
 package edu.cmu.isr.ltsa.weakest
 
 import edu.cmu.isr.ltsa.*
-import java.io.File
 
-fun main() {
-  val p = File("./specs/coffee_p.lts").readText()
-  val env = File("./specs/coffee_human.lts").readText()
-  val sys = File("./specs/coffee_r.lts").readText()
+fun main(args: Array<String>) {
+  val p = ClassLoader.getSystemResource("specs/coffee_p.lts").readText()
+  val env = ClassLoader.getSystemResource("specs/coffee_human.lts").readText()
+  val sys = ClassLoader.getSystemResource("specs/coffee_r.lts").readText()
 
   val cal = RobustCal(p, env, sys)
   cal.deltaEnv("WE")
