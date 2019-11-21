@@ -2,6 +2,9 @@ package edu.cmu.isr.ltsa
 
 import lts.*
 
+/**
+ * @author Changjian Zhang
+ */
 class LTSACall {
   init {
     SymbolTable.init()
