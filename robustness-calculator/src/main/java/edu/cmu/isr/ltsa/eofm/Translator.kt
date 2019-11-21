@@ -16,17 +16,40 @@ fun main(args: Array<String>) {
   mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL)
 
   val pca: EOFMS = mapper.readValue(ClassLoader.getSystemResource("eofms/pca.xml"))
-  val translator = Translator()
-  println(translator.translate(pca))
+  val translator = Translator(pca)
+  println(translator.translate())
 }
 
-class Translator {
+class Translator(eofms: EOFMS) {
 
-  fun translate(eofms: EOFMS): String {
-    val consts = eofms.constants.joinToString("\n") { translate(it) }
-    val userDefineTypes = eofms.userDefinedTypes.joinToString("\n\n") { translate(it) }
-    val humanOperators = eofms.humanOperators.joinToString("\n\n") { translate(it) }
-    return "$consts\n\n$userDefineTypes\n\n"
+  private val consts: List<Constant> = eofms.constants
+  private val userDefinedTypes: List<UserDefineType> = eofms.userDefinedTypes
+  private val actions: List<HumanAction> = eofms.humanOperators.flatMap { it.humanActions }
+  private val inputVariables: List<InputVariable> = eofms.humanOperators.flatMap { it.inputVariables }
+  private val topLevelActivities: List<Activity> = eofms.humanOperators.flatMap { it.eofms.map { eofm ->  eofm.activity } }
+  private val activities: MutableList<Activity> = mutableListOf()
+
+  init {
+    fun recursive(activity: Activity) {
+      activities.add(activity)
+      for (subactivity in activity.decomposition.activities) {
+//        recursive(subactivity)
+      }
+    }
+
+    for (humanOperator in eofms.humanOperators) {
+      for (eofm in humanOperator.eofms) {
+        recursive(eofm.activity)
+      }
+    }
+  }
+
+  fun translate(): String {
+    val builder = StringBuilder()
+    builder.append(consts.joinToString("\n") { translate(it) })
+    builder.append(userDefinedTypes.joinToString("\n\n") { translate(it) })
+    builder.append(topLevelActivities.joinToString("\n\n") { translate(it) })
+    return builder.toString()
   }
 
   fun translate(constant: Constant): String {
@@ -44,7 +67,16 @@ class Translator {
     return builder.toString()
   }
 
-  fun translate(humanOperator: HumanOperator): String {
+  fun translate(activity: Activity, parent: Activity? = null): String {
+    // Get all the input variables related to the activity
+    val inputVars = inputVariables.filter { i ->
+      activity.preConditions.find { it.indexOf(i.name) != -1 } != null ||
+          activity.completionConditions.find { it.indexOf(i.name) != -1 } != null ||
+          activity.repeatConditions.find { it.indexOf(i.name) != -1 } != null
+    }
+    // Get the decomposition operator
+    val op = activity.decomposition.operator
+    // Get all the sub-activities
     return ""
   }
 
