@@ -32,8 +32,10 @@ class Translator(eofms: EOFMS) {
   init {
     fun recursive(activity: Activity) {
       activities.add(activity)
-      for (subactivity in activity.decomposition.activities) {
-//        recursive(subactivity)
+      for (subactivity in activity.decomposition.subActivities) {
+        if (subactivity is Activity) {
+          recursive(subactivity)
+        }
       }
     }
 

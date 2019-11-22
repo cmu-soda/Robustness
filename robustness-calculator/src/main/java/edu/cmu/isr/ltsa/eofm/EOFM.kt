@@ -1,14 +1,10 @@
 package edu.cmu.isr.ltsa.eofm
 
-import com.fasterxml.jackson.annotation.JsonCreator
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonRootName
+import com.fasterxml.jackson.annotation.*
 import com.fasterxml.jackson.dataformat.xml.JacksonXmlModule
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlText
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 
 @JsonRootName("eofms")
@@ -62,7 +58,7 @@ data class HumanOperator(
     val inputVariables: List<InputVariable> = emptyList(),
 
     @JsonProperty("inputvariablelink")
-    val inputVariableLinks: List<Link> = emptyList(),
+    val inputVariableLinks: List<InputVariableLink> = emptyList(),
 
     @JsonProperty("localvariable")
     val localVariables: List<LocalVariable> = emptyList(),
@@ -72,6 +68,12 @@ data class HumanOperator(
 
     @JsonProperty("eofm")
     val eofms: List<EOFM> = emptyList()
+)
+
+@JsonRootName("inputvariablelink")
+data class InputVariableLink(
+    @JacksonXmlProperty(isAttribute = true, localName = "link")
+    val link: String
 )
 
 @JsonRootName("inputvariable")
@@ -139,14 +141,23 @@ data class Decomposition(
     @JacksonXmlProperty(isAttribute = true, localName = "operator")
     val operator: String,
 
-    @JsonProperty("activity")
-    val activities: List<Activity> = emptyList(),
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.WRAPPER_OBJECT)
+    @JsonSubTypes(
+        JsonSubTypes.Type(value = Activity::class, name = "activity"),
+        JsonSubTypes.Type(value = ActivityLink::class, name = "activitylink"),
+        JsonSubTypes.Type(value = Action::class, name = "action")
+    )
+    @JsonProperty("subactivity")
+    val subActivities: List<Any> = emptyList()
 
-    @JsonProperty("activitylink")
-    val activityLinks: List<Link> = emptyList(),
-
-    @JsonProperty("action")
-    val actions: List<Action> = emptyList()
+//    @JsonProperty("activity")
+//    val activities: List<Activity> = emptyList(),
+//
+//    @JsonProperty("activitylink")
+//    val activityLinks: List<Link> = emptyList(),
+//
+//    @JsonProperty("action")
+//    val actions: List<Action> = emptyList()
 )
 
 @JsonRootName("action")
@@ -164,7 +175,8 @@ data class Action(
   constructor(humanAction: String?, localVariable: String?) : this(humanAction, localVariable, null)
 }
 
-data class Link(
+@JsonRootName("activitylink")
+data class ActivityLink(
     @JacksonXmlProperty(isAttribute = true, localName = "link")
     val link: String
 )
@@ -177,39 +189,42 @@ fun main(args: Array<String>) {
   mapper.registerKotlinModule()
   mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL)
 
-//  val eofms = EOFMS(
-//      constants = listOf(Constant("a", value = "0", basicType = "INTEGER"), Constant("b", value = "On", userDefinedType = "tLight")),
-//      userDefinedTypes = listOf(UserDefineType(name = "tLight", value = "{On, Off}")),
-//      humanOperators = listOf(HumanOperator(
-//          name = "human",
-//          inputVariables = listOf(InputVariable(name = "i", basicType = "INTEGER"), InputVariable(name = "j", userDefinedType = "tLight")),
-//          inputVariableLinks = listOf(Link(link = "i_link")),
-//          localVariables = listOf(LocalVariable(name = "l_i", basicType = "INTEGER", initialValue = "0")),
-//          humanActions = listOf(HumanAction(name = "act", behavior = "autoreset")),
-//          eofms = listOf(EOFM(
-//              activity = Activity(
-//                  name = "activity1",
-//                  preConditions = listOf("iInterfaceMessage = SystemOff", "iInterfaceMessage = TreatmentAdministering"),
-//                  completionConditions = listOf("iInterfaceMessage /= SystemOff"),
-//                  decomposition = Decomposition(
-//                      operator = "optor_seq",
-//                      activities = listOf(Activity(
-//                          name = "activity1-1",
-//                          repeatConditions = listOf("true"),
-//                          decomposition = Decomposition(
-//                              operator = "ord",
-//                              actions = listOf(Action(humanAction = "act"))
-//                          )
-//                      )),
-//                      activityLinks = listOf(Link(link = "activity_link-1"))
-//                  )
-//              )
-//          ))
-//      ))
-//  )
-//
-//  println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(eofms))
+  val eofms = EOFMS(
+      constants = listOf(Constant("a", value = "0", basicType = "INTEGER"), Constant("b", value = "On", userDefinedType = "tLight")),
+      userDefinedTypes = listOf(UserDefineType(name = "tLight", value = "{On, Off}")),
+      humanOperators = listOf(HumanOperator(
+          name = "human",
+          inputVariables = listOf(InputVariable(name = "i", basicType = "INTEGER"), InputVariable(name = "j", userDefinedType = "tLight")),
+          inputVariableLinks = listOf(InputVariableLink(link = "i_link")),
+          localVariables = listOf(LocalVariable(name = "l_i", basicType = "INTEGER", initialValue = "0")),
+          humanActions = listOf(HumanAction(name = "act", behavior = "autoreset")),
+          eofms = listOf(EOFM(
+              activity = Activity(
+                  name = "activity1",
+                  preConditions = listOf("iInterfaceMessage = SystemOff", "iInterfaceMessage = TreatmentAdministering"),
+                  completionConditions = listOf("iInterfaceMessage /= SystemOff"),
+                  decomposition = Decomposition(
+                      operator = "optor_seq",
+                      subActivities = listOf(Activity(
+                          name = "activity1-1",
+                          repeatConditions = listOf("true"),
+                          decomposition = Decomposition(
+                              operator = "ord",
+                              subActivities = listOf(Action(humanAction = "act"))
+                          )
+                      ), ActivityLink(link = "activity_link-1"), ActivityLink(link = "activity_link-2"))
+                  )
+              )
+          ))
+      ))
+  )
 
-  val pca: EOFMS = mapper.readValue(ClassLoader.getSystemResource("eofms/pca.xml"))
-  println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(pca))
+  var s = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(eofms)
+  s = s.replace("""<subactivity>|</subactivity>""".toRegex(), "")
+  println(s)
+//  println(mapper.readValue<EOFMS>(s))
+
+//  val pca: EOFMS = mapper.readValue(ClassLoader.getSystemResource("eofms/pca.xml"))
+//  println(pca)
+//  println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(pca))
 }
