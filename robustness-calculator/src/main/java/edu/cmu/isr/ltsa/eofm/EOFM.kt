@@ -5,7 +5,16 @@ import com.fasterxml.jackson.dataformat.xml.JacksonXmlModule
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlText
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.w3c.dom.Node
+import java.io.ByteArrayInputStream
+import java.io.StringWriter
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.OutputKeys
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
 
 @JsonRootName("eofms")
 data class EOFMS(
@@ -221,8 +230,32 @@ fun main(args: Array<String>) {
 
   var s = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(eofms)
   s = s.replace("""<subactivity>|</subactivity>""".toRegex(), "")
-  println(s)
-//  println(mapper.readValue<EOFMS>(s))
+//  println(s)
+//  println(mapper.readValue<EOFMS>())
+
+  val docFactory = DocumentBuilderFactory.newInstance()
+  val docBuilder = docFactory.newDocumentBuilder()
+  val doc = docBuilder.parse(ByteArrayInputStream(s.toByteArray()))
+  val decompositions = doc.getElementsByTagName("decomposition")
+  for (i in 0 until decompositions.length) {
+    TODO("wrap the children")
+    val n = decompositions.item(0)
+    val children = n.childNodes
+    for (j in 0 until children.length) {
+      val c = children.item(j)
+      if (c.nodeType != Node.ELEMENT_NODE)
+        continue
+      println(c.nodeName)
+      val wrapper = doc.createElement("subactivity")
+      n.insertBefore(wrapper, c)
+    }
+  }
+  val transformerFactory = TransformerFactory.newInstance();
+  val transformer = transformerFactory.newTransformer()
+  transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes")
+  val writer = StringWriter()
+  transformer.transform(DOMSource(doc), StreamResult(writer))
+  println(writer.buffer.toString())
 
 //  val pca: EOFMS = mapper.readValue(ClassLoader.getSystemResource("eofms/pca.xml"))
 //  println(pca)
