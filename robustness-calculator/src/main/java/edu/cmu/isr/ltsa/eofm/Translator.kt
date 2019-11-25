@@ -38,39 +38,29 @@ class Translator(eofms: EOFMS) {
     builder.append("const Executing = 1\n")
     builder.append("const Done = 2\n")
     builder.append("range ActState = Ready..Done\n\n")
-    for (it in consts) {
-      builder.append(translate(it))
-      builder.append('\n')
-    }
+    for (it in consts) appendConstant(builder, it)
     builder.append('\n')
-    for (it in userDefinedTypes) {
-      builder.append(translate(it))
-      builder.append("\n\n")
-    }
-    for (i in topLevelActivities.indices) {
-      builder.append(translate(topLevelActivities[i], postfix = "$i"))
-      builder.append("\n\n")
-    }
+    for (it in userDefinedTypes) appendUserDefinedType(builder, it)
+    for (i in topLevelActivities.indices) appendActivity(builder, topLevelActivities[i], postfix = "$i")
     return builder.toString()
   }
 
-  fun translate(constant: Constant): String {
-    return "const ${constant.name} = ${constant.value}"
+  fun appendConstant(builder: java.lang.StringBuilder, constant: Constant) {
+    builder.append("const ${constant.name} = ${constant.value}\n")
   }
 
-  fun translate(userDefineType: UserDefineType): String {
-    val builder = StringBuilder()
+  fun appendUserDefinedType(builder: java.lang.StringBuilder, userDefineType: UserDefineType) {
     val value = userDefineType.value
     val consts = value.substring(1 until value.length-1).split(""",\s*""".toRegex())
     for (i in consts.indices) {
       builder.append("const ${consts[i]} = $i\n")
     }
     builder.append("range ${userDefineType.name} = ${consts[0]}..${consts[consts.size-1]}")
-    return builder.toString()
+    builder.append("\n\n")
   }
 
-  fun translate(activity: Activity, parent: String? = null, preSibling: String? = null,
-                siblings: List<String> = emptyList(), postfix: String = ""): String {
+  fun appendActivity(builder: java.lang.StringBuilder, activity: Activity, parent: String? = null, preSibling: String? = null,
+                siblings: List<String> = emptyList(), postfix: String = "") {
     val name = "${activity.name.capitalize()}$postfix"
     val eventPrefix = "${activity.name}$postfix"
 
@@ -92,7 +82,14 @@ class Translator(eofms: EOFMS) {
       }
     }.mapIndexed { idx, s -> "$s$postfix$idx" }
 
-    val builder = StringBuilder()
+    // A list of process variables for later use
+    val processVars = if (parent != null) {
+      listOf("self", parent) + inputVars.map { it.name } + subActivities
+    } else {
+      listOf("self") + inputVars.map { it.name } + subActivities
+    }
+
+    // Append process header
     builder.append("${name}[self:ActState]")
     for (it in inputVars) {
       builder.append("[${it.name}:${it.userDefinedType}]")
@@ -101,47 +98,124 @@ class Translator(eofms: EOFMS) {
     for (it in subActivities) {
       builder.append("[${it}:ActState]")
     }
-    builder.append(" = (\n\t\t")
-
-    val startCondition = translateStartCondition(op, parent, preSibling, siblings)
+    builder.append(" = (\n")
 
     // From Ready to Executing
-    builder.append("when (self == Ready")
-    builder.append(startCondition)
-    for (it in activity.preConditions) {
-      builder.append(" && ")
-      builder.append(it)
-    }
-    for (it in activity.completionConditions) {
-      builder.append(" && ")
-      builder.append("!($it)")
+    builder.append("\t\t// Ready to Executing\n")
+    builder.append("\t\twhen (self == Ready")
+    appendStartCondition(builder, op, parent, preSibling, siblings)
+    appendPrecondition(builder, activity.preConditions)
+    appendCompletionCondition(builder, activity.completionConditions, false)
+    builder.append(")\n\t\t\tset_$eventPrefix[Executing] -> $name")
+    appendProcessVars(builder, processVars, "self" to "Executing")
+
+    // From Ready to Done
+    builder.append("\t\t// Ready to Done\n")
+    builder.append("\t|\twhen (self == Ready")
+    appendStartCondition(builder, op, parent, preSibling, siblings)
+    appendCompletionCondition(builder, activity.completionConditions)
+    builder.append(")\n\t\t\tset_$eventPrefix[Done] -> $name")
+    appendProcessVars(builder, processVars,"self" to "Done")
+
+    // From Executing to Executing
+    builder.append("\t\t// Executing to Executing\n")
+    builder.append("\t|\twhen (self == Executing")
+    appendEndCondition(builder, op, subActivities)
+    appendRepeatCondition(builder, activity.repeatConditions)
+    appendCompletionCondition(builder, activity.completionConditions, false)
+    builder.append(")\n\t\t\tset_$eventPrefix[Executing] -> $name")
+    appendProcessVars(builder, processVars, "self" to "Executing")
+
+    // From Executing to Done
+    builder.append("\t\t// Executing to Done\n")
+    builder.append("\t|\twhen (self == Executing")
+    appendEndCondition(builder, op, subActivities)
+    appendCompletionCondition(builder, activity.completionConditions)
+    builder.append(")\n\t\t\tset_$eventPrefix[Done] -> $name")
+    appendProcessVars(builder, processVars, "self" to "Done")
+
+    // From Done to Ready (reset)
+    builder.append("\t\t// Done to Ready (reset)\n")
+    if (parent == null) {
+      builder.append("\t|\twhen (self == Done)\n")
+      builder.append("\t\t\tset_$eventPrefix[Ready] -> $name")
+      appendProcessVars(builder, processVars, "self" to "Ready")
+    } else {
+      builder.append("\t|\twhen (self == Done)\n")
+      builder.append("\t\t\tset_$parent[Ready] -> set_$eventPrefix[Ready] -> $name")
+      appendProcessVars(builder, processVars, "self" to "Ready", parent to "Ready")
     }
 
-    return builder.toString()
+    // Append process ending
+    builder.append(").\n\n")
+
+    // Append sub-activities
+    for (i in activity.decomposition.subActivities.indices) {
+      val subact = activity.decomposition.subActivities[i]
+      if (subact is Activity) {
+        appendActivity(builder,
+            activity = subact,
+            parent = eventPrefix,
+            preSibling = if (i > 0) subActivities[i-1] else null,
+            siblings = subActivities,
+            postfix = postfix + i
+        )
+      }
+    }
   }
 
-  private fun translateStartCondition(op: String, parent: String?, preSibling: String?, siblings: List<String>): String {
-    val pIsExec = if (parent != null) "$parent == Executing" else ""
-    val preDone = if (preSibling != null) "$preSibling == Done" else ""
-    val startCondition = when (op) {
-      "and_par", "or_par", "optor_par", "sync" -> pIsExec
-      "ord" -> if (pIsExec != "" && preDone != "") "$pIsExec && $preDone" else "$pIsExec$preDone"
-      "xor" -> {
-        val sibReady = siblings.joinToString(" && ") { "$it == Ready" }
-        if (pIsExec != "" && sibReady != "")
-          "$pIsExec && $sibReady"
-        else
-          "$pIsExec$sibReady"
-      }
-      else -> {
-        val sibNotExec = siblings.joinToString(" && ") { "$it != Executing" }
-        if (pIsExec != "" && sibNotExec != "")
-          "$pIsExec && $sibNotExec"
-        else
-          "$pIsExec$sibNotExec"
-      }
+  private fun appendStartCondition(builder: java.lang.StringBuilder, op: String, parent: String?,
+                                   preSibling: String?, siblings: List<String>) {
+    if (parent != null)
+      builder.append(" && $parent == Executing")
+    when (op) {
+      "and_par", "or_par", "optor_par", "sync" -> return
+      "ord" -> if (preSibling != null) builder.append(" && $preSibling == Done")
+      "xor" -> for (it in siblings) builder.append(" && $it == Ready")
+      else -> for (it in siblings) builder.append(" && $it != Executing")
     }
-    return if (startCondition != "") " && $startCondition" else ""
+  }
+
+  private fun appendEndCondition(builder: java.lang.StringBuilder, op: String, subActivities: List<String>) {
+    for (it in subActivities) builder.append(" && $it != Executing")
+    when (op) {
+      "and_seq", "and_par", "sync" -> for (it in subActivities) builder.append(" && $it == Done")
+      "or_seq", "or_par", "xor" -> {
+        builder.append(" && (")
+        builder.append(subActivities.joinToString(" || ") { "$it == Done" })
+        builder.append(")")
+      }
+      "optor_seq", "optor_par" -> return
+      "ord" -> if (subActivities.isNotEmpty()) builder.append(" && ${subActivities.last()} == Done")
+      else -> throw java.lang.IllegalArgumentException("Cannot recognize operator: $op")
+    }
+  }
+
+  private fun appendProcessVars(builder: java.lang.StringBuilder, variables: List<String>, vararg replaces: Pair<String, String>) {
+    var s = variables.joinToString("") { "[$it]" }
+    for (it in replaces) {
+      s = s.replace(it.first, it.second)
+    }
+    builder.append(s)
+    builder.append('\n')
+  }
+
+  private fun appendPrecondition(builder: java.lang.StringBuilder, precondition: List<String>) {
+    for (it in precondition) builder.append(" && $it")
+  }
+
+  private fun appendCompletionCondition(builder: java.lang.StringBuilder, completion: List<String>, sign: Boolean = true) {
+    if (!sign && completion.isNotEmpty()) {
+      builder.append(" && !(")
+      builder.append(completion.joinToString(" && "))
+      builder.append(")")
+    } else {
+      for (it in completion) builder.append(" && $it")
+    }
+  }
+
+  private fun appendRepeatCondition(builder: java.lang.StringBuilder, repeat: List<String>) {
+    for (it in repeat) builder.append(" && $it")
   }
 
 }
