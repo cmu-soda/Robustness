@@ -7,9 +7,11 @@ import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlText
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.w3c.dom.Document
 import org.w3c.dom.Node
 import java.io.ByteArrayInputStream
-import java.io.StringWriter
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.OutputKeys
 import javax.xml.transform.TransformerFactory
@@ -26,7 +28,19 @@ data class EOFMS(
 
     @JsonProperty("humanoperator")
     val humanOperators: List<HumanOperator> = emptyList()
-)
+) {
+  fun toXmlString(): String {
+    val xmlModule = JacksonXmlModule()
+    xmlModule.setDefaultUseWrapper(false)
+
+    val mapper = XmlMapper(xmlModule)
+    mapper.registerKotlinModule()
+    mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL)
+
+    return mapper.writerWithDefaultPrettyPrinter().writeValueAsString(this)
+        .replace("""<subactivity>|</subactivity>""".toRegex(), "")
+  }
+}
 
 @JsonRootName("constant")
 data class Constant(
@@ -190,7 +204,38 @@ data class ActivityLink(
     val link: String
 )
 
-fun main(args: Array<String>) {
+fun parseEOFMS(xml: String): EOFMS {
+  val docFactory = DocumentBuilderFactory.newInstance()
+  val docBuilder = docFactory.newDocumentBuilder()
+  return _parse(docBuilder.parse(ByteArrayInputStream(xml.toByteArray())))
+}
+
+fun parseEOFMS(xmlStream: InputStream?): EOFMS {
+  val docFactory = DocumentBuilderFactory.newInstance()
+  val docBuilder = docFactory.newDocumentBuilder()
+  return _parse(docBuilder.parse(xmlStream))
+}
+
+private fun _parse(doc: Document): EOFMS {
+  val decompositions = doc.getElementsByTagName("decomposition")
+  for (i in 0 until decompositions.length) {
+    val n = decompositions.item(i)
+    val children = n.childNodes
+    for (j in 0 until children.length) {
+      val c = children.item(j)
+      if (c.nodeType != Node.ELEMENT_NODE)
+        continue
+      val wrapper = doc.createElement("subactivity")
+      n.replaceChild(wrapper, c)
+      wrapper.appendChild(c)
+    }
+  }
+  val transformerFactory = TransformerFactory.newInstance();
+  val transformer = transformerFactory.newTransformer()
+  transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes")
+  val out = ByteArrayOutputStream()
+  transformer.transform(DOMSource(doc), StreamResult(out))
+
   val xmlModule = JacksonXmlModule()
   xmlModule.setDefaultUseWrapper(false)
 
@@ -198,66 +243,41 @@ fun main(args: Array<String>) {
   mapper.registerKotlinModule()
   mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL)
 
-  val eofms = EOFMS(
-      constants = listOf(Constant("a", value = "0", basicType = "INTEGER"), Constant("b", value = "On", userDefinedType = "tLight")),
-      userDefinedTypes = listOf(UserDefineType(name = "tLight", value = "{On, Off}")),
-      humanOperators = listOf(HumanOperator(
-          name = "human",
-          inputVariables = listOf(InputVariable(name = "i", basicType = "INTEGER"), InputVariable(name = "j", userDefinedType = "tLight")),
-          inputVariableLinks = listOf(InputVariableLink(link = "i_link")),
-          localVariables = listOf(LocalVariable(name = "l_i", basicType = "INTEGER", initialValue = "0")),
-          humanActions = listOf(HumanAction(name = "act", behavior = "autoreset")),
-          eofms = listOf(EOFM(
-              activity = Activity(
-                  name = "activity1",
-                  preConditions = listOf("iInterfaceMessage = SystemOff", "iInterfaceMessage = TreatmentAdministering"),
-                  completionConditions = listOf("iInterfaceMessage /= SystemOff"),
-                  decomposition = Decomposition(
-                      operator = "optor_seq",
-                      subActivities = listOf(Activity(
-                          name = "activity1-1",
-                          repeatConditions = listOf("true"),
-                          decomposition = Decomposition(
-                              operator = "ord",
-                              subActivities = listOf(Action(humanAction = "act"))
-                          )
-                      ), ActivityLink(link = "activity_link-1"), ActivityLink(link = "activity_link-2"))
-                  )
-              )
-          ))
-      ))
-  )
+  return mapper.readValue(out.toByteArray())
+}
 
-  var s = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(eofms)
-  s = s.replace("""<subactivity>|</subactivity>""".toRegex(), "")
-//  println(s)
-//  println(mapper.readValue<EOFMS>())
+fun main(args: Array<String>) {
+//  val eofms = EOFMS(
+//      constants = listOf(Constant("a", value = "0", basicType = "INTEGER"), Constant("b", value = "On", userDefinedType = "tLight")),
+//      userDefinedTypes = listOf(UserDefineType(name = "tLight", value = "{On, Off}")),
+//      humanOperators = listOf(HumanOperator(
+//          name = "human",
+//          inputVariables = listOf(InputVariable(name = "i", basicType = "INTEGER"), InputVariable(name = "j", userDefinedType = "tLight")),
+//          inputVariableLinks = listOf(InputVariableLink(link = "i_link")),
+//          localVariables = listOf(LocalVariable(name = "l_i", basicType = "INTEGER", initialValue = "0")),
+//          humanActions = listOf(HumanAction(name = "act", behavior = "autoreset")),
+//          eofms = listOf(EOFM(
+//              activity = Activity(
+//                  name = "activity1",
+//                  preConditions = listOf("iInterfaceMessage = SystemOff", "iInterfaceMessage = TreatmentAdministering"),
+//                  completionConditions = listOf("iInterfaceMessage /= SystemOff"),
+//                  decomposition = Decomposition(
+//                      operator = "optor_seq",
+//                      subActivities = listOf(Activity(
+//                          name = "activity1-1",
+//                          repeatConditions = listOf("true"),
+//                          decomposition = Decomposition(
+//                              operator = "ord",
+//                              subActivities = listOf(Action(humanAction = "act"))
+//                          )
+//                      ), ActivityLink(link = "activity_link-1"), ActivityLink(link = "activity_link-2"))
+//                  )
+//              )
+//          ))
+//      ))
+//  )
 
-  val docFactory = DocumentBuilderFactory.newInstance()
-  val docBuilder = docFactory.newDocumentBuilder()
-  val doc = docBuilder.parse(ByteArrayInputStream(s.toByteArray()))
-  val decompositions = doc.getElementsByTagName("decomposition")
-  for (i in 0 until decompositions.length) {
-    TODO("wrap the children")
-    val n = decompositions.item(0)
-    val children = n.childNodes
-    for (j in 0 until children.length) {
-      val c = children.item(j)
-      if (c.nodeType != Node.ELEMENT_NODE)
-        continue
-      println(c.nodeName)
-      val wrapper = doc.createElement("subactivity")
-      n.insertBefore(wrapper, c)
-    }
-  }
-  val transformerFactory = TransformerFactory.newInstance();
-  val transformer = transformerFactory.newTransformer()
-  transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes")
-  val writer = StringWriter()
-  transformer.transform(DOMSource(doc), StreamResult(writer))
-  println(writer.buffer.toString())
-
-//  val pca: EOFMS = mapper.readValue(ClassLoader.getSystemResource("eofms/pca.xml"))
-//  println(pca)
-//  println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(pca))
+  val pca = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/pca.xml"))
+  println(pca)
+  println(pca.toXmlString())
 }
