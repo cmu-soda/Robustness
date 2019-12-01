@@ -137,13 +137,44 @@ class Translator(eofms: EOFMS) {
     // From Done to Ready (reset)
     builder.append("\t\t// Done to Ready (reset)\n")
     if (parent == null) {
+      builder.append("\t\t// No parent, by default true.\n")
       builder.append("\t|\twhen (self == Done)\n")
       builder.append("\t\t\tset_$eventPrefix[Ready] -> $name")
       appendProcessVars(builder, processVars, "self" to "Ready")
     } else {
-      builder.append("\t|\twhen (self == Done)\n")
+      builder.append("\t\t// Should synchronize on the parent's reset condition\n")
+      builder.append("\t|\twhen (self == Done && $parent == Done)\n")
       builder.append("\t\t\tset_$parent[Ready] -> set_$eventPrefix[Ready] -> $name")
       appendProcessVars(builder, processVars, "self" to "Ready", parent to "Ready")
+      builder.append("\t|\twhen (self == Done && $parent == Executing)\n")
+      builder.append("\t\t\tset_$parent[Executing] -> set_$eventPrefix[Ready] -> $name")
+      appendProcessVars(builder, processVars, "self" to "Ready", parent to "Executing")
+    }
+
+    // Synchronize on variable value changes
+    for (v in inputVars) {
+      builder.append("\t\t// input ${v.name}\n")
+      builder.append("\t|\tset_${v.name}[i:${v.userDefinedType}] -> $name")
+      appendProcessVars(builder, processVars, v.name to "i")
+    }
+
+    // Synchronize on parent activity
+    if (parent != null) {
+      builder.append("\t|\twhen (!(self == Done && $parent == Executing))\n")
+      builder.append("\t\t\tset_$parent[Executing] -> $name")
+      appendProcessVars(builder, processVars, parent to "Executing")
+      builder.append("\t|\tset_$parent[Done] -> $name")
+      appendProcessVars(builder, processVars, parent to "Done")
+      builder.append("\t|\twhen (!(self == Done && $parent == Done))\n")
+      builder.append("\t\t\tset_$parent[Ready] -> $name")
+      appendProcessVars(builder, processVars, parent to "Ready")
+    }
+
+    // Synchronize on sub-activities
+    for (sub in subActivities) {
+      builder.append("\t\t// sub-activity $sub\n")
+      builder.append("\t|\tset_$sub[i:ActState] -> $name")
+      appendProcessVars(builder, processVars, sub to "i")
     }
 
     // Append process ending
@@ -152,9 +183,16 @@ class Translator(eofms: EOFMS) {
     // Append sub-activities
     for (i in activity.decomposition.subActivities.indices) {
       val subact = activity.decomposition.subActivities[i]
-      if (subact is Activity) {
-        appendActivity(builder,
+      when (subact) {
+        is Activity -> appendActivity(builder,
             activity = subact,
+            parent = eventPrefix,
+            preSibling = if (i > 0) subActivities[i-1] else null,
+            siblings = subActivities,
+            postfix = postfix + i
+        )
+        is ActivityLink -> appendActivity(builder,
+            activity = activities[subact.link]!!,
             parent = eventPrefix,
             preSibling = if (i > 0) subActivities[i-1] else null,
             siblings = subActivities,
