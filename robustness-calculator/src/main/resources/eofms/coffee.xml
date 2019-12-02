@@ -1,0 +1,67 @@
+<eofms>
+    <userdefinedtype name="TMugState">{Absent, Empty, Full}</userdefinedtype>
+    <userdefinedtype name="TBool">{False, True}</userdefinedtype>
+
+    <humanoperator name="User">
+        <inputvariable name="iBrewing" userdefinedtype="TBool"/>
+        <inputvariable name="iMugState" userdefinedtype="TMugState"/>
+        <inputvariable name="iHandleDown" userdefinedtype="TBool"/>
+
+        <humanaction name="hPlaceMug" behavior="autoreset"/>
+        <humanaction name="hLiftHandle" behavior="autoreset"/>
+        <humanaction name="hAddOrReplacePod" behavior="autoreset"/>
+        <humanaction name="hLowerHandle" behavior="autoreset"/>
+        <humanaction name="hPressBrew" behavior="autoreset"/>
+
+        <eofm>
+            <activity name="aBrewCoffee">
+                <precondition>iBrewState == False</precondition>
+                <precondition>iMugState != Full</precondition>
+                <completioncondition>iBrewing == True</completioncondition>
+                <decomposition operator="ord">
+                    <activity name="aPrepMachine">
+                        <completioncondition>iHandleDown == True</completioncondition>
+                        <completioncondition>iMugState == Empty</completioncondition>
+                        <decomposition operator="and_seq">
+                            <activity name="aPlaceMug">
+                                <precondition>iMugState == Absent</precondition>
+                                <completioncondition>iMugState == Empty</completioncondition>
+                                <decomposition operator="ord">
+                                    <action humanaction="hPlaceMug"/>
+                                </decomposition>
+                            </activity>
+                            <activity name="aAddPod">
+                                <decomposition operator="ord">
+                                    <activity name="aLiftHandle">
+                                        <precondition>iHandleDown == True</precondition>
+                                        <completioncondition>iHandleDown == False</completioncondition>
+                                        <decomposition operator="ord">
+                                            <action humanaction="hLiftHandle"/>
+                                        </decomposition>
+                                    </activity>
+                                    <activity name="aReplacePod">
+                                        <decomposition operator="ord">
+                                            <action humanaction="hAddOrReplacePod"/>
+                                        </decomposition>
+                                    </activity>
+                                    <activity name="aLowerHandle">
+                                        <precondition>iHandleDown == False</precondition>
+                                        <completioncondition>iHandleDown == True</completioncondition>
+                                        <decomposition operator="ord">
+                                            <action humanaction="hLowerHandle"/>
+                                        </decomposition>
+                                    </activity>
+                                </decomposition>
+                            </activity>
+                        </decomposition>
+                    </activity>
+                    <activity name="aBrew">
+                        <decomposition operator="ord">
+                            <action humanaction="hPressBrew"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+    </humanoperator>
+</eofms>

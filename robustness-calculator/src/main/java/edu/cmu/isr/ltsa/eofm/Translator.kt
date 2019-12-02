@@ -3,15 +3,15 @@ package edu.cmu.isr.ltsa.eofm
 import java.lang.StringBuilder
 
 fun main(args: Array<String>) {
-  val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/pca.xml"))
+  val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
   val builder = StringBuilder()
-  val translator = Translator(pca)
+  val translator = EOFMTranslator(pca)
 
   translator.translate(builder)
   println(builder.toString())
 }
 
-class Translator(eofms: EOFMS) {
+class EOFMTranslator(eofms: EOFMS) {
 
   private val consts: List<Constant> = eofms.constants
   private val userDefinedTypes: List<UserDefineType> = eofms.userDefinedTypes
@@ -64,37 +64,92 @@ class Translator(eofms: EOFMS) {
     this.append("\n\n")
   }
 
-//  fun appendAction(builder: java.lang.StringBuilder, action: Action, parent: String, preSibling: String? = null,
-//                   siblings: List<String> = emptyList(), postfix: String = "") {
-//    val name = "${action.humanAction?.capitalize()}$postfix"
-//    val eventPrefix = "${action.humanAction}$postfix"
-//
-//    // A list of process variables for later use
-//    val processVars = listOf("self", parent)
-//
-//    // Append process header
-//    builder.append("${name}[self:ActState][$parent:ActState]")
-//    builder.append(" = (\n")
-//
-//    // From Ready to Executing
-//    builder.append("\t\t// Ready to Executing\n")
-//    builder.append("\t\twhen (self == Ready")
-//    appendStartCondition(builder, op, parent, preSibling, siblings)
-//    appendPrecondition(builder, activity.preConditions)
-//    appendCompletionCondition(builder, activity.completionConditions, false)
-//    builder.append(")\n\t\t\tset_$eventPrefix[Executing] -> $name")
-//    appendProcessVars(builder, processVars, "self" to "Executing")
-//  }
+}
 
+private abstract class ActTranslator(
+    val parOp: String?, val parent: String?, val preSibling: String?, val siblings: List<String>
+) {
+  protected abstract val processName: String
+  protected abstract val eventName: String
+  protected var processVars = emptyList<String>()
+
+  abstract fun translate(builder: StringBuilder)
+  protected abstract fun StringBuilder.appendProcessHeader()
+  protected abstract fun StringBuilder.appendReadyToExecuting()
+  protected abstract fun StringBuilder.appendExecutingToDone()
+
+  protected fun StringBuilder.appendDoneToReady() {
+    this.append("\t\t// Done to Ready (reset)\n")
+    if (parent == null) {
+      this.append("\t\t// No parent, by default true.\n")
+      this.append("\t|\twhen (self == Done)\n")
+      this.append("\t\t\tset_$eventName[Ready] -> $processName")
+      this.appendProcessVars("self" to "Ready")
+    } else {
+      this.append("\t\t// Should synchronize on the parent's reset condition\n")
+      this.append("\t|\twhen (self == Done && $parent == Done)\n")
+      this.append("\t\t\tset_$parent[Ready] -> set_$eventName[Ready] -> $processName")
+      this.appendProcessVars("self" to "Ready", parent to "Ready")
+      this.append("\t|\twhen (self == Done && $parent == Executing)\n")
+      this.append("\t\t\tset_$parent[Executing] -> set_$eventName[Ready] -> $processName")
+      this.appendProcessVars("self" to "Ready", parent to "Executing")
+    }
+  }
+
+  protected fun StringBuilder.appendStartCondition() {
+    if (parent != null)
+      this.append(" && $parent == Executing")
+
+    if (parOp != null) {
+      when (parOp) {
+        "and_par", "or_par", "optor_par", "sync" -> return
+        "ord" -> if (preSibling != null) this.append(" && $preSibling == Done")
+        "xor" -> for (it in siblings) this.append(" && $it == Ready")
+        else -> for (it in siblings) this.append(" && $it != Executing")
+      }
+    }
+  }
+
+  protected abstract fun StringBuilder.appendEndCondition()
+
+  protected fun StringBuilder.appendProcessVars(vararg replaces: Pair<String, String>) {
+    var s = processVars.joinToString("") { "[$it]" }
+    for (it in replaces) {
+      s = s.replace(it.first, it.second)
+    }
+    this.append(s)
+    this.append('\n')
+  }
+
+  protected fun StringBuilder.appendSyncParent() {
+    if (parent != null) {
+      this.append("\t|\twhen (!(self == Done && $parent == Executing))\n")
+      this.append("\t\t\tset_$parent[Executing] -> $processName")
+      this.appendProcessVars(parent to "Executing")
+      this.append("\t|\tset_$parent[Done] -> $processName")
+      this.appendProcessVars(parent to "Done")
+      this.append("\t|\twhen (!(self == Done && $parent == Done))\n")
+      this.append("\t\t\tset_$parent[Ready] -> $processName")
+      this.appendProcessVars(parent to "Ready")
+    }
+  }
+
+  protected fun StringBuilder.appendSyncSiblings() {
+    for (s in siblings) {
+      this.append("\t\t// sibling $s\n")
+      this.append("\t|\tset_$s[i:ActState] -> $processName")
+      this.appendProcessVars(s to "i")
+    }
+  }
 }
 
 private class ActivityTranslator(
-    val act: Activity, val inputVariables: List<InputVariable>, val activities: Map<String, Activity>,
-    val parent: String? = null, val preSibling: String? = null, val siblings: List<String> = emptyList(),
-    val postfix: String = ""
-) {
-  private val processName = "${act.name.capitalize()}$postfix"
-  private val eventName = "${act.name}$postfix"
+    val act: Activity, val inputVariables: List<InputVariable>,
+    val activities: Map<String, Activity>, val postfix: String = "",
+    parOp: String? = null, parent: String? = null, preSibling: String? = null, siblings: List<String> = emptyList()
+) : ActTranslator(parOp, parent, preSibling, siblings) {
+  override val processName = "${act.name.capitalize()}$postfix"
+  override val eventName = "${act.name}$postfix"
 
   // Get all the input variables related to the activity
   private val inputs = inputVariables.filter { i ->
@@ -115,9 +170,7 @@ private class ActivityTranslator(
     }
   }.mapIndexed { idx, s -> "$s$postfix$idx" }
 
-  private var processVars = emptyList<String>()
-
-  fun translate(builder: StringBuilder) {
+  override fun translate(builder: StringBuilder) {
     // Append process header, and set the list of process variables for later user
     builder.appendProcessHeader()
     // From Ready to Executing
@@ -130,33 +183,22 @@ private class ActivityTranslator(
     builder.appendExecutingToDone()
     // From Done to Ready (reset)
     builder.appendDoneToReady()
-
     // Synchronize on variable value changes
     for (v in inputs) {
       builder.append("\t\t// input ${v.name}\n")
       builder.append("\t|\tset_${v.name}[i:${v.userDefinedType}] -> $processName")
       builder.appendProcessVars(v.name to "i")
     }
-
     // Synchronize on parent activity
-    if (parent != null) {
-      builder.append("\t|\twhen (!(self == Done && $parent == Executing))\n")
-      builder.append("\t\t\tset_$parent[Executing] -> $processName")
-      builder.appendProcessVars(parent to "Executing")
-      builder.append("\t|\tset_$parent[Done] -> $processName")
-      builder.appendProcessVars(parent to "Done")
-      builder.append("\t|\twhen (!(self == Done && $parent == Done))\n")
-      builder.append("\t\t\tset_$parent[Ready] -> $processName")
-      builder.appendProcessVars(parent to "Ready")
-    }
-
+    builder.appendSyncParent()
+    // Synchronize on siblings activities
+    builder.appendSyncSiblings()
     // Synchronize on sub-activities
     for (sub in subacts) {
       builder.append("\t\t// sub-activity $sub\n")
       builder.append("\t|\tset_$sub[i:ActState] -> $processName")
       builder.appendProcessVars(sub to "i")
     }
-
     // Append process ending
     builder.append(").\n\n")
 
@@ -168,25 +210,35 @@ private class ActivityTranslator(
             act = subact,
             inputVariables = inputVariables,
             activities = activities,
+            postfix = postfix + i,
+            parOp = op,
             parent = eventName,
             preSibling = if (i > 0) subacts[i-1] else null,
-            siblings = subacts.filterIndexed { index, _ -> index != i },
-            postfix = postfix + i
+            siblings = subacts.filterIndexed { index, _ -> index != i }
         ).translate(builder)
         is ActivityLink -> ActivityTranslator(
             act = activities[subact.link]!!,
             inputVariables = inputVariables,
             activities = activities,
+            postfix = postfix + i,
+            parOp = op,
             parent = eventName,
             preSibling = if (i > 0) subacts[i-1] else null,
-            siblings = subacts.filterIndexed { index, _ -> index != i },
-            postfix = postfix + i
+            siblings = subacts.filterIndexed { index, _ -> index != i }
+        ).translate(builder)
+        is Action -> ActionTranslator(
+            act = subact,
+            postfix = postfix + i,
+            parOp = op,
+            parent = eventName,
+            preSibling = if (i > 0) subacts[i-1] else null,
+            siblings = subacts.filterIndexed { index, _ -> index != i }
         ).translate(builder)
       }
     }
   }
 
-  private fun StringBuilder.appendProcessHeader() {
+  override fun StringBuilder.appendProcessHeader() {
     // A list of process variables for later use
     processVars = (if (parent != null) listOf("self", parent) else listOf("self")) +
         siblings + subacts + inputs.map { it.name }
@@ -204,7 +256,7 @@ private class ActivityTranslator(
     this.append(" = (\n")
   }
 
-  private fun StringBuilder.appendReadyToExecuting() {
+  override fun StringBuilder.appendReadyToExecuting() {
     this.append("\t\t// Ready to Executing\n")
     this.append("\t\twhen (self == Ready")
     this.appendStartCondition()
@@ -233,7 +285,7 @@ private class ActivityTranslator(
     this.appendProcessVars("self" to "Executing")
   }
 
-  private fun StringBuilder.appendExecutingToDone() {
+  override fun StringBuilder.appendExecutingToDone() {
     this.append("\t\t// Executing to Done\n")
     this.append("\t|\twhen (self == Executing")
     this.appendEndCondition()
@@ -242,37 +294,7 @@ private class ActivityTranslator(
     this.appendProcessVars("self" to "Done")
   }
 
-  private fun StringBuilder.appendDoneToReady() {
-    this.append("\t\t// Done to Ready (reset)\n")
-    if (parent == null) {
-      this.append("\t\t// No parent, by default true.\n")
-      this.append("\t|\twhen (self == Done)\n")
-      this.append("\t\t\tset_$eventName[Ready] -> $processName")
-      this.appendProcessVars("self" to "Ready")
-    } else {
-      this.append("\t\t// Should synchronize on the parent's reset condition\n")
-      this.append("\t|\twhen (self == Done && $parent == Done)\n")
-      this.append("\t\t\tset_$parent[Ready] -> set_$eventName[Ready] -> $processName")
-      this.appendProcessVars("self" to "Ready", parent to "Ready")
-      this.append("\t|\twhen (self == Done && $parent == Executing)\n")
-      this.append("\t\t\tset_$parent[Executing] -> set_$eventName[Ready] -> $processName")
-      this.appendProcessVars("self" to "Ready", parent to "Executing")
-    }
-  }
-
-  private fun StringBuilder.appendStartCondition() {
-    if (parent != null)
-      this.append(" && $parent == Executing")
-
-    when (op) {
-      "and_par", "or_par", "optor_par", "sync" -> return
-      "ord" -> if (preSibling != null) this.append(" && $preSibling == Done")
-      "xor" -> for (it in siblings) this.append(" && $it == Ready")
-      else -> for (it in siblings) this.append(" && $it != Executing")
-    }
-  }
-
-  private fun StringBuilder.appendEndCondition() {
+  override fun StringBuilder.appendEndCondition() {
     for (it in subacts) this.append(" && $it != Executing")
     when (op) {
       "and_seq", "and_par", "sync" -> for (it in subacts) this.append(" && $it == Done")
@@ -285,15 +307,6 @@ private class ActivityTranslator(
       "ord" -> if (subacts.isNotEmpty()) this.append(" && ${subacts.last()} == Done")
       else -> throw java.lang.IllegalArgumentException("Cannot recognize operator: $op")
     }
-  }
-
-  private fun StringBuilder.appendProcessVars(vararg replaces: Pair<String, String>) {
-    var s = processVars.joinToString("") { "[$it]" }
-    for (it in replaces) {
-      s = s.replace(it.first, it.second)
-    }
-    this.append(s)
-    this.append('\n')
   }
 
   private fun StringBuilder.appendPrecondition() {
@@ -315,5 +328,61 @@ private class ActivityTranslator(
   private fun StringBuilder.appendRepeatCondition() {
     for (it in act.repeatConditions)
       this.append(" && $it")
+  }
+}
+
+private class ActionTranslator(
+    val act: Action, val postfix: String = "",
+    parOp: String, parent: String, preSibling: String? = null, siblings: List<String> = emptyList()
+) : ActTranslator(parOp, parent, preSibling, siblings) {
+  override val processName = "${act.humanAction?.capitalize()}$postfix"
+  override val eventName = "${act.humanAction}$postfix"
+
+  override fun translate(builder: StringBuilder) {
+    // Append process header, and set the list of process variables for later user
+    builder.appendProcessHeader()
+    // From Ready to Executing
+    builder.appendReadyToExecuting()
+    // From Executing to Done
+    builder.appendExecutingToDone()
+    // From Done to Ready (reset)
+    builder.appendDoneToReady()
+    // Synchronize on parent activity
+    builder.appendSyncParent()
+    // Synchronize on siblings activities
+    builder.appendSyncSiblings()
+    // Append process ending
+    builder.append(").\n\n")
+  }
+
+  override fun StringBuilder.appendProcessHeader() {
+    // A list of process variables for later use
+    processVars = listOf("self", parent!!) + siblings
+    // Append process header
+    this.append("${processName}[self:ActState]")
+    this.append("[$parent:ActState]")
+    for (it in siblings)
+      this.append("[$it:ActState]")
+    this.append(" = (\n")
+  }
+
+  override fun StringBuilder.appendReadyToExecuting() {
+    this.append("\t\t// Ready to Executing\n")
+    this.append("\t\twhen (self == Ready")
+    this.appendStartCondition()
+    this.append(")\n\t\t\tset_$eventName[Executing] -> $processName")
+    this.appendProcessVars("self" to "Executing")
+  }
+
+  override fun StringBuilder.appendExecutingToDone() {
+    this.append("\t\t// Executing to Done\n")
+    this.append("\t|\twhen (self == Executing")
+    this.appendEndCondition()
+    this.append(")\n\t\t\tset_$eventName[Done] -> ${act.humanAction} -> $processName")
+    this.appendProcessVars("self" to "Done")
+  }
+
+  override fun StringBuilder.appendEndCondition() {
+    return
   }
 }
