@@ -15,7 +15,7 @@
 
         <eofm>
             <activity name="aBrewCoffee">
-                <precondition>iBrewState == False</precondition>
+                <precondition>iBrewing == False</precondition>
                 <precondition>iMugState != Full</precondition>
                 <completioncondition>iBrewing == True</completioncondition>
                 <decomposition operator="ord">

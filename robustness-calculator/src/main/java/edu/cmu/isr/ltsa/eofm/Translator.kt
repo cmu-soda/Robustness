@@ -6,8 +6,9 @@ fun main(args: Array<String>) {
   val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
   val builder = StringBuilder()
   val translator = EOFMTranslator(pca)
+  val processes = mutableListOf<String>()
 
-  translator.translate(builder)
+  translator.translate(builder, processes)
   println(builder.toString())
 }
 
@@ -22,7 +23,7 @@ class EOFMTranslator(eofms: EOFMS) {
 
   init {
     fun recursive(activity: Activity) {
-      activities.put(activity.name, activity)
+      activities[activity.name] = activity
       for (it in activity.decomposition.subActivities) {
         if (it is Activity) {
           recursive(it)
@@ -37,7 +38,7 @@ class EOFMTranslator(eofms: EOFMS) {
     }
   }
 
-  fun translate(builder: StringBuilder) {
+  fun translate(builder: StringBuilder, processes: MutableList<String>) {
     builder.append("const Ready = 0\n")
     builder.append("const Executing = 1\n")
     builder.append("const Done = 2\n")
@@ -48,7 +49,10 @@ class EOFMTranslator(eofms: EOFMS) {
     for (it in userDefinedTypes)
       builder.appendUserDefinedType(it)
     for (i in topLevelActivities.indices)
-      ActivityTranslator(topLevelActivities[i], inputVariables, activities, postfix = "$i").translate(builder)
+      ActivityTranslator(topLevelActivities[i], inputVariables, activities, postfix = "$i").translate(builder, processes)
+    builder.append("||EOFM = (\n\t")
+    builder.append(processes.joinToString("\n||\t"))
+    builder.append("\n).")
   }
 
   private fun StringBuilder.appendConstant(constant: Constant) {
@@ -73,7 +77,7 @@ private abstract class ActTranslator(
   protected abstract val eventName: String
   protected var processVars = emptyList<String>()
 
-  abstract fun translate(builder: StringBuilder)
+  abstract fun translate(builder: StringBuilder, processes: MutableList<String>)
   protected abstract fun StringBuilder.appendProcessHeader()
   protected abstract fun StringBuilder.appendReadyToExecuting()
   protected abstract fun StringBuilder.appendExecutingToDone()
@@ -170,7 +174,8 @@ private class ActivityTranslator(
     }
   }.mapIndexed { idx, s -> "$s$postfix$idx" }
 
-  override fun translate(builder: StringBuilder) {
+  override fun translate(builder: StringBuilder, processes: MutableList<String>) {
+    processes.add("P_$processName")
     // Append process header, and set the list of process variables for later user
     builder.appendProcessHeader()
     // From Ready to Executing
@@ -215,7 +220,7 @@ private class ActivityTranslator(
             parent = eventName,
             preSibling = if (i > 0) subacts[i-1] else null,
             siblings = subacts.filterIndexed { index, _ -> index != i }
-        ).translate(builder)
+        ).translate(builder, processes)
         is ActivityLink -> ActivityTranslator(
             act = activities[subact.link]!!,
             inputVariables = inputVariables,
@@ -225,7 +230,7 @@ private class ActivityTranslator(
             parent = eventName,
             preSibling = if (i > 0) subacts[i-1] else null,
             siblings = subacts.filterIndexed { index, _ -> index != i }
-        ).translate(builder)
+        ).translate(builder, processes)
         is Action -> ActionTranslator(
             act = subact,
             postfix = postfix + i,
@@ -233,7 +238,7 @@ private class ActivityTranslator(
             parent = eventName,
             preSibling = if (i > 0) subacts[i-1] else null,
             siblings = subacts.filterIndexed { index, _ -> index != i }
-        ).translate(builder)
+        ).translate(builder, processes)
       }
     }
   }
@@ -242,6 +247,10 @@ private class ActivityTranslator(
     // A list of process variables for later use
     processVars = (if (parent != null) listOf("self", parent) else listOf("self")) +
         siblings + subacts + inputs.map { it.name }
+
+    this.append("P_$processName = $processName")
+    this.append(processVars.joinToString("") { "[0]" })
+    this.append(",\n")
 
     // Append process header
     this.append("${processName}[self:ActState]")
@@ -338,7 +347,8 @@ private class ActionTranslator(
   override val processName = "${act.humanAction?.capitalize()}$postfix"
   override val eventName = "${act.humanAction}$postfix"
 
-  override fun translate(builder: StringBuilder) {
+  override fun translate(builder: StringBuilder, processes: MutableList<String>) {
+    processes.add("P_$processName")
     // Append process header, and set the list of process variables for later user
     builder.appendProcessHeader()
     // From Ready to Executing
@@ -358,6 +368,11 @@ private class ActionTranslator(
   override fun StringBuilder.appendProcessHeader() {
     // A list of process variables for later use
     processVars = listOf("self", parent!!) + siblings
+
+    this.append("P_$processName = $processName")
+    this.append(processVars.joinToString("") { "[0]" })
+    this.append(",\n")
+
     // Append process header
     this.append("${processName}[self:ActState]")
     this.append("[$parent:ActState]")
