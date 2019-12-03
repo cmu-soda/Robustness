@@ -109,7 +109,9 @@ data class InputVariable(
 
     @JacksonXmlProperty(isAttribute = true, localName = "userdefinedtype")
     val userDefinedType: String? = null
-)
+) {
+  var initialValue: String = "0"
+}
 
 @JsonRootName("localvariable")
 data class LocalVariable(

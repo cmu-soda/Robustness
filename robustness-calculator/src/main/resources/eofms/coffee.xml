@@ -1,11 +1,13 @@
 <eofms>
     <userdefinedtype name="TMugState">{Absent, Empty, Full}</userdefinedtype>
     <userdefinedtype name="TBool">{False, True}</userdefinedtype>
+    <userdefinedtype name="TPodState">{EmptyOrUsed, New}</userdefinedtype>
 
     <humanoperator name="User">
         <inputvariable name="iBrewing" userdefinedtype="TBool"/>
         <inputvariable name="iMugState" userdefinedtype="TMugState"/>
         <inputvariable name="iHandleDown" userdefinedtype="TBool"/>
+        <inputvariable name="iPodState" userdefinedtype="TPodState"/>
 
         <humanaction name="hPlaceMug" behavior="autoreset"/>
         <humanaction name="hLiftHandle" behavior="autoreset"/>
@@ -22,6 +24,7 @@
                     <activity name="aPrepMachine">
                         <completioncondition>iHandleDown == True</completioncondition>
                         <completioncondition>iMugState == Empty</completioncondition>
+                        <completioncondition>iPodState == New</completioncondition>
                         <decomposition operator="and_seq">
                             <activity name="aPlaceMug">
                                 <precondition>iMugState == Absent</precondition>
@@ -40,6 +43,8 @@
                                         </decomposition>
                                     </activity>
                                     <activity name="aReplacePod">
+                                        <precondition>iPodState != New</precondition>
+                                        <completioncondition>iPodState == New</completioncondition>
                                         <decomposition operator="ord">
                                             <action humanaction="hAddOrReplacePod"/>
                                         </decomposition>

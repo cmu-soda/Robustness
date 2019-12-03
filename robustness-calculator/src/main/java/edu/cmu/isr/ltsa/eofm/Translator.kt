@@ -1,22 +1,24 @@
 package edu.cmu.isr.ltsa.eofm
 
+import java.io.File
 import java.lang.StringBuilder
 
 fun main(args: Array<String>) {
   val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
   val builder = StringBuilder()
-  val translator = EOFMTranslator(pca)
+  val translator = EOFMTranslator(pca, mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"))
   val processes = mutableListOf<String>()
 
   translator.translate(builder, processes)
-  println(builder.toString())
+//  println(builder.toString())
+  File("C:\\Users\\changjiz\\Desktop\\LTSA-Robust\\robustness-calculator\\src\\main\\resources\\specs\\coffee_eofm.lts").writeText(builder.toString())
 }
 
-class EOFMTranslator(eofms: EOFMS) {
+class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
 
   private val consts: List<Constant> = eofms.constants
   private val userDefinedTypes: List<UserDefineType> = eofms.userDefinedTypes
-  private val actions: Map<String, HumanAction> = eofms.humanOperators.flatMap { it.humanActions }.map { it.name to it }.toMap()
+  private val actions: List<HumanAction> = eofms.humanOperators.flatMap { it.humanActions }
   private val inputVariables: List<InputVariable> = eofms.humanOperators.flatMap { it.inputVariables }
   private val topLevelActivities: List<Activity> = eofms.humanOperators.flatMap { it.eofms.map { eofm ->  eofm.activity } }
   private val activities: MutableMap<String, Activity> = mutableMapOf()
@@ -31,14 +33,21 @@ class EOFMTranslator(eofms: EOFMS) {
       }
     }
 
+    // Find all the activities defined
     for (humanOperator in eofms.humanOperators) {
       for (eofm in humanOperator.eofms) {
         recursive(eofm.activity)
       }
     }
+    // Set the initial value for input variables
+    for (it in inputVariables) {
+      it.initialValue = initValues[it.name] ?: error("The initial value for ${it.name} is not presented")
+    }
   }
 
   fun translate(builder: StringBuilder, processes: MutableList<String>) {
+    val menu = actions.map { it.name } + inputVariables.map { "set_${it.name}[${it.userDefinedType}]" }
+
     builder.append("const Ready = 0\n")
     builder.append("const Executing = 1\n")
     builder.append("const Done = 2\n")
@@ -48,11 +57,14 @@ class EOFMTranslator(eofms: EOFMS) {
     builder.append('\n')
     for (it in userDefinedTypes)
       builder.appendUserDefinedType(it)
+    builder.append("menu HDI = {${menu.joinToString()}}\n\n")
     for (i in topLevelActivities.indices)
       ActivityTranslator(topLevelActivities[i], inputVariables, activities, postfix = "$i").translate(builder, processes)
     builder.append("||EOFM = (\n\t")
     builder.append(processes.joinToString("\n||\t"))
-    builder.append("\n).")
+    builder.append("\n)@{")
+    builder.append(menu.joinToString(",\n"))
+    builder.append("}.")
   }
 
   private fun StringBuilder.appendConstant(constant: Constant) {
@@ -209,8 +221,7 @@ private class ActivityTranslator(
 
     // Append sub-activities
     for (i in subacts.indices) {
-      val subact = act.decomposition.subActivities[i]
-      when (subact) {
+      when (val subact = act.decomposition.subActivities[i]) {
         is Activity -> ActivityTranslator(
             act = subact,
             inputVariables = inputVariables,
@@ -222,7 +233,7 @@ private class ActivityTranslator(
             siblings = subacts.filterIndexed { index, _ -> index != i }
         ).translate(builder, processes)
         is ActivityLink -> ActivityTranslator(
-            act = activities[subact.link]!!,
+            act = activities[subact.link] ?: error("The activity ${subact.link} is not found!"),
             inputVariables = inputVariables,
             activities = activities,
             postfix = postfix + i,
@@ -249,7 +260,10 @@ private class ActivityTranslator(
         siblings + subacts + inputs.map { it.name }
 
     this.append("P_$processName = $processName")
-    this.append(processVars.joinToString("") { "[0]" })
+    this.append(processVars.joinToString("") { name ->
+      val v = inputVariables.find { it.name == name }
+      if (v != null) "[${v.initialValue}]" else "[Ready]"
+    })
     this.append(",\n")
 
     // Append process header
@@ -370,7 +384,7 @@ private class ActionTranslator(
     processVars = listOf("self", parent!!) + siblings
 
     this.append("P_$processName = $processName")
-    this.append(processVars.joinToString("") { "[0]" })
+    this.append(processVars.joinToString("") { "[Ready]" })
     this.append(",\n")
 
     // Append process header
@@ -393,7 +407,7 @@ private class ActionTranslator(
     this.append("\t\t// Executing to Done\n")
     this.append("\t|\twhen (self == Executing")
     this.appendEndCondition()
-    this.append(")\n\t\t\tset_$eventName[Done] -> ${act.humanAction} -> $processName")
+    this.append(")\n\t\t\t${act.humanAction} -> set_$eventName[Done] -> $processName")
     this.appendProcessVars("self" to "Done")
   }
 
