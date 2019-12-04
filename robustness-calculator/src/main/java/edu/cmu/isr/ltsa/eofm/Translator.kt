@@ -4,14 +4,18 @@ import java.io.File
 import java.lang.StringBuilder
 
 fun main(args: Array<String>) {
-  val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+//  val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+//  val translator = EOFMTranslator(pca, mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"))
+
+  val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/reset.xml"))
+  val translator = EOFMTranslator(reset, mapOf("iX" to "False"))
+
   val builder = StringBuilder()
-  val translator = EOFMTranslator(pca, mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"))
   val processes = mutableListOf<String>()
 
   translator.translate(builder, processes)
-//  println(builder.toString())
-  File("C:\\Users\\changjiz\\Desktop\\LTSA-Robust\\robustness-calculator\\src\\main\\resources\\specs\\coffee_eofm.lts").writeText(builder.toString())
+  println(builder.toString())
+//  File(ClassLoader.getSystemResource("specs/coffee_eofm.lts").toURI()).writeText(builder.toString())
 }
 
 class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
@@ -104,12 +108,26 @@ private abstract class ActTranslator(
     } else {
       this.append("\t\t// Should synchronize on the parent's reset condition\n")
       this.append("\t|\twhen (self == Done && $parent == Done)\n")
-      this.append("\t\t\tset_$parent[Ready] -> set_$eventName[Ready] -> $processName")
-      this.appendProcessVars("self" to "Ready", parent to "Ready")
+      this.append("\t\t\tset_$parent[Ready] -> ")
+      this.appendSelfOrSiblingsReset("Ready")
+
       this.append("\t|\twhen (self == Done && $parent == Executing)\n")
-      this.append("\t\t\tset_$parent[Executing] -> set_$eventName[Ready] -> $processName")
-      this.appendProcessVars("self" to "Ready", parent to "Executing")
+      this.append("\t\t\tset_$parent[Executing] -> ")
+      this.appendSelfOrSiblingsReset("Executing")
     }
+  }
+
+  private fun StringBuilder.appendSelfOrSiblingsReset(parentState: String) {
+    if (parent == null)
+      error("Parent is null, does not need to synchronize with parent reset!")
+    this.append("(\n")
+    this.append("\t\t\t\tset_$eventName[Ready] -> $processName")
+    this.appendProcessVars(parent to parentState, "self" to "Ready")
+    for (sib in siblings) {
+      this.append("\t\t\t|\tset_$sib[Ready] -> $processName")
+      this.appendProcessVars(parent to parentState, sib to "Ready")
+    }
+    this.append("\t\t\t)\n")
   }
 
   protected fun StringBuilder.appendStartCondition() {

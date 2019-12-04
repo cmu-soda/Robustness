@@ -64,9 +64,15 @@ APrepMachine00[self:ActState][aBrewCoffee0:ActState][aBrew01:ActState][aPlaceMug
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aBrewCoffee0 == Done)
-			set_aBrewCoffee0[Ready] -> set_aPrepMachine00[Ready] -> APrepMachine00[Ready][Ready][aBrew01][aPlaceMug000][aAddPod001][iMugState][iHandleDown][iPodState]
+			set_aBrewCoffee0[Ready] -> (
+				set_aPrepMachine00[Ready] -> APrepMachine00[Ready][Ready][aBrew01][aPlaceMug000][aAddPod001][iMugState][iHandleDown][iPodState]
+			|	set_aBrew01[Ready] -> APrepMachine00[self][Ready][Ready][aPlaceMug000][aAddPod001][iMugState][iHandleDown][iPodState]
+			)
 	|	when (self == Done && aBrewCoffee0 == Executing)
-			set_aBrewCoffee0[Executing] -> set_aPrepMachine00[Ready] -> APrepMachine00[Ready][Executing][aBrew01][aPlaceMug000][aAddPod001][iMugState][iHandleDown][iPodState]
+			set_aBrewCoffee0[Executing] -> (
+				set_aPrepMachine00[Ready] -> APrepMachine00[Ready][Executing][aBrew01][aPlaceMug000][aAddPod001][iMugState][iHandleDown][iPodState]
+			|	set_aBrew01[Ready] -> APrepMachine00[self][Executing][Ready][aPlaceMug000][aAddPod001][iMugState][iHandleDown][iPodState]
+			)
 		// input iMugState
 	|	set_iMugState[i:TMugState] -> APrepMachine00[self][aBrewCoffee0][aBrew01][aPlaceMug000][aAddPod001][i][iHandleDown][iPodState]
 		// input iHandleDown
@@ -103,9 +109,15 @@ APlaceMug000[self:ActState][aPrepMachine00:ActState][aAddPod001:ActState][hPlace
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aPrepMachine00 == Done)
-			set_aPrepMachine00[Ready] -> set_aPlaceMug000[Ready] -> APlaceMug000[Ready][Ready][aAddPod001][hPlaceMug0000][iMugState]
+			set_aPrepMachine00[Ready] -> (
+				set_aPlaceMug000[Ready] -> APlaceMug000[Ready][Ready][aAddPod001][hPlaceMug0000][iMugState]
+			|	set_aAddPod001[Ready] -> APlaceMug000[self][Ready][Ready][hPlaceMug0000][iMugState]
+			)
 	|	when (self == Done && aPrepMachine00 == Executing)
-			set_aPrepMachine00[Executing] -> set_aPlaceMug000[Ready] -> APlaceMug000[Ready][Executing][aAddPod001][hPlaceMug0000][iMugState]
+			set_aPrepMachine00[Executing] -> (
+				set_aPlaceMug000[Ready] -> APlaceMug000[Ready][Executing][aAddPod001][hPlaceMug0000][iMugState]
+			|	set_aAddPod001[Ready] -> APlaceMug000[self][Executing][Ready][hPlaceMug0000][iMugState]
+			)
 		// input iMugState
 	|	set_iMugState[i:TMugState] -> APlaceMug000[self][aPrepMachine00][aAddPod001][hPlaceMug0000][i]
 	|	when (!(self == Done && aPrepMachine00 == Executing))
@@ -130,9 +142,13 @@ HPlaceMug0000[self:ActState][aPlaceMug000:ActState] = (
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aPlaceMug000 == Done)
-			set_aPlaceMug000[Ready] -> set_hPlaceMug0000[Ready] -> HPlaceMug0000[Ready][Ready]
+			set_aPlaceMug000[Ready] -> (
+				set_hPlaceMug0000[Ready] -> HPlaceMug0000[Ready][Ready]
+			)
 	|	when (self == Done && aPlaceMug000 == Executing)
-			set_aPlaceMug000[Executing] -> set_hPlaceMug0000[Ready] -> HPlaceMug0000[Ready][Executing]
+			set_aPlaceMug000[Executing] -> (
+				set_hPlaceMug0000[Ready] -> HPlaceMug0000[Ready][Executing]
+			)
 	|	when (!(self == Done && aPlaceMug000 == Executing))
 			set_aPlaceMug000[Executing] -> HPlaceMug0000[self][Executing]
 	|	set_aPlaceMug000[Done] -> HPlaceMug0000[self][Done]
@@ -157,9 +173,15 @@ AAddPod001[self:ActState][aPrepMachine00:ActState][aPlaceMug000:ActState][aLiftH
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aPrepMachine00 == Done)
-			set_aPrepMachine00[Ready] -> set_aAddPod001[Ready] -> AAddPod001[Ready][Ready][aPlaceMug000][aLiftHandle0010][aReplacePod0011][aLowerHandle0012]
+			set_aPrepMachine00[Ready] -> (
+				set_aAddPod001[Ready] -> AAddPod001[Ready][Ready][aPlaceMug000][aLiftHandle0010][aReplacePod0011][aLowerHandle0012]
+			|	set_aPlaceMug000[Ready] -> AAddPod001[self][Ready][Ready][aLiftHandle0010][aReplacePod0011][aLowerHandle0012]
+			)
 	|	when (self == Done && aPrepMachine00 == Executing)
-			set_aPrepMachine00[Executing] -> set_aAddPod001[Ready] -> AAddPod001[Ready][Executing][aPlaceMug000][aLiftHandle0010][aReplacePod0011][aLowerHandle0012]
+			set_aPrepMachine00[Executing] -> (
+				set_aAddPod001[Ready] -> AAddPod001[Ready][Executing][aPlaceMug000][aLiftHandle0010][aReplacePod0011][aLowerHandle0012]
+			|	set_aPlaceMug000[Ready] -> AAddPod001[self][Executing][Ready][aLiftHandle0010][aReplacePod0011][aLowerHandle0012]
+			)
 	|	when (!(self == Done && aPrepMachine00 == Executing))
 			set_aPrepMachine00[Executing] -> AAddPod001[self][Executing][aPlaceMug000][aLiftHandle0010][aReplacePod0011][aLowerHandle0012]
 	|	set_aPrepMachine00[Done] -> AAddPod001[self][Done][aPlaceMug000][aLiftHandle0010][aReplacePod0011][aLowerHandle0012]
@@ -192,9 +214,17 @@ ALiftHandle0010[self:ActState][aAddPod001:ActState][aReplacePod0011:ActState][aL
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aAddPod001 == Done)
-			set_aAddPod001[Ready] -> set_aLiftHandle0010[Ready] -> ALiftHandle0010[Ready][Ready][aReplacePod0011][aLowerHandle0012][hLiftHandle00100][iHandleDown]
+			set_aAddPod001[Ready] -> (
+				set_aLiftHandle0010[Ready] -> ALiftHandle0010[Ready][Ready][aReplacePod0011][aLowerHandle0012][hLiftHandle00100][iHandleDown]
+			|	set_aReplacePod0011[Ready] -> ALiftHandle0010[self][Ready][Ready][aLowerHandle0012][hLiftHandle00100][iHandleDown]
+			|	set_aLowerHandle0012[Ready] -> ALiftHandle0010[self][Ready][aReplacePod0011][Ready][hLiftHandle00100][iHandleDown]
+			)
 	|	when (self == Done && aAddPod001 == Executing)
-			set_aAddPod001[Executing] -> set_aLiftHandle0010[Ready] -> ALiftHandle0010[Ready][Executing][aReplacePod0011][aLowerHandle0012][hLiftHandle00100][iHandleDown]
+			set_aAddPod001[Executing] -> (
+				set_aLiftHandle0010[Ready] -> ALiftHandle0010[Ready][Executing][aReplacePod0011][aLowerHandle0012][hLiftHandle00100][iHandleDown]
+			|	set_aReplacePod0011[Ready] -> ALiftHandle0010[self][Executing][Ready][aLowerHandle0012][hLiftHandle00100][iHandleDown]
+			|	set_aLowerHandle0012[Ready] -> ALiftHandle0010[self][Executing][aReplacePod0011][Ready][hLiftHandle00100][iHandleDown]
+			)
 		// input iHandleDown
 	|	set_iHandleDown[i:TBool] -> ALiftHandle0010[self][aAddPod001][aReplacePod0011][aLowerHandle0012][hLiftHandle00100][i]
 	|	when (!(self == Done && aAddPod001 == Executing))
@@ -221,9 +251,13 @@ HLiftHandle00100[self:ActState][aLiftHandle0010:ActState] = (
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aLiftHandle0010 == Done)
-			set_aLiftHandle0010[Ready] -> set_hLiftHandle00100[Ready] -> HLiftHandle00100[Ready][Ready]
+			set_aLiftHandle0010[Ready] -> (
+				set_hLiftHandle00100[Ready] -> HLiftHandle00100[Ready][Ready]
+			)
 	|	when (self == Done && aLiftHandle0010 == Executing)
-			set_aLiftHandle0010[Executing] -> set_hLiftHandle00100[Ready] -> HLiftHandle00100[Ready][Executing]
+			set_aLiftHandle0010[Executing] -> (
+				set_hLiftHandle00100[Ready] -> HLiftHandle00100[Ready][Executing]
+			)
 	|	when (!(self == Done && aLiftHandle0010 == Executing))
 			set_aLiftHandle0010[Executing] -> HLiftHandle00100[self][Executing]
 	|	set_aLiftHandle0010[Done] -> HLiftHandle00100[self][Done]
@@ -248,9 +282,17 @@ AReplacePod0011[self:ActState][aAddPod001:ActState][aLiftHandle0010:ActState][aL
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aAddPod001 == Done)
-			set_aAddPod001[Ready] -> set_aReplacePod0011[Ready] -> AReplacePod0011[Ready][Ready][aLiftHandle0010][aLowerHandle0012][hAddOrReplacePod00110][iPodState]
+			set_aAddPod001[Ready] -> (
+				set_aReplacePod0011[Ready] -> AReplacePod0011[Ready][Ready][aLiftHandle0010][aLowerHandle0012][hAddOrReplacePod00110][iPodState]
+			|	set_aLiftHandle0010[Ready] -> AReplacePod0011[self][Ready][Ready][aLowerHandle0012][hAddOrReplacePod00110][iPodState]
+			|	set_aLowerHandle0012[Ready] -> AReplacePod0011[self][Ready][aLiftHandle0010][Ready][hAddOrReplacePod00110][iPodState]
+			)
 	|	when (self == Done && aAddPod001 == Executing)
-			set_aAddPod001[Executing] -> set_aReplacePod0011[Ready] -> AReplacePod0011[Ready][Executing][aLiftHandle0010][aLowerHandle0012][hAddOrReplacePod00110][iPodState]
+			set_aAddPod001[Executing] -> (
+				set_aReplacePod0011[Ready] -> AReplacePod0011[Ready][Executing][aLiftHandle0010][aLowerHandle0012][hAddOrReplacePod00110][iPodState]
+			|	set_aLiftHandle0010[Ready] -> AReplacePod0011[self][Executing][Ready][aLowerHandle0012][hAddOrReplacePod00110][iPodState]
+			|	set_aLowerHandle0012[Ready] -> AReplacePod0011[self][Executing][aLiftHandle0010][Ready][hAddOrReplacePod00110][iPodState]
+			)
 		// input iPodState
 	|	set_iPodState[i:TPodState] -> AReplacePod0011[self][aAddPod001][aLiftHandle0010][aLowerHandle0012][hAddOrReplacePod00110][i]
 	|	when (!(self == Done && aAddPod001 == Executing))
@@ -277,9 +319,13 @@ HAddOrReplacePod00110[self:ActState][aReplacePod0011:ActState] = (
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aReplacePod0011 == Done)
-			set_aReplacePod0011[Ready] -> set_hAddOrReplacePod00110[Ready] -> HAddOrReplacePod00110[Ready][Ready]
+			set_aReplacePod0011[Ready] -> (
+				set_hAddOrReplacePod00110[Ready] -> HAddOrReplacePod00110[Ready][Ready]
+			)
 	|	when (self == Done && aReplacePod0011 == Executing)
-			set_aReplacePod0011[Executing] -> set_hAddOrReplacePod00110[Ready] -> HAddOrReplacePod00110[Ready][Executing]
+			set_aReplacePod0011[Executing] -> (
+				set_hAddOrReplacePod00110[Ready] -> HAddOrReplacePod00110[Ready][Executing]
+			)
 	|	when (!(self == Done && aReplacePod0011 == Executing))
 			set_aReplacePod0011[Executing] -> HAddOrReplacePod00110[self][Executing]
 	|	set_aReplacePod0011[Done] -> HAddOrReplacePod00110[self][Done]
@@ -304,9 +350,17 @@ ALowerHandle0012[self:ActState][aAddPod001:ActState][aLiftHandle0010:ActState][a
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aAddPod001 == Done)
-			set_aAddPod001[Ready] -> set_aLowerHandle0012[Ready] -> ALowerHandle0012[Ready][Ready][aLiftHandle0010][aReplacePod0011][hLowerHandle00120][iHandleDown]
+			set_aAddPod001[Ready] -> (
+				set_aLowerHandle0012[Ready] -> ALowerHandle0012[Ready][Ready][aLiftHandle0010][aReplacePod0011][hLowerHandle00120][iHandleDown]
+			|	set_aLiftHandle0010[Ready] -> ALowerHandle0012[self][Ready][Ready][aReplacePod0011][hLowerHandle00120][iHandleDown]
+			|	set_aReplacePod0011[Ready] -> ALowerHandle0012[self][Ready][aLiftHandle0010][Ready][hLowerHandle00120][iHandleDown]
+			)
 	|	when (self == Done && aAddPod001 == Executing)
-			set_aAddPod001[Executing] -> set_aLowerHandle0012[Ready] -> ALowerHandle0012[Ready][Executing][aLiftHandle0010][aReplacePod0011][hLowerHandle00120][iHandleDown]
+			set_aAddPod001[Executing] -> (
+				set_aLowerHandle0012[Ready] -> ALowerHandle0012[Ready][Executing][aLiftHandle0010][aReplacePod0011][hLowerHandle00120][iHandleDown]
+			|	set_aLiftHandle0010[Ready] -> ALowerHandle0012[self][Executing][Ready][aReplacePod0011][hLowerHandle00120][iHandleDown]
+			|	set_aReplacePod0011[Ready] -> ALowerHandle0012[self][Executing][aLiftHandle0010][Ready][hLowerHandle00120][iHandleDown]
+			)
 		// input iHandleDown
 	|	set_iHandleDown[i:TBool] -> ALowerHandle0012[self][aAddPod001][aLiftHandle0010][aReplacePod0011][hLowerHandle00120][i]
 	|	when (!(self == Done && aAddPod001 == Executing))
@@ -333,9 +387,13 @@ HLowerHandle00120[self:ActState][aLowerHandle0012:ActState] = (
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aLowerHandle0012 == Done)
-			set_aLowerHandle0012[Ready] -> set_hLowerHandle00120[Ready] -> HLowerHandle00120[Ready][Ready]
+			set_aLowerHandle0012[Ready] -> (
+				set_hLowerHandle00120[Ready] -> HLowerHandle00120[Ready][Ready]
+			)
 	|	when (self == Done && aLowerHandle0012 == Executing)
-			set_aLowerHandle0012[Executing] -> set_hLowerHandle00120[Ready] -> HLowerHandle00120[Ready][Executing]
+			set_aLowerHandle0012[Executing] -> (
+				set_hLowerHandle00120[Ready] -> HLowerHandle00120[Ready][Executing]
+			)
 	|	when (!(self == Done && aLowerHandle0012 == Executing))
 			set_aLowerHandle0012[Executing] -> HLowerHandle00120[self][Executing]
 	|	set_aLowerHandle0012[Done] -> HLowerHandle00120[self][Done]
@@ -360,9 +418,15 @@ ABrew01[self:ActState][aBrewCoffee0:ActState][aPrepMachine00:ActState][hPressBre
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aBrewCoffee0 == Done)
-			set_aBrewCoffee0[Ready] -> set_aBrew01[Ready] -> ABrew01[Ready][Ready][aPrepMachine00][hPressBrew010]
+			set_aBrewCoffee0[Ready] -> (
+				set_aBrew01[Ready] -> ABrew01[Ready][Ready][aPrepMachine00][hPressBrew010]
+			|	set_aPrepMachine00[Ready] -> ABrew01[self][Ready][Ready][hPressBrew010]
+			)
 	|	when (self == Done && aBrewCoffee0 == Executing)
-			set_aBrewCoffee0[Executing] -> set_aBrew01[Ready] -> ABrew01[Ready][Executing][aPrepMachine00][hPressBrew010]
+			set_aBrewCoffee0[Executing] -> (
+				set_aBrew01[Ready] -> ABrew01[Ready][Executing][aPrepMachine00][hPressBrew010]
+			|	set_aPrepMachine00[Ready] -> ABrew01[self][Executing][Ready][hPressBrew010]
+			)
 	|	when (!(self == Done && aBrewCoffee0 == Executing))
 			set_aBrewCoffee0[Executing] -> ABrew01[self][Executing][aPrepMachine00][hPressBrew010]
 	|	set_aBrewCoffee0[Done] -> ABrew01[self][Done][aPrepMachine00][hPressBrew010]
@@ -385,9 +449,13 @@ HPressBrew010[self:ActState][aBrew01:ActState] = (
 		// Done to Ready (reset)
 		// Should synchronize on the parent's reset condition
 	|	when (self == Done && aBrew01 == Done)
-			set_aBrew01[Ready] -> set_hPressBrew010[Ready] -> HPressBrew010[Ready][Ready]
+			set_aBrew01[Ready] -> (
+				set_hPressBrew010[Ready] -> HPressBrew010[Ready][Ready]
+			)
 	|	when (self == Done && aBrew01 == Executing)
-			set_aBrew01[Executing] -> set_hPressBrew010[Ready] -> HPressBrew010[Ready][Executing]
+			set_aBrew01[Executing] -> (
+				set_hPressBrew010[Ready] -> HPressBrew010[Ready][Executing]
+			)
 	|	when (!(self == Done && aBrew01 == Executing))
 			set_aBrew01[Executing] -> HPressBrew010[self][Executing]
 	|	set_aBrew01[Done] -> HPressBrew010[self][Done]

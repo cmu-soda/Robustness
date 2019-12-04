@@ -1,0 +1,20 @@
+<eofms>
+    <userdefinedtype name="TBool">{False, True}</userdefinedtype>
+    <humanoperator name="User">
+        <inputvariable name="iX" userdefinedtype="TBool"/>
+        <humanaction name="hAction" behavior="autoreset"/>
+        <eofm>
+            <activity name="aActivity">
+                <precondition>iX == False</precondition>
+                <completioncondition>iX == True</completioncondition>
+                <decomposition operator="and_seq">
+                    <activity name="aSubActivity">
+                        <decomposition operator="ord">
+                            <action humanaction="hAction"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+    </humanoperator>
+</eofms>
