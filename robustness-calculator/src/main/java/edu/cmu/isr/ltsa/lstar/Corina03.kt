@@ -1,7 +1,9 @@
 package edu.cmu.isr.ltsa.lstar
 
-import edu.cmu.isr.ltsa.*
-import java.io.File
+import edu.cmu.isr.ltsa.LTSACall
+import edu.cmu.isr.ltsa.getAllAlphabet
+import edu.cmu.isr.ltsa.getCompositeName
+import edu.cmu.isr.ltsa.propertyCheck
 
 fun main(args: Array<String>) {
   val P = "property P = (input -> output -> P)."

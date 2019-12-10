@@ -1,11 +1,15 @@
 package edu.cmu.isr.ltsa.weakest
 
-import edu.cmu.isr.ltsa.*
+import edu.cmu.isr.ltsa.LTSACall
+import edu.cmu.isr.ltsa.doCompose
+import edu.cmu.isr.ltsa.getAllAlphabet
+import edu.cmu.isr.ltsa.minimise
+import edu.cmu.isr.ltsa.util.StateMachine
 
 fun main(args: Array<String>) {
   val p = ClassLoader.getSystemResource("specs/coffee_p.lts").readText()
   val env = ClassLoader.getSystemResource("specs/coffee_human.lts").readText()
-  val sys = ClassLoader.getSystemResource("specs/coffee_r.lts").readText()
+  val sys = ClassLoader.getSystemResource("specs/coffee.lts").readText()
 
   val cal = RobustCal(p, env, sys)
   cal.deltaEnv("WE")
@@ -86,13 +90,11 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
       if (s.first == 0) {
         throw Error("Initial state becomes the error state, no environment can prevent the system from reaching error state")
       }
-      trans = trans.filter { it.first != s.first }.map { if (it.third == s.first) it.copy(third = -1) else it }
+      trans = trans.filter { it.first != s.first }.map { if (it.third == s.first) it.copy(third = -1) else it }.toSet()
     }
     // Eliminate the states that are not backward reachable from the error state
-    val reachable = trans.getReachable(setOf(-1))
-    trans = trans.filter { it.first in reachable && it.third in reachable }
-    // Remove duplicate transitions
-    trans = trans.removeDuplicate()
+    val reachable = this.getReachable(setOf(-1))
+    trans = trans.filter { it.first in reachable && it.third in reachable }.toSet()
 
     println("=============== Step 2: ================")
     println(StateMachine(trans, this.alphabet).buildFSP("STEP2"))
@@ -101,27 +103,23 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
   }
 
   private fun StateMachine.determinate(sink: Boolean): StateMachine {
-    val tau = this.alphabet.indexOf("tau")
     // tau elimination
-    val nfaTrans = this.transitions.tauElimination(tau)
+    val nfa = this.tauElimination()
 
     println("=============== Step 3 tau elimination: ================")
-    println(StateMachine(nfaTrans, this.alphabet).buildFSP("STEP3_TE"))
+    println(nfa.buildFSP("STEP3_TE"))
 
     // subset construction
-    val (dfa, dfaStates) = nfaTrans.subsetConstruct(this.alphabet)
-    var trans = if (sink) dfa.makeSinkState(dfaStates, tau) else dfa.transitions
+    val (dfa, dfaStates) = nfa.subsetConstruct()
+    // make sink state
+    val dfa_sink = if (sink) dfa.makeSinkState(dfaStates) else dfa
     // delete all error states
-    val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
-    trans = trans.filter { it.first !in errStates && it.third !in errStates }.toMutableList()
-    // 0 should be the initial state
-    trans.sortBy { it.first }
-    return StateMachine(trans, this.alphabet)
+    return dfa_sink.deleteErrors(dfaStates)
   }
 
-  private fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>, tau: Int): Transitions {
-    val trans = this.transitions.toMutableList()
-    val i_alphabet = this.alphabet.indices.filter { it != tau }
+  private fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>): StateMachine {
+    val trans = this.transitions.toMutableSet()
+    val i_alphabet = this.alphabet.indices.filter { it != this.tau }
     val theta = dfaStates.size
     for (s in dfaStates.indices) {
       for (a in i_alphabet) {
@@ -133,6 +131,12 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     for (a in i_alphabet) {
       trans.add(Triple(theta, a, theta))
     }
-    return trans
+    return StateMachine(trans, this.alphabet)
+  }
+
+  private fun StateMachine.deleteErrors(dfaStates: List<Set<Int>>): StateMachine {
+    val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
+    val trans = this.transitions.filter { it.first !in errStates && it.third !in errStates }.toSet()
+    return StateMachine(trans, this.alphabet)
   }
 }
