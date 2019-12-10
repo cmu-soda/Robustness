@@ -1,21 +1,29 @@
 package edu.cmu.isr.ltsa.eofm
 
+import edu.cmu.isr.ltsa.LTSACall
+import edu.cmu.isr.ltsa.doCompose
+import edu.cmu.isr.ltsa.util.StateMachine
 import java.io.File
 import java.lang.StringBuilder
 
 fun main(args: Array<String>) {
-  val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
-  val translator = EOFMTranslator(pca, mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"))
+//  val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+//  val translator = EOFMTranslator(pca, mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"))
 
-//  val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/reset.xml"))
-//  val translator = EOFMTranslator(reset, mapOf("iX" to "False"))
+  val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/reset.xml"))
+  val translator = EOFMTranslator(reset, mapOf("iX" to "False"))
 
   val builder = StringBuilder()
   val processes = mutableListOf<String>()
 
   translator.translate(builder, processes)
-//  println(builder.toString())
-  File(ClassLoader.getSystemResource("specs/coffee_eofm.lts").toURI()).writeText(builder.toString())
+//  File(ClassLoader.getSystemResource("specs/coffee_eofm.lts").toURI()).writeText(builder.toString())
+  File(ClassLoader.getSystemResource("specs/reset_eofm.lts").toURI()).writeText(builder.toString())
+
+  val ltsaCall = LTSACall()
+  val composite = ltsaCall.doCompile(builder.toString()).doCompose()
+  val minimized = StateMachine(composite.composition).tauElimination().buildFSP("EOFM_MIN")
+  File(ClassLoader.getSystemResource("specs/reset_eofm_min.lts").toURI()).writeText(minimized)
 }
 
 class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
