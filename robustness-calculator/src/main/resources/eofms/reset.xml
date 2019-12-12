@@ -2,15 +2,22 @@
     <userdefinedtype name="TBool">{False, True}</userdefinedtype>
     <humanoperator name="User">
         <inputvariable name="iX" userdefinedtype="TBool"/>
-        <humanaction name="hAction" behavior="autoreset"/>
+        <humanaction name="hA" behavior="autoreset"/>
+        <humanaction name="hB" behavior="autoreset"/>
+
         <eofm>
             <activity name="aActivity">
                 <precondition>iX == False</precondition>
                 <completioncondition>iX == True</completioncondition>
                 <decomposition operator="and_seq">
-                    <activity name="aSubActivity">
+                    <activity name="aSubA">
                         <decomposition operator="ord">
-                            <action humanaction="hAction"/>
+                            <action humanaction="hA"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aSubB">
+                        <decomposition operator="ord">
+                            <action humanaction="hB"/>
                         </decomposition>
                     </activity>
                 </decomposition>

@@ -109,9 +109,13 @@ class StateMachine {
     while (true) {
       val t = ts.find { it.second == tau } ?: break
       ts.remove(t)
-      ts.addAll(ts.filter { it.first == t.third }.map { it.copy(first = t.first) })
+      // FIXME
+      ts.addAll(ts.filter { it.first == t.third && it.second != tau }.map { it.copy(first = t.first) })
     }
     return StateMachine(ts, alphabet)
+//    val ltsaCall = LTSACall()
+//    val composite = ltsaCall.doCompile(StateMachine(ts, alphabet).buildFSP()).doCompose().minimise()
+//    return StateMachine(composite.composition)
   }
 
   fun subsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
