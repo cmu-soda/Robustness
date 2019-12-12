@@ -6,15 +6,6 @@ import edu.cmu.isr.ltsa.getAllAlphabet
 import edu.cmu.isr.ltsa.minimise
 import edu.cmu.isr.ltsa.util.StateMachine
 
-fun main(args: Array<String>) {
-  val p = ClassLoader.getSystemResource("specs/coffee_p.lts").readText()
-  val env = ClassLoader.getSystemResource("specs/coffee_human.lts").readText()
-  val sys = ClassLoader.getSystemResource("specs/coffee.lts").readText()
-
-  val cal = RobustCal(p, env, sys)
-  cal.deltaEnv("WE")
-}
-
 class RobustCal(var P: String, var ENV: String, var SYS: String) {
   private val alphabetENV: Set<String>
   private val alphabetSYS: Set<String>
@@ -37,7 +28,7 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     val alphabetC = alphabetSYS intersect alphabetENV
     val alphabetI = alphabetSYS - alphabetC
     alphabetR = (alphabetC + (alphabetP - alphabetI)).map { it.replace("""\.\d+""".toRegex(), "") }.toSet()
-    println("Alphabet for comparing the robustness: $alphabetR")
+//    println("Alphabet for comparing the robustness: $alphabetR")
   }
 
   private fun renameConsts(spec: String, prefix: String): String {
@@ -50,13 +41,14 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     return re
   }
 
-  fun deltaEnv(delta: String, sink: Boolean = false) {
+  fun deltaEnv(delta: String, sink: Boolean = false): String {
     val sm = allowedEnv(sink)
     val spec = "property $ENV\n${sm.buildFSP(delta)}||D_${delta} = (ENV || ${delta})" +
         "@{${alphabetR.joinToString(", ")}}."
-    println("========== Delta ${delta} ==========")
-    println(spec)
-    println("===============================")
+//    println("========== Delta ${delta} ==========")
+//    println(spec)
+//    println("===============================")
+    return spec
   }
 
   private fun allowedEnv(sink: Boolean): StateMachine {
@@ -67,8 +59,8 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     val ltsaCall = LTSACall()
     val composite = "$SYS\n$P\n||C = (SYS || P)@{${alphabetR.joinToString(",")}}."
 
-    println("=============== Step 1: ================")
-    println(composite)
+//    println("=============== Step 1: ================")
+//    println(composite)
 
     // Compose and minimise
     val compositeState = ltsaCall.doCompile(composite, "C").doCompose().minimise()
@@ -96,8 +88,8 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     val reachable = this.getReachable(setOf(-1))
     trans = trans.filter { it.first in reachable && it.third in reachable }.toSet()
 
-    println("=============== Step 2: ================")
-    println(StateMachine(trans, this.alphabet).buildFSP("STEP2"))
+//    println("=============== Step 2: ================")
+//    println(StateMachine(trans, this.alphabet).buildFSP("STEP2"))
 
     return StateMachine(trans, this.alphabet)
   }
@@ -106,8 +98,8 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     // tau elimination
     val nfa = this.tauElimination()
 
-    println("=============== Step 3 tau elimination: ================")
-    println(nfa.buildFSP("STEP3_TE"))
+//    println("=============== Step 3 tau elimination: ================")
+//    println(nfa.buildFSP("STEP3_TE"))
 
     // subset construction
     val (dfa, dfaStates) = nfa.subsetConstruct()

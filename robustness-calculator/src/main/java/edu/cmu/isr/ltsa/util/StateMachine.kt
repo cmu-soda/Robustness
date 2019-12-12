@@ -110,7 +110,7 @@ class StateMachine {
       val t = ts.find { it.second == tau } ?: break
       ts.remove(t)
       // FIXME
-      ts.addAll(ts.filter { it.first == t.third && it.second != tau }.map { it.copy(first = t.first) })
+      ts.addAll(ts.filter { it.first == t.third }.map { it.copy(first = t.first) })
     }
     return StateMachine(ts, alphabet)
 //    val ltsaCall = LTSACall()
