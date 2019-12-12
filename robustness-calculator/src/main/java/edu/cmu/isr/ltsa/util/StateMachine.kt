@@ -104,65 +104,60 @@ class StateMachine {
     }
   }
 
-//  fun tauEliminationAndSubsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
-//    var hasTau = false
-//    var reachTable = Array(maxNumOfState()+1) { s ->
-//      Array(alphabet.size) { a ->
-//        val next = nextState(s, a).toMutableSet()
-//        // Remove the self-looped tau transitions
-//        if (a == tau) {
-//          next.remove(s)
-//          if (next.isNotEmpty())
-//            hasTau = true
-//          next.toSet()
-//        }
-//        else
-//          next.toSet()
-//      }
-//    }
-//    while (hasTau) {
-//      hasTau = false
-//      val nextReachTable = Array(maxNumOfState()+1) { s ->
-//        val tauTrans = reachTable[s][tau]
-//        Array(alphabet.size) { a ->
-//          if (a == tau) {
-//            val nextTauTrans = tauTrans.flatMap { reachTable[it][a] }.toMutableSet()
-//            nextTauTrans.remove(s)
-//            if (nextTauTrans.isNotEmpty())
-//              hasTau = true
-//            nextTauTrans.toSet()
-//          }
-//          else
-//            reachTable[s][a] union tauTrans.flatMap { reachTable[it][a] }.toSet()
-//        }
-//      }
-//      reachTable = nextReachTable
-//    }
-//    // Do subset construct by using this reachability table
-//    val dfaStates = mutableListOf(setOf(0)) // initial state of the DFA is {0}
-//    val dfaTrans = mutableSetOf<Triple<Int, Int, Int>>()
-//    // create a queue for the new dfa states
-//    val q: Queue<Set<Int>> = LinkedList()
-//    q.addAll(dfaStates)
-//    while (q.isNotEmpty()) {
-//      val ss = q.poll()
-//      val i_s = dfaStates.indexOf(ss)
-//      for (a in alphabet.indices) {
-//        val next = ss.flatMap { if (it != -1) reachTable[it][a] else emptySet() }.toSet()
-//        if (next.isEmpty())
-//          continue
-//        val i_n = if (next !in dfaStates) {
-//          dfaStates.add(next)
-//          q.add(next)
-//          dfaStates.size - 1
-//        } else {
-//          dfaStates.indexOf(next)
-//        }
-//        dfaTrans.add(Triple(i_s, a, i_n))
-//      }
-//    }
-//    return Pair(StateMachine(dfaTrans, alphabet), dfaStates)
-//  }
+  fun tauEliminationAndSubsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
+    var hasTau = false
+    var reachTable = Array(maxNumOfState()+1) { s ->
+      Array(alphabet.size) { a ->
+        val next = nextState(s, a)
+        if (a == tau && next.isNotEmpty())
+          hasTau = true
+        next
+      }
+    }
+    while (hasTau) {
+      hasTau = false
+      val nextReachTable = Array(maxNumOfState()+1) { s ->
+        val tauTrans = reachTable[s][tau]
+        Array(alphabet.size) { a ->
+          // extend the reachable set with the current tau transitions
+          val nextTrans = reachTable[s][a] union tauTrans.flatMap { reachTable[it][a] }.toSet()
+          if (a == tau && tauTrans.size != nextTrans.size)
+            hasTau = true
+          nextTrans
+        }
+      }
+      reachTable = nextReachTable
+    }
+    // clean up the tau transitions
+    for (i in 0..maxNumOfState()) {
+      reachTable[i][tau] = emptySet()
+    }
+
+    // Do subset construct by using this reachability table
+    val dfaStates = mutableListOf(setOf(0)) // initial state of the DFA is {0}
+    val dfaTrans = mutableSetOf<Triple<Int, Int, Int>>()
+    // create a queue for the new dfa states
+    val q: Queue<Set<Int>> = LinkedList()
+    q.addAll(dfaStates)
+    while (q.isNotEmpty()) {
+      val ss = q.poll()
+      val i_s = dfaStates.indexOf(ss)
+      for (a in alphabet.indices) {
+        val next = ss.flatMap { if (it != -1) reachTable[it][a] else emptySet() }.toSet()
+        if (next.isEmpty())
+          continue
+        val i_n = if (next !in dfaStates) {
+          dfaStates.add(next)
+          q.add(next)
+          dfaStates.size - 1
+        } else {
+          dfaStates.indexOf(next)
+        }
+        dfaTrans.add(Triple(i_s, a, i_n))
+      }
+    }
+    return Pair(StateMachine(dfaTrans, alphabet), dfaStates)
+  }
 
   fun maxNumOfState(): Int {
     val states = transitions.map { it.first }

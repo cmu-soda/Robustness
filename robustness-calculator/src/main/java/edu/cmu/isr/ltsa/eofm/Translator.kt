@@ -21,7 +21,7 @@ fun main(args: Array<String>) {
 
   val ltsaCall = LTSACall()
   val composite = ltsaCall.doCompile(builder.toString()).doCompose()
-  val minimized = StateMachine(composite.composition).minimize().buildFSP("EOFM_MIN")
+  val minimized = StateMachine(composite.composition).tauEliminationAndSubsetConstruct().first.buildFSP("EOFM_MIN")
   File(ClassLoader.getSystemResource("specs/reset_eofm_min.lts").toURI()).writeText(minimized)
 }
 

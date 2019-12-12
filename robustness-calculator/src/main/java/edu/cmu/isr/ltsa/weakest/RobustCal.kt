@@ -87,13 +87,13 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
 
   private fun StateMachine.determinate(sink: Boolean): StateMachine {
     // tau elimination ans subset construction
-    // val (dfa, dfaStates) = this.tauEliminationAndSubsetConstruct()
+    val (dfa, dfaStates) = this.tauEliminationAndSubsetConstruct()
 
-    // tau elimination
-    val nfa = this.tauElimination()
+//    // tau elimination
+//    val nfa = this.tauElimination()
+//    // subset construction
+//    val (dfa, dfaStates) = nfa.subsetConstruct()
 
-    // subset construction
-    val (dfa, dfaStates) = nfa.subsetConstruct()
     // make sink state
     val dfa_sink = if (sink) dfa.makeSinkState(dfaStates) else dfa
     // delete all error states
