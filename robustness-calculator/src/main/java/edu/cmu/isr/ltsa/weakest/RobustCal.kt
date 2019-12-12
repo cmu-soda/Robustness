@@ -45,9 +45,6 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     val sm = allowedEnv(sink)
     val spec = "property $ENV\n${sm.buildFSP(delta)}||D_${delta} = (ENV || ${delta})" +
         "@{${alphabetR.joinToString(", ")}}."
-//    println("========== Delta ${delta} ==========")
-//    println(spec)
-//    println("===============================")
     return spec
   }
 
@@ -58,9 +55,6 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
   private fun composeSysP(): StateMachine {
     val ltsaCall = LTSACall()
     val composite = "$SYS\n$P\n||C = (SYS || P)@{${alphabetR.joinToString(",")}}."
-
-//    println("=============== Step 1: ================")
-//    println(composite)
 
     // Compose and minimise
     val compositeState = ltsaCall.doCompile(composite, "C").doCompose().minimise()
@@ -88,18 +82,15 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     val reachable = this.getReachable(setOf(-1))
     trans = trans.filter { it.first in reachable && it.third in reachable }.toSet()
 
-//    println("=============== Step 2: ================")
-//    println(StateMachine(trans, this.alphabet).buildFSP("STEP2"))
-
     return StateMachine(trans, this.alphabet)
   }
 
   private fun StateMachine.determinate(sink: Boolean): StateMachine {
+    // tau elimination ans subset construction
+    // val (dfa, dfaStates) = this.tauEliminationAndSubsetConstruct()
+
     // tau elimination
     val nfa = this.tauElimination()
-
-//    println("=============== Step 3 tau elimination: ================")
-//    println(nfa.buildFSP("STEP3_TE"))
 
     // subset construction
     val (dfa, dfaStates) = nfa.subsetConstruct()

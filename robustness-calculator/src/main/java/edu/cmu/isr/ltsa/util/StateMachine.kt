@@ -104,6 +104,71 @@ class StateMachine {
     }
   }
 
+//  fun tauEliminationAndSubsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
+//    var hasTau = false
+//    var reachTable = Array(maxNumOfState()+1) { s ->
+//      Array(alphabet.size) { a ->
+//        val next = nextState(s, a).toMutableSet()
+//        // Remove the self-looped tau transitions
+//        if (a == tau) {
+//          next.remove(s)
+//          if (next.isNotEmpty())
+//            hasTau = true
+//          next.toSet()
+//        }
+//        else
+//          next.toSet()
+//      }
+//    }
+//    while (hasTau) {
+//      hasTau = false
+//      val nextReachTable = Array(maxNumOfState()+1) { s ->
+//        val tauTrans = reachTable[s][tau]
+//        Array(alphabet.size) { a ->
+//          if (a == tau) {
+//            val nextTauTrans = tauTrans.flatMap { reachTable[it][a] }.toMutableSet()
+//            nextTauTrans.remove(s)
+//            if (nextTauTrans.isNotEmpty())
+//              hasTau = true
+//            nextTauTrans.toSet()
+//          }
+//          else
+//            reachTable[s][a] union tauTrans.flatMap { reachTable[it][a] }.toSet()
+//        }
+//      }
+//      reachTable = nextReachTable
+//    }
+//    // Do subset construct by using this reachability table
+//    val dfaStates = mutableListOf(setOf(0)) // initial state of the DFA is {0}
+//    val dfaTrans = mutableSetOf<Triple<Int, Int, Int>>()
+//    // create a queue for the new dfa states
+//    val q: Queue<Set<Int>> = LinkedList()
+//    q.addAll(dfaStates)
+//    while (q.isNotEmpty()) {
+//      val ss = q.poll()
+//      val i_s = dfaStates.indexOf(ss)
+//      for (a in alphabet.indices) {
+//        val next = ss.flatMap { if (it != -1) reachTable[it][a] else emptySet() }.toSet()
+//        if (next.isEmpty())
+//          continue
+//        val i_n = if (next !in dfaStates) {
+//          dfaStates.add(next)
+//          q.add(next)
+//          dfaStates.size - 1
+//        } else {
+//          dfaStates.indexOf(next)
+//        }
+//        dfaTrans.add(Triple(i_s, a, i_n))
+//      }
+//    }
+//    return Pair(StateMachine(dfaTrans, alphabet), dfaStates)
+//  }
+
+  fun maxNumOfState(): Int {
+    val states = transitions.map { it.first }
+    return states.max() ?: error("Cannot find the state with the max index number")
+  }
+
   fun tauElimination(): StateMachine {
     val ts = transitions.toMutableSet()
     while (true) {
@@ -113,9 +178,6 @@ class StateMachine {
       ts.addAll(ts.filter { it.first == t.third }.map { it.copy(first = t.first) })
     }
     return StateMachine(ts, alphabet)
-//    val ltsaCall = LTSACall()
-//    val composite = ltsaCall.doCompile(StateMachine(ts, alphabet).buildFSP()).doCompose().minimise()
-//    return StateMachine(composite.composition)
   }
 
   fun subsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
@@ -144,8 +206,8 @@ class StateMachine {
     return Pair(StateMachine(dfaTrans, alphabet), dfaStates)
   }
 
-  fun nextState(s: Int, a: Int): List<Int> {
-    return transitions.filter { it.first == s && it.second == a }.map { it.third }
+  fun nextState(s: Int, a: Int): Set<Int> {
+    return transitions.filter { it.first == s && it.second == a }.map { it.third }.toSet()
   }
 
 }

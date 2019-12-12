@@ -4,7 +4,6 @@ import edu.cmu.isr.ltsa.LTSACall
 import edu.cmu.isr.ltsa.doCompose
 import edu.cmu.isr.ltsa.util.StateMachine
 import java.io.File
-import java.lang.StringBuilder
 
 fun main(args: Array<String>) {
 //  val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
@@ -20,10 +19,10 @@ fun main(args: Array<String>) {
 //  File(ClassLoader.getSystemResource("specs/coffee_eofm.lts").toURI()).writeText(builder.toString())
   File(ClassLoader.getSystemResource("specs/reset_eofm.lts").toURI()).writeText(builder.toString())
 
-//  val ltsaCall = LTSACall()
-//  val composite = ltsaCall.doCompile(builder.toString()).doCompose()
-//  val minimized = StateMachine(composite.composition).tauElimination().buildFSP("EOFM_MIN")
-//  File(ClassLoader.getSystemResource("specs/reset_eofm_min.lts").toURI()).writeText(minimized)
+  val ltsaCall = LTSACall()
+  val composite = ltsaCall.doCompile(builder.toString()).doCompose()
+  val minimized = StateMachine(composite.composition).minimize().buildFSP("EOFM_MIN")
+  File(ClassLoader.getSystemResource("specs/reset_eofm_min.lts").toURI()).writeText(minimized)
 }
 
 class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
@@ -91,7 +90,8 @@ class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
    * The process to translate a EOFM model to LTSA.
    */
   fun translate(builder: StringBuilder, processes: MutableList<String>) {
-    val menu = actions.map { it.name } + inputVariables.map { "set_${it.name}[${it.userDefinedType}]" }
+    val menu = actions.map { it.name } + inputVariables.map { "set_${it.name}[${it.userDefinedType}]" } +
+        "turn[Turn]"
 
     // Build the constants for the activity/action state
     builder.append("const Ready = 0\n")
