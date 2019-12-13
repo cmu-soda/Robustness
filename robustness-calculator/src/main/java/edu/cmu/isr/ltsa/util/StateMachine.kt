@@ -106,7 +106,7 @@ class StateMachine {
 
   fun tauEliminationAndSubsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
     var hasTau = false
-    var reachTable = Array(maxNumOfState()+1) { s ->
+    val reachTable = Array(maxNumOfState() + 1) { s ->
       Array(alphabet.size) { a ->
         val next = nextState(s, a)
         if (a == tau && next.isNotEmpty())
@@ -114,27 +114,20 @@ class StateMachine {
         next
       }
     }
+    // Calculate epsilon closure
     while (hasTau) {
       hasTau = false
-      val nextReachTable = Array(maxNumOfState()+1) { s ->
-        val tauTrans = reachTable[s][tau]
-        Array(alphabet.size) { a ->
-          // extend the reachable set with the current tau transitions
-          val nextTrans = reachTable[s][a] union tauTrans.flatMap { reachTable[it][a] }.toSet()
-          if (a == tau && tauTrans.size != nextTrans.size)
-            hasTau = true
-          nextTrans
-        }
+      for (s in reachTable.indices) {
+        val next = reachTable[s][tau] union reachTable[s][tau].flatMap { reachTable[it][tau] }.toSet()
+        if (next.size != reachTable[s][tau].size)
+          hasTau = true
+        reachTable[s][tau] = next
       }
-      reachTable = nextReachTable
-    }
-    // clean up the tau transitions
-    for (i in 0..maxNumOfState()) {
-      reachTable[i][tau] = emptySet()
     }
 
     // Do subset construct by using this reachability table
-    val dfaStates = mutableListOf(setOf(0)) // initial state of the DFA is {0}
+    // initial state of the DFA is {0} union its closure
+    val dfaStates = mutableListOf(setOf(0) union reachTable[0][tau])
     val dfaTrans = mutableSetOf<Triple<Int, Int, Int>>()
     // create a queue for the new dfa states
     val q: Queue<Set<Int>> = LinkedList()
@@ -143,7 +136,11 @@ class StateMachine {
       val ss = q.poll()
       val i_s = dfaStates.indexOf(ss)
       for (a in alphabet.indices) {
-        val next = ss.flatMap { if (it != -1) reachTable[it][a] else emptySet() }.toSet()
+        if (a == tau)
+          continue
+
+        var next = ss.flatMap { if (it != -1) reachTable[it][a] else emptySet() }.toSet()
+        next = next union next.flatMap { if (it != -1) reachTable[it][tau] else emptySet() }.toSet()
         if (next.isEmpty())
           continue
         val i_n = if (next !in dfaStates) {
