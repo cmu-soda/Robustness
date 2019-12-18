@@ -1,0 +1,33 @@
+A = (start_A -> a -> b -> end_A -> reset -> A | skip_A -> reset -> A).
+B = (start_B -> c -> d -> end_B -> reset -> B | skip_B -> reset -> B).
+
+ORD = (start_A -> end_A -> start_B -> end_B -> reset -> ORD)+{skip_A, skip_B}.
+
+AND_SEQ = (reset -> AND_SEQ | start_A -> WAIT | start_B -> WAIT),
+WAIT = (end_A -> AND_SEQ | end_B -> AND_SEQ)+{skip_A, skip_B}.
+
+AND_PAR = (reset -> AND_PAR)+{skip_A, skip_B}.
+
+OR_SEQ = (start_A -> WAIT | start_B -> WAIT),
+WAIT = (end_A -> SKIP | end_B -> SKIP),
+SKIP = (start_A -> WAIT | start_B -> WAIT | skip_A -> SKIP | skip_B -> SKIP | reset -> OR_SEQ).
+
+OR_PAR = (start_A -> SKIP | start_B -> SKIP),
+SKIP = (start_A -> SKIP | start_B -> SKIP | skip_A -> SKIP | skip_B -> SKIP | reset -> OR_PAR).
+
+OPTOR_SEQ = (start_A -> WAIT | start_B -> WAIT | skip_A -> OPTOR_SEQ | skip_B -> OPTOR_SEQ | reset -> OPTOR_SEQ),
+WAIT = (end_A -> OPTOR_SEQ | end_B -> OPTOR_SEQ).
+
+OPTOR_PAR = (reset -> OPTOR_PAR).
+
+XOR = (start_A -> SKIP | start_B -> SKIP),
+SKIP = (skip_A -> SKIP | skip_B -> SKIP | reset -> XOR).
+
+||T1 = (A || B || ORD).
+||T2 = (A || B || AND_SEQ).
+||T3 = (A || B || AND_PAR).
+||T4 = (A || B || OR_SEQ).
+||T5 = (A || B || OR_PAR).
+||T6 = (A || B || OPTOR_SEQ).
+||T7 = (A || B || OPTOR_PAR).
+||T8 = (A || B || XOR).
