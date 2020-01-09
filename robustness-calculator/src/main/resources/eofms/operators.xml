@@ -1,0 +1,142 @@
+<eofms>
+    <humanoperator name="User">
+        <humanaction name="hA" behavior="autoreset"/>
+        <humanaction name="hB" behavior="autoreset"/>
+
+        <eofm>
+            <activity name="aA">
+                <decomposition operator="ord">
+                    <activity name="aB">
+                        <decomposition operator="ord">
+                            <action humanaction="hA"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aC">
+                        <decomposition operator="ord">
+                            <action humanaction="hB"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aA">
+                <decomposition operator="and_seq">
+                    <activity name="aB">
+                        <decomposition operator="ord">
+                            <action humanaction="hA"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aC">
+                        <decomposition operator="ord">
+                            <action humanaction="hB"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aA">
+                <decomposition operator="and_par">
+                    <activity name="aB">
+                        <decomposition operator="ord">
+                            <action humanaction="hA"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aC">
+                        <decomposition operator="ord">
+                            <action humanaction="hB"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aA">
+                <decomposition operator="or_seq">
+                    <activity name="aB">
+                        <decomposition operator="ord">
+                            <action humanaction="hA"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aC">
+                        <decomposition operator="ord">
+                            <action humanaction="hB"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aA">
+                <decomposition operator="or_par">
+                    <activity name="aB">
+                        <decomposition operator="ord">
+                            <action humanaction="hA"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aC">
+                        <decomposition operator="ord">
+                            <action humanaction="hB"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aA">
+                <decomposition operator="optor_seq">
+                    <activity name="aB">
+                        <decomposition operator="ord">
+                            <action humanaction="hA"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aC">
+                        <decomposition operator="ord">
+                            <action humanaction="hB"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aA">
+                <decomposition operator="optor_par">
+                    <activity name="aB">
+                        <decomposition operator="ord">
+                            <action humanaction="hA"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aC">
+                        <decomposition operator="ord">
+                            <action humanaction="hB"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aA">
+                <decomposition operator="xor">
+                    <activity name="aB">
+                        <decomposition operator="ord">
+                            <action humanaction="hA"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aC">
+                        <decomposition operator="ord">
+                            <action humanaction="hB"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+    </humanoperator>
+</eofms>

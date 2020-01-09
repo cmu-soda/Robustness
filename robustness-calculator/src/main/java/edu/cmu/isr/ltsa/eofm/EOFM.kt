@@ -174,15 +174,6 @@ data class Decomposition(
     )
     @JsonProperty("subactivity")
     val subActivities: List<Any> = emptyList()
-
-//    @JsonProperty("activity")
-//    val activities: List<Activity> = emptyList(),
-//
-//    @JsonProperty("activitylink")
-//    val activityLinks: List<Link> = emptyList(),
-//
-//    @JsonProperty("action")
-//    val actions: List<Action> = emptyList()
 )
 
 @JsonRootName("action")

@@ -1,0 +1,49 @@
+P1 = (start_A1 -> A2),
+A2 = (start_A2 -> A4 | skip_A2 -> END_REPEAT_A1),
+A4 = (start_A4 -> ACT | skip_A4 -> END_REPEAT_A2),
+ACT = (a -> END_REPEAT_A4),
+END_REPEAT_A4 = (repeat_A4 -> ACT | end_A4 -> END_REPEAT_A2),
+END_REPEAT_A2 = (repeat_A2 -> A4 | end_A2 -> END_REPEAT_A1),
+END_REPEAT_A1 = (repeat_A1 -> A2 | end_A1 -> reset_A1 -> P1).
+
+P2 = (start_A1 -> A2),
+A2 = (start_A2 -> A5 | skip_A2 -> END_REPEAT_A1),
+A5 = (start_A5 -> ACT | skip_A5 -> END_REPEAT_A2),
+ACT = (b -> END_REPEAT_A5),
+END_REPEAT_A5 = (repeat_A5 -> ACT | end_A5 -> END_REPEAT_A2),
+END_REPEAT_A2 = (repeat_A2 -> A5 | end_A2 -> END_REPEAT_A1),
+END_REPEAT_A1 = (repeat_A1 -> A2 | end_A1 -> reset_A1 -> P2).
+
+P3 = (start_A1 -> A3),
+A3 = (start_A3 -> ACT | skip_A3 -> END_REPEAT_A1),
+ACT = (c -> END_REPEAT_A3),
+END_REPEAT_A3 = (repeat_A3 -> ACT | end_A3 -> END_REPEAT_A1),
+END_REPEAT_A1 = (repeat_A1 -> A3 | end_A1 -> reset_A1 -> P3).
+
+||A1 = (A2 || P3 || XOR_A2_A3 || A1_COND).
+||A2 = (P1 || P2 || AND_SEQ_A4_A5).
+
+AND_SEQ_A4_A5 = (start_A4 -> WAIT | start_A5 -> WAIT),
+WAIT = (end_A4 -> AND_SEQ_A4_A5 | end_A5 -> AND_SEQ_A4_A5)+{skip_A4, skip_A5}.
+
+AND_PAR_A2_A3 = END+{skip_A2, skip_A3}.
+
+ORD_A2_A3 = (start_A2 -> end_A2 -> start_A3 -> end_A3 -> ORD_A2_A3)+{skip_A2, skip_A3}.
+
+OR_SEQ_A2_A3 = (start_A2 -> WAIT | start_A3 -> WAIT),
+WAIT = (end_A2 -> SKIP | end_A3 -> SKIP),
+SKIP = (start_A2 -> WAIT | start_A3 -> WAIT | skip_A2 -> SKIP | skip_A3 -> SKIP | repeat_A1 -> OR_SEQ_A2_A3 | reset_A1 -> OR_SEQ_A2_A3).
+
+OR_PAR_A2_A3 = (start_A2 -> SKIP | start_A3 -> SKIP),
+SKIP = (start_A2 -> SKIP | start_A3 -> SKIP | skip_A2 -> SKIP | skip_A3 -> SKIP | repeat_A1 -> OR_PAR_A2_A3 | reset_A1 -> OR_PAR_A2_A3).
+
+OPTOR_SEQ_A2_A3 = (start_A2 -> WAIT | start_A3 -> WAIT | skip_A2 -> OPTOR_SEQ_A2_A3 | skip_A3 -> OPTOR_SEQ_A2_A3),
+WAIT = (end_A2 -> OPTOR_SEQ_A2_A3 | end_A3 -> OPTOR_SEQ_A2_A3).
+
+OPTOR_PAR_A2_A3 = END.
+
+XOR_A2_A3 = (start_A2 -> SKIP | start_A3 -> SKIP),
+SKIP = (skip_A2 -> SKIP | skip_A3 -> SKIP | repeat_A1 -> XOR_A2_A3 | reset_A1 -> XOR_A2_A3).
+
+A1_COND = A1_COND_P[0],
+A1_COND_P[x:0..1] = (when (x == 0) start_A1 -> A1_COND_P[x] | when (x != 1) repeat_A1 -> A1_COND_P[x] | when (x == 1) end_A1 -> A1_COND_P[x] | set_x[i:0..1] -> A1_COND_P[i]).
