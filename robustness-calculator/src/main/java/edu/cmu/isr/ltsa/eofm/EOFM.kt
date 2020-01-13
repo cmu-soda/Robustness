@@ -159,7 +159,18 @@ data class Activity(
 
     @JsonProperty("decomposition")
     val decomposition: Decomposition
-)
+) {
+  /**
+   * @return The input variables related to this activity
+   */
+  fun getInputs(inputVariables: List<InputVariable>): List<InputVariable> {
+    return inputVariables.filter { i ->
+      this.preConditions.find { it.indexOf(i.name) != -1 } != null ||
+          this.completionConditions.find { it.indexOf(i.name) != -1 } != null ||
+          this.repeatConditions.find { it.indexOf(i.name) != -1 } != null
+    }
+  }
+}
 
 @JsonRootName("decomposition")
 data class Decomposition(

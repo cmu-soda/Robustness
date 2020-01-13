@@ -98,40 +98,71 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
     this.append("\n\n")
   }
 
+  /**
+   * @return The name of the LTSA process.
+   */
   private fun StringBuilder.appendActivity(activity: Activity, ancestors: List<Activity> = emptyList()): String {
+    // Name of the translated process (should be capitalized)
     val name = activity.name.capitalize()
+    // The list of ancestors passed to children activities/actions
     val nextAncestors = ancestors + listOf(activity)
+    // The list of all the sub-activities/actions
     val subActivities = activity.decomposition.subActivities
+    // The name of all the processes to compose
     val processes = mutableListOf<String>()
 
+    // If the activity has only one child action, we treat it as a leaf activity and we don't translate the
+    // decomposition operator because it is always 'ord'.
+    var isLeaf = subActivities.size == 1
     for (it in subActivities) {
       when (it) {
-        is Activity -> processes.add(this.appendActivity(it, nextAncestors))
+        is Activity -> {
+          processes.add(this.appendActivity(it, nextAncestors))
+          isLeaf = false
+        }
         is Action -> processes.add(this.appendAction(it, nextAncestors))
-        else -> throw IllegalArgumentException("Unknown child for activity ${activity.name}")
+        is ActivityLink -> processes.add(this.appendActivity(
+            activities[it.link] ?: error("Unknown activity link '${it.link}'"), nextAncestors
+        ))
+        else -> throw error("Unknown child for activity ${activity.name}")
       }
     }
-    if (!(subActivities.size == 1 && subActivities[0] is Action))
-      processes.add(this.appendOperator(activity.decomposition.operator, subActivities as List<Activity>, nextAncestors))
 
+    // Translate the decomposition operator if this node is not a leaf activity.
+    if (!isLeaf)
+      processes.add(this.appendOperator(activity.decomposition.operator, subActivities, nextAncestors))
+
+    // If this activity has any conditions, then translate the conditions as one LTSA process.
     if (activity.preConditions.isNotEmpty() || activity.repeatConditions.isNotEmpty() || activity.completionConditions.isNotEmpty())
       processes.add(this.appendCondition(activity))
 
+    // This activity is the parallel composition of all its sub-activity/action processes, operator process,
+    // and condition process.
     this.append("||$name = (${processes.joinToString(" || ")}).\n\n")
     return name
   }
 
+  /**
+   * @return The LTSA process name of this action.
+   */
   private fun StringBuilder.appendAction(action: Action, ancestors: List<Activity>): String {
     assert(action.humanAction != null)
 
 //    val actName = ancestors.joinToString("_") { it.name.capitalize() } +
 //        "_${action.humanAction!!.capitalize()}"
+    // Process name of this action (should be capitalized).
     val actName = action.humanAction!!.capitalize()
 
+    /**
+     * A helper function to append the action process.
+     */
     fun helper(i: Int) {
-      // End condition
+      // End condition, all the ancestor activities have been translated.
       if (i == ancestors.size) {
-        this.append("ACT = (${action.humanAction} -> END_REPEAT_${ancestors[i - 1].name.capitalize()}),\n")
+        this.append("ACT = (${action.humanAction} -> sys -> human -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
+        // Append turn change
+        this.append(" | sys -> human -> ACT")
+        this.append("),\n")
         return
       }
 
@@ -149,6 +180,11 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       // Append skip this activity. Cannot skip the root activity
       if (i > 0)
         this.append(" | skip_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
+      // Append turn change
+      if (i == 0)
+        this.append(" | sys -> human -> $actName")
+      else
+        this.append(" | sys -> human -> $name")
       this.append("),\n")
 
       // recursively append this next ancestor
@@ -161,19 +197,36 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       else
         this.append("repeat_$name -> ACT")
       // If this is the root activity, it can be reset
-      if (i > 0)
-        this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}),\n")
-      else
-        this.append(" | end_$name -> reset_$name -> $actName).\n\n")
+      if (i > 0) {
+        this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
+        this.append(" | sys -> human -> END_REPEAT_$name")
+        this.append("),\n")
+      } else {
+        this.append(" | end_$name -> reset_$name -> $actName")
+        this.append(" | sys -> human -> END_REPEAT_$name")
+        this.append(").\n\n")
+      }
     }
 
     helper(0)
     return actName
   }
 
-  private fun StringBuilder.appendOperator(operator: String, subActivities: List<Activity>, ancestors: List<Activity>): String {
-    val subNames = subActivities.map { it.name.capitalize() }
+  /**
+   *
+   */
+  private fun StringBuilder.appendOperator(operator: String, subActivities: List<Any>, ancestors: List<Activity>): String {
+    // Names of the sub-activities
+    val subNames = subActivities.map {
+      when (it) {
+        is Activity -> it.name.capitalize()
+        is ActivityLink -> it.link.capitalize()
+        else -> error("Unknown type of sub-activity '$it'")
+      }
+    }
+    // Name of this operator process
     val name = operator.toUpperCase() + "_" + subNames.joinToString("_")
+    // The code snippet for skipping sub-activities
     val skips = subNames.joinToString(", ") { "skip_$it" }
 
     this.append("$name = (")
@@ -248,25 +301,29 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
     return name
   }
 
+  /**
+   * @return The name of LTSA process.
+   */
   private fun StringBuilder.appendCondition(activity: Activity): String {
     val name = activity.name.capitalize()
     val condName = name + "_COND"
-    val condPName = condName + "_P"
+    val human = "HUMAN"
+    val sys = "SYS"
+
     // Get all the input variables related to the activity.
-    val inputs = inputVariables.filter { i ->
-      activity.preConditions.find { it.indexOf(i.name) != -1 } != null ||
-          activity.completionConditions.find { it.indexOf(i.name) != -1 } != null ||
-          activity.repeatConditions.find { it.indexOf(i.name) != -1 } != null
-    }
+    val inputs = activity.getInputs(inputVariables)
     val variables = inputs.joinToString("") { "[${it.name}]" }
 
-    this.append("$condName = $condPName")
+    // Append the process name and its initial value
+    this.append("$condName = $human")
     this.append(inputs.joinToString("") { "[${it.initialValue}]" })
     this.append(",\n")
-    this.append(condPName)
+    // Append the parameterized process
+    this.append(human)
     this.append(inputs.joinToString("") { "[${it.name}:${it.userDefinedType}]" })
     this.append(" = (\n")
 
+    // Append conditions to start this activity
     var bar = "\t\t"
     if (activity.preConditions.isNotEmpty() || activity.completionConditions.isNotEmpty()) {
       this.append(bar)
@@ -276,8 +333,10 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       if (activity.preConditions.isNotEmpty())
         this.append(" && ")
       this.append("!(${activity.completionConditions.joinToString(" && ")}))\n")
-      this.append("\t\t\tstart_$name -> $condPName$variables\n")
+      this.append("\t\t\tstart_$name -> $human$variables\n")
     }
+
+    // Append conditions to repeat this activity
     if (activity.repeatConditions.isNotEmpty() || activity.completionConditions.isNotEmpty()) {
       this.append(bar)
       bar = "\t|\t"
@@ -286,22 +345,35 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       if (activity.repeatConditions.isNotEmpty())
         this.append(" && ")
       this.append("!(${activity.completionConditions.joinToString(" && ")}))\n")
-      this.append("\t\t\trepeat_$name -> $condPName$variables\n")
+      this.append("\t\t\trepeat_$name -> $human$variables\n")
     }
+
+    // Append conditions to complete this activity
     if (activity.completionConditions.isNotEmpty()) {
       this.append(bar)
       bar = "\t|\t"
 
       this.append("when (${activity.completionConditions.joinToString(" && ")})\n")
-      this.append("\t\t\tend_$name -> $condPName$variables\n")
+      this.append("\t\t\tend_$name -> $human$variables\n")
     }
+
+    // Append synchronizations on input variables change
+    this.append(bar)
+    this.append("sys -> $sys$variables\n),\n")
+    this.append(sys)
+    this.append(inputs.joinToString("") { "[${it.name}:${it.userDefinedType}]" })
+    this.append(" = (\n")
+    bar = "\t\t"
+
     for (it in inputs) {
       this.append(bar)
       bar = "\t|\t"
 
-      val x = variables.replace(it.name, "i")
-      this.append("set_${it.name}[i:${it.userDefinedType}] -> $condPName$x\n")
+      val x = variables.replace(it.name, "x")
+      this.append("set_${it.name}[x:${it.userDefinedType}] -> $sys$x\n")
     }
+    this.append(bar)
+    this.append("human -> $human$variables\n")
     this.append(").\n\n")
 
     return condName
