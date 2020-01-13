@@ -1,12 +1,12 @@
 SYS = Run[True],
 Run[iHandleDown:TBool] = (
-    when (iHandleDown == True) hLiftHandle -> Run[iHandleDown]
-  | when (iHandleDown == False) hLowerHandle -> Run[iHandleDown]
-  | when (iHandleDown == True) hPressBrew -> mBrew -> Brewing
+    when (iHandleDown == True) hLiftHandle -> set_iHandleDown[False] -> Run[iHandleDown]
+  | when (iHandleDown == False) hLowerHandle -> set_iHandleDown[True] -> Run[iHandleDown]
+  | when (iHandleDown == True) hPressBrew -> set_iBrewing[True] -> mBrew -> Brewing
   | when (iHandleDown == False) hPressBrew -> Run[iHandleDown]
   | set_iHandleDown[i:TBool] -> Run[i]
 ),
-Brewing = (mBrew -> Brewing | mBrewDone -> Run[True]).
+Brewing = (mBrew -> Brewing | mBrewDone -> set_iBrewing[False] -> Run[True]).
 
 
 WORLD = WORLD_[False][Absent][True][EmptyOrUsed],
