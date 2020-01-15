@@ -177,9 +177,17 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
         this.append(ancestors[i + 1].name.capitalize())
       else
         this.append("ACT")
+
+      // Append directly end this activity from ready state.
+      if (i > 0)
+        this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
+      else
+        this.append(" | end_$name -> reset_$name -> $actName")
+
       // Append skip this activity. Cannot skip the root activity
       if (i > 0)
         this.append(" | skip_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
+
       // Append turn change
       if (i == 0)
         this.append(" | sys -> human -> $actName")
@@ -196,6 +204,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
         this.append("repeat_$name -> ${ancestors[i + 1].name.capitalize()}")
       else
         this.append("repeat_$name -> ACT")
+
       // If this is the root activity, it can be reset
       if (i > 0) {
         this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
@@ -229,70 +238,181 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
     // The code snippet for skipping sub-activities
     val skips = subNames.joinToString(", ") { "skip_$it" }
 
+    fun appendReset() {
+      this.append(ancestors.joinToString(" | ") { "repeat_${it.name.capitalize()} -> $name" })
+      this.append(" | reset_${ancestors[0].name.capitalize()} -> $name")
+    }
+
     this.append("$name = (")
     when (operator) {
+      /**
+       * For activity tree, A -(ord)-> (B, C), it will be translated to the following process:
+       * ORD_B_C = (start_B -> end_B -> C | end_B -> C),
+       * C = (start_C -> end_C -> ORD_B_C | end_C -> ORD_B_C)+{skip_B, skip_C}.
+       */
       "ord" -> {
-        for (it in subNames) {
-          this.append("start_$it -> end_$it -> ")
+        for (i in subNames.indices) {
+          if (i != subNames.size - 1) {
+            this.append("start_${subNames[i]} -> end_${subNames[i]} -> ${subNames[i + 1]}")
+            this.append(" | ")
+            this.append("end_${subNames[i]} -> ${subNames[i + 1]}")
+            this.append("),\n")
+            this.append("${subNames[i + 1]} = (")
+          } else {
+            this.append("start_${subNames[i]} -> end_${subNames[i]} -> $name")
+            this.append(" | ")
+            this.append("end_${subNames[i]} -> $name")
+            this.append(")+{$skips}.\n\n")
+          }
         }
-        this.append(name)
-        this.append(")+{$skips}.\n\n")
       }
+      /**
+       * For activity tree, A -(and_seq)-> (B, C), it will be translated to the following process:
+       * AND_SEQ_B_C = (
+       *      start_B -> end_B -> AND_SEQ_B_C | end_B -> AND_SEQ_B_C
+       *    | start_C -> end_C -> AND_SEQ_B_C | end_C -> AND_SEQ_B_C
+       * )+{skip_B, skip_C}.
+       */
       "and_seq" -> {
-        this.append(subNames.joinToString(" | ") { "start_$it -> WAIT" })
-        this.append("),\n")
-        this.append("WAIT = (")
-        this.append(subNames.joinToString(" | ") { "end_$it -> $name" })
+        var tab = "\t\t"
+        this.append('\n')
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> $name | end_$it -> $name\n")
+        }
         this.append(")+{$skips}.\n\n")
       }
+      /**
+       * For activity tree, A -(and_par)-> (B, C), it will be translated to the following process:
+       * AND_PAR_B_C = END+{skip_B, skip_C}.
+       */
       "and_par" -> {
         this.setLength(this.length - 1)
         this.append("END+{$skips}.\n\n")
       }
-      "or_seq", "or_par" -> {
-        when (operator) {
-          "or_seq" -> {
-            this.append(subNames.joinToString(" | ") { "start_$it -> WAIT" })
-            this.append("),\n")
-            this.append("WAIT = (")
-            this.append(subNames.joinToString(" | ") { "end_$it -> SKIP" })
-            this.append("),\n")
-          }
-          "or_par" -> {
-            this.append(subNames.joinToString(" | ") { "start_$it -> SKIP" })
-            this.append("),\n")
-          }
+      /**
+       * For activity tree, A -(or_seq)-> (B, C), it will be translated to the following process:
+       * OR_SEQ_B_C = (
+       *      start_B -> end_B -> SKIP | end_B -> SKIP
+       *    | start_C -> end_C -> SKIP | end_C -> SKIP
+       *    | repeat_A -> OR_SEQ_B_C | reset_A -> OR_SEQ_B_C
+       * ),
+       * SKIP = (
+       *      start_B -> end_B -> SKIP | end_B -> SKIP | skip_B -> SKIP
+       *    | start_C -> end_C -> SKIP | end_C -> SKIP | skip_C -> SKIP
+       *    | repeat_A -> OR_SEQ_B_C | reset_A -> OR_SEQ_B_C
+       * ).
+       */
+      "or_seq" -> {
+        var tab = "\t\t"
+        this.append('\n')
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> SKIP | end_$it -> SKIP\n")
         }
-        this.append("SKIP = (")
-        this.append(subNames.joinToString(" | ") { "start_$it -> WAIT" })
-        this.append(" | ")
-        this.append(subNames.joinToString(" | ") { "skip_$it -> SKIP" })
-        this.append(" | ")
-        this.append(ancestors.joinToString(" | ") { "repeat_${it.name.capitalize()} -> $name" })
-        this.append(" | reset_${ancestors[0].name.capitalize()} -> $name")
-        this.append(").\n\n")
+        this.append(tab)
+        appendReset()
+        this.append("\n),\n")
+        this.append("SKIP = (\n")
+        tab = "\t\t"
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> SKIP | end_$it -> SKIP | skip_$it -> SKIP\n")
+        }
+        this.append(tab)
+        appendReset()
+        this.append("\n).\n\n")
       }
+      /**
+       * For activity tree, A -(or_par)-> (B, C), it will be translated to the following process:
+       * OR_PAR_B_C = (
+       *      start_B -> SKIP | end_B -> SKIP
+       *    | start_C -> SKIP | end_C -> SKIP
+       *    | repeat_A -> OR_PAR_B_C | reset_A -> OR_PAR_B_C
+       * ),
+       * SKIP = (
+       *      start_B -> SKIP | end_B -> SKIP | skip_B -> SKIP
+       *    | start_C -> SKIP | end_C -> SKIP | skip_C -> SKIP
+       *    | repeat_A -> OR_PAR_B_C | reset_A -> OR_PAR_B_C
+       * ).
+       */
+      "or_par" -> {
+        var tab = "\t\t"
+        this.append('\n')
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> SKIP | end_$it -> SKIP\n")
+        }
+        this.append(tab)
+        appendReset()
+        this.append("\n),\n")
+        this.append("SKIP = (\n")
+        tab = "\t\t"
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> SKIP | end_$it -> SKIP | skip_$it -> SKIP\n")
+        }
+        this.append(tab)
+        appendReset()
+        this.append("\n).\n\n")
+      }
+      /**
+       * For activity tree, A -(optor_seq)-> (B, C), it will be translated to the following process:
+       * OPTOR_SEQ_B_C = (
+       *      start_B -> end_B -> OPTOR_SEQ_B_C | end_B -> OPTOR_SEQ_B_C | skip_B -> OPTOR_SEQ_B_C
+       *    | start_C -> end_C -> OPTOR_SEQ_B_C | end_C -> OPTOR_SEQ_B_C | skip_C -> OPTOR_SEQ_B_C
+       * ).
+       */
       "optor_seq" -> {
-        this.append(subNames.joinToString(" | ") { "start_$it -> WAIT" })
-        this.append(" | ")
-        this.append(subNames.joinToString(" | ") { "skip_$it -> $name" })
-        this.append("),\n")
-        this.append("WAIT = (")
-        this.append(subNames.joinToString(" | ") { "end_$it -> $name" })
+        var tab = "\t\t"
+        this.append('\n')
+
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> $name | ")
+          this.append("end_$it -> $name | ")
+          this.append("skip_$it -> $name\n")
+        }
         this.append(").\n\n")
       }
+      /**
+       * For activity tree, A -(optor_par)-> (B, C), it will be translated to the following process:
+       * OPTOR_PAR_B_C = END.
+       */
       "optor_par" -> {
         this.setLength(this.length - 1)
         this.append("END.\n\n")
       }
+      /**
+       * For activity tree, A -(xor)-> (B, C), it will be translated to the following process:
+       * XOR_B_C = (
+       *      start_B -> end_B -> SKIP | end_B -> SKIP
+       *    | start_C -> end_C -> SKIP | end_C -> SKIP
+       *    | repeat_A -> XOR_B_C | reset_A -> XOR_B_C
+       * ),
+       * SKIP = (skip_B -> SKIP | skip_C -> SKIP | repeat_A -> XOR_B_C | reset_A -> XOR_B_C).
+       */
       "xor" -> {
-        this.append(subNames.joinToString(" | ") { "start_$it -> SKIP" })
-        this.append("),\n")
+        var tab = "\t\t"
+        this.append('\n')
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> SKIP | end_$it -> SKIP\n")
+        }
+        this.append(tab)
+        appendReset()
+        this.append("\n),\n")
         this.append("SKIP = (")
         this.append(subNames.joinToString(" | ") { "skip_$it -> SKIP" })
         this.append(" | ")
-        this.append(ancestors.joinToString(" | ") { "repeat_${it.name.capitalize()} -> $name" })
-        this.append(" | reset_${ancestors[0].name.capitalize()} -> $name")
+        appendReset()
         this.append(").\n\n")
       }
       else -> throw IllegalArgumentException("$operator is not supported")
