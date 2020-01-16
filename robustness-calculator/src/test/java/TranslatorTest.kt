@@ -2,6 +2,7 @@ import edu.cmu.isr.ltsa.eofm.EOFMS
 import edu.cmu.isr.ltsa.eofm.EOFMTranslator2
 import edu.cmu.isr.ltsa.eofm.parseEOFMS
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class TranslatorTest {
   @Test
@@ -12,6 +13,7 @@ class TranslatorTest {
     val builder = StringBuilder()
     translator.translate(builder)
     println(builder.toString())
+    File(ClassLoader.getSystemResource("specs/coffee_eofm.lts").toURI()).writeText(builder.toString())
 
 //    val builder = StringBuilder()
 //    val processes = mutableListOf<String>()

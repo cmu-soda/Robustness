@@ -10,16 +10,17 @@
         <inputvariable name="iPodState" userdefinedtype="TPodState"/>
 
         <humanaction name="hPlaceMug" behavior="autoreset"/>
+        <humanaction name="hTakeMug" behavior="autoreset"/>
         <humanaction name="hLiftHandle" behavior="autoreset"/>
         <humanaction name="hAddOrReplacePod" behavior="autoreset"/>
         <humanaction name="hLowerHandle" behavior="autoreset"/>
         <humanaction name="hPressBrew" behavior="autoreset"/>
+        <humanaction name="hWaitBrewDone" behavior="autoreset"/>
 
         <eofm>
             <activity name="aBrewCoffee">
                 <precondition>iBrewing == False</precondition>
                 <precondition>iMugState != Full</precondition>
-                <completioncondition>iBrewing == True</completioncondition>
                 <decomposition operator="ord">
                     <activity name="aPrepMachine">
                         <completioncondition>iHandleDown == True</completioncondition>
@@ -61,8 +62,22 @@
                         </decomposition>
                     </activity>
                     <activity name="aBrew">
+                        <completioncondition>iBrewing == True</completioncondition>
                         <decomposition operator="ord">
                             <action humanaction="hPressBrew"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aWait">
+                        <completioncondition>iBrewing == False</completioncondition>
+                        <completioncondition>iMugState == Full</completioncondition>
+                        <decomposition operator="ord">
+                            <action humanaction="hWaitBrewDone"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aTakeCoffee">
+                        <completioncondition>iMugState == Absent</completioncondition>
+                        <decomposition operator="ord">
+                            <action humanaction="hTakeMug"/>
                         </decomposition>
                     </activity>
                 </decomposition>

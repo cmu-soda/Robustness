@@ -449,10 +449,14 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       this.append(bar)
       bar = "\t|\t"
 
-      this.append("when (${activity.preConditions.joinToString(" && ")}")
-      if (activity.preConditions.isNotEmpty())
-        this.append(" && ")
-      this.append("!(${activity.completionConditions.joinToString(" && ")}))\n")
+      val pres = activity.preConditions.joinToString(" && ")
+      val completions = activity.completionConditions.joinToString(" && ")
+      if (pres != "" && completions != "")
+        this.append("when ($pres && !($completions))\n")
+      else if (pres != "")
+        this.append("when ($pres)\n")
+      else
+        this.append("when (!($completions))\n")
       this.append("\t\t\tstart_$name -> $human$variables\n")
     }
 
@@ -461,10 +465,14 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       this.append(bar)
       bar = "\t|\t"
 
-      this.append("when (${activity.repeatConditions.joinToString(" && ")}")
-      if (activity.repeatConditions.isNotEmpty())
-        this.append(" && ")
-      this.append("!(${activity.completionConditions.joinToString(" && ")}))\n")
+      val repeats = activity.repeatConditions.joinToString(" && ")
+      val completions = activity.completionConditions.joinToString(" && ")
+      if (repeats != "" && completions != "")
+        this.append("when ($repeats && !($completions))\n")
+      else if (repeats != "")
+        this.append("when ($repeats)\n")
+      else
+        this.append("when (!($completions))\n")
       this.append("\t\t\trepeat_$name -> $human$variables\n")
     }
 

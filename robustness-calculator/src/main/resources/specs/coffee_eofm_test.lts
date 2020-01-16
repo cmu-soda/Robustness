@@ -17,7 +17,7 @@ R[iBrewing:TBool][iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] =
     | when (iMugState == Empty) mBrewDone -> sys -> set_iBrewing[False] -> set_iMugState[Full] -> human -> R[False][Full][iHandleDown][iPodState]
     | when (iHandleDown == False) hLowerHandle -> sys -> set_iHandleDown[True] -> human -> R[iBrewing][iMugState][True][iPodState]
     | when (iHandleDown == True) hLiftHandle -> sys -> set_iHandleDown[False] -> human -> R[iBrewing][iMugState][False][iPodState]
-    | when (iPodState == New) mBrew -> sys -> set_iBrewing[True] -> set_iPodState[EmptyOrUsed] -> sys -> R[True][iMugState][iHandleDown][EmptyOrUsed]
+    | when (iPodState == New) mBrew -> sys -> set_iBrewing[True] -> set_iPodState[EmptyOrUsed] -> human -> R[True][iMugState][iHandleDown][EmptyOrUsed]
     | when (iPodState == EmptyOrUsed) hAddOrReplacePod -> sys -> set_iPodState[New] -> human -> R[iBrewing][iMugState][iHandleDown][New]
 ).
 
@@ -25,3 +25,5 @@ R[iBrewing:TBool][iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] =
 property P = (hPlaceMug -> MugPlaced | hTakeMug -> P | mBrewDone -> P),
 MugPlaced = (mBrew -> Brewing | hTakeMug -> P | mBrewDone -> MugPlaced | hPlaceMug -> MugPlaced),
 Brewing = (mBrewDone -> MugPlaced | mBrew -> Brewing | hPlaceMug -> Brewing).
+
+||T = (WORLD || COFFEE_MACHINE || ABrewCoffee || P).
