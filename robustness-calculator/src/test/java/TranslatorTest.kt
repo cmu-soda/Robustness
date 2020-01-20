@@ -46,4 +46,14 @@ class TranslatorTest {
     translator.translate(builder)
     println(builder.toString())
   }
+
+  @Test
+  fun testOmission1() {
+    val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/omission1.xml"))
+    val translator = EOFMTranslator2(reset, mapOf("iX" to "False"))
+
+    val builder = StringBuilder()
+    translator.translate(builder)
+    println(builder.toString())
+  }
 }

@@ -451,13 +451,20 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
 
       val pres = activity.preConditions.joinToString(" && ")
       val completions = activity.completionConditions.joinToString(" && ")
-      if (pres != "" && completions != "")
-        this.append("when ($pres && !($completions))\n")
+      val cond = if (pres != "" && completions != "")
+        "$pres && !($completions)"
       else if (pres != "")
-        this.append("when ($pres)\n")
+        pres
       else
-        this.append("when (!($completions))\n")
+        "!($completions)"
+      this.append("when ($cond)\n")
       this.append("\t\t\tstart_$name -> $human$variables\n")
+
+      // !!!IMPORTANT: Append commission error
+      this.append(bar)
+      bar = "\t|\t"
+      this.append("when (!($cond))\n")
+      this.append("\t\t\tstart_$name -> commission_$name -> $human$variables\n")
     }
 
     // Append conditions to repeat this activity
@@ -467,13 +474,20 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
 
       val repeats = activity.repeatConditions.joinToString(" && ")
       val completions = activity.completionConditions.joinToString(" && ")
-      if (repeats != "" && completions != "")
-        this.append("when ($repeats && !($completions))\n")
+      val cond = if (repeats != "" && completions != "")
+        "$repeats && !($completions)"
       else if (repeats != "")
-        this.append("when ($repeats)\n")
+        repeats
       else
-        this.append("when (!($completions))\n")
+        "!($completions)"
+      this.append("when ($cond)\n")
       this.append("\t\t\trepeat_$name -> $human$variables\n")
+
+      // !!!IMPORTANT: Append repetition error
+      this.append(bar)
+      bar = "\t|\t"
+      this.append("when (!($cond))\n")
+      this.append("\t\t\trepeat_$name -> repetition_$name -> $human$variables\n")
     }
 
     // Append conditions to complete this activity
@@ -481,8 +495,16 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       this.append(bar)
       bar = "\t|\t"
 
-      this.append("when (${activity.completionConditions.joinToString(" && ")})\n")
+      val cond = activity.completionConditions.joinToString(" && ")
+
+      this.append("when ($cond)\n")
       this.append("\t\t\tend_$name -> $human$variables\n")
+
+      // !!!IMPORTANT: Append omission error!!!
+      this.append(bar)
+      bar = "\t|\t"
+      this.append("when (!($cond))\n")
+      this.append("\t\t\tend_$name -> omission_$name -> $human$variables\n")
     }
 
     // Append synchronizations on input variables change
