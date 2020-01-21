@@ -159,9 +159,12 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
     fun helper(i: Int) {
       // End condition, all the ancestor activities have been translated.
       if (i == ancestors.size) {
+        /** Uncomment this for turn change
         this.append("ACT = (${action.humanAction} -> sys -> human -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
         // Append turn change
         this.append(" | sys -> human -> ACT")
+         */
+        this.append("ACT = (${action.humanAction} -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
         this.append("),\n")
         return
       }
@@ -189,10 +192,12 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
         this.append(" | skip_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
 
       // Append turn change
+      /** Uncomment for turn change
       if (i == 0)
-        this.append(" | sys -> human -> $actName")
+      this.append(" | sys -> human -> $actName")
       else
-        this.append(" | sys -> human -> $name")
+      this.append(" | sys -> human -> $name")
+       */
       this.append("),\n")
 
       // recursively append this next ancestor
@@ -208,11 +213,15 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       // If this is the root activity, it can be reset
       if (i > 0) {
         this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
+        /** Uncomment for turn change
         this.append(" | sys -> human -> END_REPEAT_$name")
+         */
         this.append("),\n")
       } else {
         this.append(" | end_$name -> reset_$name -> $actName")
+        /** Uncomment for turn change
         this.append(" | sys -> human -> END_REPEAT_$name")
+         */
         this.append(").\n\n")
       }
     }
@@ -237,11 +246,13 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
     val name = operator.toUpperCase() + "_" + subNames.joinToString("_")
     // The code snippet for skipping sub-activities
     val skips = subNames.joinToString(", ") { "skip_$it" }
+    // Name of the parent activity
+    val parent = ancestors.last().name.capitalize()
 
-    fun appendReset() {
-      this.append(ancestors.joinToString(" | ") { "repeat_${it.name.capitalize()} -> $name" })
-      this.append(" | reset_${ancestors[0].name.capitalize()} -> $name")
-    }
+//    fun appendReset() {
+//      this.append(ancestors.joinToString(" | ") { "repeat_${it.name.capitalize()} -> $name" })
+//      this.append(" | reset_${ancestors[0].name.capitalize()} -> $name")
+//    }
 
     this.append("$name = (")
     when (operator) {
@@ -296,12 +307,12 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
        * OR_SEQ_B_C = (
        *      start_B -> end_B -> SKIP | end_B -> SKIP
        *    | start_C -> end_C -> SKIP | end_C -> SKIP
-       *    | repeat_A -> OR_SEQ_B_C | reset_A -> OR_SEQ_B_C
+       *    | end_A -> OR_SEQ_B_C
        * ),
        * SKIP = (
        *      start_B -> end_B -> SKIP | end_B -> SKIP | skip_B -> SKIP
        *    | start_C -> end_C -> SKIP | end_C -> SKIP | skip_C -> SKIP
-       *    | repeat_A -> OR_SEQ_B_C | reset_A -> OR_SEQ_B_C
+       *    | repeat_A -> OR_SEQ_B_C | end_A -> OR_SEQ_B_C
        * ).
        */
       "or_seq" -> {
@@ -313,7 +324,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
           this.append("start_$it -> end_$it -> SKIP | end_$it -> SKIP\n")
         }
         this.append(tab)
-        appendReset()
+        this.append("end_$parent -> $name")
         this.append("\n),\n")
         this.append("SKIP = (\n")
         tab = "\t\t"
@@ -323,7 +334,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
           this.append("start_$it -> end_$it -> SKIP | end_$it -> SKIP | skip_$it -> SKIP\n")
         }
         this.append(tab)
-        appendReset()
+        this.append("repeat_$parent -> $name | end_$parent -> $name")
         this.append("\n).\n\n")
       }
       /**
@@ -331,12 +342,12 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
        * OR_PAR_B_C = (
        *      start_B -> SKIP | end_B -> SKIP
        *    | start_C -> SKIP | end_C -> SKIP
-       *    | repeat_A -> OR_PAR_B_C | reset_A -> OR_PAR_B_C
+       *    | end_A -> OR_PAR_B_C
        * ),
        * SKIP = (
        *      start_B -> SKIP | end_B -> SKIP | skip_B -> SKIP
        *    | start_C -> SKIP | end_C -> SKIP | skip_C -> SKIP
-       *    | repeat_A -> OR_PAR_B_C | reset_A -> OR_PAR_B_C
+       *    | repeat_A -> OR_PAR_B_C | end_A -> OR_PAR_B_C
        * ).
        */
       "or_par" -> {
@@ -348,7 +359,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
           this.append("start_$it -> SKIP | end_$it -> SKIP\n")
         }
         this.append(tab)
-        appendReset()
+        this.append("end_$parent -> $name")
         this.append("\n),\n")
         this.append("SKIP = (\n")
         tab = "\t\t"
@@ -358,7 +369,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
           this.append("start_$it -> SKIP | end_$it -> SKIP | skip_$it -> SKIP\n")
         }
         this.append(tab)
-        appendReset()
+        this.append("repeat_$parent -> $name | end_$parent -> $name")
         this.append("\n).\n\n")
       }
       /**
@@ -394,9 +405,9 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
        * XOR_B_C = (
        *      start_B -> end_B -> SKIP | end_B -> SKIP
        *    | start_C -> end_C -> SKIP | end_C -> SKIP
-       *    | repeat_A -> XOR_B_C | reset_A -> XOR_B_C
+       *    | end_A -> XOR_B_C
        * ),
-       * SKIP = (skip_B -> SKIP | skip_C -> SKIP | repeat_A -> XOR_B_C | reset_A -> XOR_B_C).
+       * SKIP = (skip_B -> SKIP | skip_C -> SKIP | repeat_A -> XOR_B_C | end_A -> XOR_B_C).
        */
       "xor" -> {
         var tab = "\t\t"
@@ -407,12 +418,12 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
           this.append("start_$it -> end_$it -> SKIP | end_$it -> SKIP\n")
         }
         this.append(tab)
-        appendReset()
+        this.append("end_$parent -> $name")
         this.append("\n),\n")
         this.append("SKIP = (")
         this.append(subNames.joinToString(" | ") { "skip_$it -> SKIP" })
         this.append(" | ")
-        appendReset()
+        this.append("repeat_$parent -> $name | end_$parent -> $name")
         this.append(").\n\n")
       }
       else -> throw IllegalArgumentException("$operator is not supported")

@@ -2,16 +2,24 @@
     <humanoperator name="User">
         <humanaction name="h1" behavior="autoreset"/>
         <humanaction name="h2" behavior="autoreset"/>
-        <!--        <humanaction name="h3" behavior="autoreset"/>-->
-        <!--        <humanaction name="h4" behavior="autoreset"/>-->
-        <!--        <humanaction name="h5" behavior="autoreset"/>-->
-        <!--        <humanaction name="h6" behavior="autoreset"/>-->
-        <!--        <humanaction name="h7" behavior="autoreset"/>-->
-        <!--        <humanaction name="h8" behavior="autoreset"/>-->
+        <humanaction name="h3" behavior="autoreset"/>
+        <humanaction name="h4" behavior="autoreset"/>
+        <humanaction name="h5" behavior="autoreset"/>
+        <humanaction name="h6" behavior="autoreset"/>
+        <humanaction name="h7" behavior="autoreset"/>
+        <humanaction name="h8" behavior="autoreset"/>
+        <humanaction name="h9" behavior="autoreset"/>
+        <humanaction name="h10" behavior="autoreset"/>
+        <humanaction name="h11" behavior="autoreset"/>
+        <humanaction name="h12" behavior="autoreset"/>
+        <humanaction name="h13" behavior="autoreset"/>
+        <humanaction name="h14" behavior="autoreset"/>
+        <humanaction name="h15" behavior="autoreset"/>
+        <humanaction name="h16" behavior="autoreset"/>
 
         <eofm>
             <activity name="aA">
-                <decomposition operator="or_seq">
+                <decomposition operator="or_par">
                     <activity name="aB1">
                         <decomposition operator="ord">
                             <action humanaction="h1"/>
@@ -22,36 +30,76 @@
                             <action humanaction="h2"/>
                         </decomposition>
                     </activity>
-                    <!--                    <activity name="aB3">-->
-                    <!--                        <decomposition operator="ord">-->
-                    <!--                            <action humanaction="h3"/>-->
-                    <!--                        </decomposition>-->
-                    <!--                    </activity>-->
-                    <!--                    <activity name="aB4">-->
-                    <!--                        <decomposition operator="ord">-->
-                    <!--                            <action humanaction="h4"/>-->
-                    <!--                        </decomposition>-->
-                    <!--                    </activity>-->
-                    <!--                    <activity name="aB5">-->
-                    <!--                        <decomposition operator="ord">-->
-                    <!--                            <action humanaction="h5"/>-->
-                    <!--                        </decomposition>-->
-                    <!--                    </activity>-->
-                    <!--                    <activity name="aB6">-->
-                    <!--                        <decomposition operator="ord">-->
-                    <!--                            <action humanaction="h6"/>-->
-                    <!--                        </decomposition>-->
-                    <!--                    </activity>-->
-                    <!--                    <activity name="aB7">-->
-                    <!--                        <decomposition operator="ord">-->
-                    <!--                            <action humanaction="h7"/>-->
-                    <!--                        </decomposition>-->
-                    <!--                    </activity>-->
-                    <!--                    <activity name="aB8">-->
-                    <!--                        <decomposition operator="ord">-->
-                    <!--                            <action humanaction="h8"/>-->
-                    <!--                        </decomposition>-->
-                    <!--                    </activity>-->
+                    <activity name="aB3">
+                        <decomposition operator="ord">
+                            <action humanaction="h3"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB4">
+                        <decomposition operator="ord">
+                            <action humanaction="h4"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB5">
+                        <decomposition operator="ord">
+                            <action humanaction="h5"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB6">
+                        <decomposition operator="ord">
+                            <action humanaction="h6"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB7">
+                        <decomposition operator="ord">
+                            <action humanaction="h7"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB8">
+                        <decomposition operator="ord">
+                            <action humanaction="h8"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB9">
+                        <decomposition operator="ord">
+                            <action humanaction="h9"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB10">
+                        <decomposition operator="ord">
+                            <action humanaction="h10"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB11">
+                        <decomposition operator="ord">
+                            <action humanaction="h11"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB12">
+                        <decomposition operator="ord">
+                            <action humanaction="h12"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB13">
+                        <decomposition operator="ord">
+                            <action humanaction="h13"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB14">
+                        <decomposition operator="ord">
+                            <action humanaction="h14"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB15">
+                        <decomposition operator="ord">
+                            <action humanaction="h15"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aB16">
+                        <decomposition operator="ord">
+                            <action humanaction="h16"/>
+                        </decomposition>
+                    </activity>
                 </decomposition>
             </activity>
         </eofm>
