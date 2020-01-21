@@ -56,4 +56,14 @@ class TranslatorTest {
     translator.translate(builder)
     println(builder.toString())
   }
+
+  @Test
+  fun testBenchmark() {
+    val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/benchmark.xml"))
+    val translator = EOFMTranslator2(reset, emptyMap())
+
+    val builder = StringBuilder()
+    translator.translate(builder)
+    println(builder.toString())
+  }
 }
