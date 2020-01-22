@@ -19,6 +19,7 @@ R[iBrewing:TBool][iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] =
     | when (iHandleDown == True) hLiftHandle -> sys -> set_iHandleDown[False] -> human -> R[iBrewing][iMugState][False][iPodState]
     | when (iPodState == New) mBrew -> sys -> set_iBrewing[True] -> set_iPodState[EmptyOrUsed] -> human -> R[True][iMugState][iHandleDown][EmptyOrUsed]
     | when (iPodState == EmptyOrUsed) hAddOrReplacePod -> sys -> set_iPodState[New] -> human -> R[iBrewing][iMugState][iHandleDown][New]
+    | sys -> human -> R[iBrewing][iMugState][iHandleDown][iPodState]
 ).
 
 

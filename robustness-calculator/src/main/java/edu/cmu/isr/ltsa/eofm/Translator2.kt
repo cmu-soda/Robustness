@@ -256,7 +256,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
 
     this.append("$name = (")
     when (operator) {
-      /**
+      /*
        * For activity tree, A -(ord)-> (B, C), it will be translated to the following process:
        * ORD_B_C = (start_B -> end_B -> C | end_B -> C),
        * C = (start_C -> end_C -> ORD_B_C | end_C -> ORD_B_C)+{skip_B, skip_C}.
@@ -277,7 +277,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
           }
         }
       }
-      /**
+      /*
        * For activity tree, A -(and_seq)-> (B, C), it will be translated to the following process:
        * AND_SEQ_B_C = (
        *      start_B -> end_B -> AND_SEQ_B_C | end_B -> AND_SEQ_B_C
@@ -294,7 +294,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
         }
         this.append(")+{$skips}.\n\n")
       }
-      /**
+      /*
        * For activity tree, A -(and_par)-> (B, C), it will be translated to the following process:
        * AND_PAR_B_C = END+{skip_B, skip_C}.
        */
@@ -302,7 +302,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
         this.setLength(this.length - 1)
         this.append("END+{$skips}.\n\n")
       }
-      /**
+      /*
        * For activity tree, A -(or_seq)-> (B, C), it will be translated to the following process:
        * OR_SEQ_B_C = (
        *      start_B -> end_B -> SKIP | end_B -> SKIP
@@ -337,7 +337,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
         this.append("repeat_$parent -> $name | end_$parent -> $name")
         this.append("\n).\n\n")
       }
-      /**
+      /*
        * For activity tree, A -(or_par)-> (B, C), it will be translated to the following process:
        * OR_PAR_B_C = (
        *      start_B -> SKIP | end_B -> SKIP
@@ -372,7 +372,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
         this.append("repeat_$parent -> $name | end_$parent -> $name")
         this.append("\n).\n\n")
       }
-      /**
+      /*
        * For activity tree, A -(optor_seq)-> (B, C), it will be translated to the following process:
        * OPTOR_SEQ_B_C = (
        *      start_B -> end_B -> OPTOR_SEQ_B_C | end_B -> OPTOR_SEQ_B_C | skip_B -> OPTOR_SEQ_B_C
@@ -392,7 +392,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
         }
         this.append(").\n\n")
       }
-      /**
+      /*
        * For activity tree, A -(optor_par)-> (B, C), it will be translated to the following process:
        * OPTOR_PAR_B_C = END.
        */
@@ -400,7 +400,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
         this.setLength(this.length - 1)
         this.append("END.\n\n")
       }
-      /**
+      /*
        * For activity tree, A -(xor)-> (B, C), it will be translated to the following process:
        * XOR_B_C = (
        *      start_B -> end_B -> SKIP | end_B -> SKIP
@@ -440,25 +440,41 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
     val condName = name + "_COND"
     val human = "HUMAN"
     val sys = "SYS"
+    var tab = "\t\t"
 
     // Get all the input variables related to the activity.
     val inputs = activity.getInputs(inputVariables)
     val variables = inputs.joinToString("") { "[${it.name}]" }
 
-    // Append the process name and its initial value
+    /*
+     * Append the process name and its initial value.
+     * A_COND = HUMAN[<initial values>],
+     */
     this.append("$condName = $human")
     this.append(inputs.joinToString("") { "[${it.initialValue}]" })
     this.append(",\n")
-    // Append the parameterized process
+    /*
+     * HUMAN[<variables>] = (
+     *      when (precondition && !completioncondition)
+     *        start_A -> sys -> SYS[<variables>]
+     *    | when (!(precondition && !completioncondition))
+     *        start_A -> commission_A -> sys -> SYS[<variables>]
+     *    | when (repeatcondition && !(completioncondition))
+     *        repeat_A -> sys -> SYS[<vairables>]
+     *    | when (!(repeatcondition && !(completioncondition)))
+     *        repeat_A -> repetition_A -> sys -> SYS[<vairables>]
+     *    | when (completioncondition)
+     *        end_A -> HUMAN[<variables>]
+     *    | when (!completioncondition)
+     *        end_A -> omission_A -> HUMAN[<variables>]
+     *    | sys -> SYS[<variables>]
+     * ),
+     */
     this.append(human)
     this.append(inputs.joinToString("") { "[${it.name}:${it.userDefinedType}]" })
     this.append(" = (\n")
-
-    // Append conditions to start this activity
-    var bar = "\t\t"
     if (activity.preConditions.isNotEmpty() || activity.completionConditions.isNotEmpty()) {
-      this.append(bar)
-      bar = "\t|\t"
+      this.append(tab); tab = "\t|\t"
 
       val pres = activity.preConditions.joinToString(" && ")
       val completions = activity.completionConditions.joinToString(" && ")
@@ -469,19 +485,18 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       else
         "!($completions)"
       this.append("when ($cond)\n")
-      this.append("\t\t\tstart_$name -> $human$variables\n")
+      this.append("\t\t\tstart_$name -> sys -> $sys$variables\n")
 
-      // !!!IMPORTANT: Append commission error
-      this.append(bar)
-      bar = "\t|\t"
-      this.append("when (!($cond))\n")
-      this.append("\t\t\tstart_$name -> commission_$name -> $human$variables\n")
+//      // !!!IMPORTANT: Append commission error
+//      this.append(tab); tab = "\t|\t"
+//      this.append("when (!($cond))\n")
+//      this.append("\t\t\tstart_$name -> commission_$name -> sys -> $sys$variables\n")
+    } else {
+      this.append(tab); tab = "\t|\t"
+      this.append("start_$name -> sys -> $sys$variables\n")
     }
-
-    // Append conditions to repeat this activity
     if (activity.repeatConditions.isNotEmpty() || activity.completionConditions.isNotEmpty()) {
-      this.append(bar)
-      bar = "\t|\t"
+      this.append(tab); tab = "\t|\t"
 
       val repeats = activity.repeatConditions.joinToString(" && ")
       val completions = activity.completionConditions.joinToString(" && ")
@@ -492,48 +507,50 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       else
         "!($completions)"
       this.append("when ($cond)\n")
-      this.append("\t\t\trepeat_$name -> $human$variables\n")
+      this.append("\t\t\trepeat_$name -> sys -> $sys$variables\n")
 
-      // !!!IMPORTANT: Append repetition error
-      this.append(bar)
-      bar = "\t|\t"
-      this.append("when (!($cond))\n")
-      this.append("\t\t\trepeat_$name -> repetition_$name -> $human$variables\n")
+//      // !!!IMPORTANT: Append repetition error
+//      this.append(tab); tab = "\t|\t"
+//      this.append("when (!($cond))\n")
+//      this.append("\t\t\trepeat_$name -> repetition_$name -> sys -> $sys$variables\n")
+    } else {
+      this.append(tab); tab = "\t|\t"
+      this.append("repeat_$name -> sys -> $sys$variables\n")
     }
-
-    // Append conditions to complete this activity
     if (activity.completionConditions.isNotEmpty()) {
-      this.append(bar)
-      bar = "\t|\t"
+      this.append(tab); tab = "\t|\t"
 
       val cond = activity.completionConditions.joinToString(" && ")
-
       this.append("when ($cond)\n")
       this.append("\t\t\tend_$name -> $human$variables\n")
 
-      // !!!IMPORTANT: Append omission error!!!
-      this.append(bar)
-      bar = "\t|\t"
-      this.append("when (!($cond))\n")
-      this.append("\t\t\tend_$name -> omission_$name -> $human$variables\n")
+//      // !!!IMPORTANT: Append omission error!!!
+//      this.append(tab); tab = "\t|\t"
+//      this.append("when (!($cond))\n")
+//      this.append("\t\t\tend_$name -> omission_$name -> $human$variables\n")
+    } else {
+      this.append(tab); tab = "\t|\t"
+      this.append("end_$name -> $human$variables\n")
     }
-
-    // Append synchronizations on input variables change
-    this.append(bar)
-    this.append("sys -> $sys$variables\n),\n")
+    this.append(tab)
+    this.append("sys -> $sys$variables\n")
+    this.append("),\n"); tab = "\t\t"
+    /*
+     * SYS[<variables>] = (
+     *      set_<variables> -> SYS[<variables>]
+     *    | human -> HUMAN[<variables>]
+     * ).
+     */
     this.append(sys)
     this.append(inputs.joinToString("") { "[${it.name}:${it.userDefinedType}]" })
     this.append(" = (\n")
-    bar = "\t\t"
-
     for (it in inputs) {
-      this.append(bar)
-      bar = "\t|\t"
+      this.append(tab); tab = "\t|\t"
 
       val x = variables.replace(it.name, "x")
       this.append("set_${it.name}[x:${it.userDefinedType}] -> $sys$x\n")
     }
-    this.append(bar)
+    this.append(tab)
     this.append("human -> $human$variables\n")
     this.append(").\n\n")
 
