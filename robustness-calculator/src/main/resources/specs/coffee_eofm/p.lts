@@ -1,0 +1,3 @@
+property P = (hPlaceMug -> MugPlaced),
+MugPlaced = (mBrew -> Brewing | hTakeMug -> P),
+Brewing = (mBrewDone -> MugPlaced | mBrew -> Brewing).

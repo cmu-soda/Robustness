@@ -28,7 +28,7 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     val alphabetC = alphabetSYS intersect alphabetENV
     val alphabetI = alphabetSYS - alphabetC
     alphabetR = (alphabetC + (alphabetP - alphabetI)).map { it.replace("""\.\d+""".toRegex(), "") }.toSet()
-//    println("Alphabet for comparing the robustness: $alphabetR")
+    println("Alphabet for comparing the robustness: $alphabetR")
   }
 
   private fun renameConsts(spec: String, prefix: String): String {
@@ -42,14 +42,18 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
   }
 
   fun deltaEnv(delta: String, sink: Boolean = false): String {
-    val sm = allowedEnv(sink)
-    val spec = "property $ENV\n${sm.buildFSP(delta)}||D_${delta} = (ENV || ${delta})" +
-        "@{${alphabetR.joinToString(", ")}}."
-    return spec
+    val wa = weakestAssumption(delta)
+
+    val env = "$ENV\n||E = (ENV)@{${alphabetR.joinToString(", ")}}."
+    val ltsaCall = LTSACall()
+    val composite = ltsaCall.doCompile(env, "E").doCompose()
+    val envSM = StateMachine(composite.composition).tauEliminationAndSubsetConstruct().first
+
+    return "property ${envSM.buildFSP("ENV")}\n\n${wa}||D_${delta} = (ENV || ${delta})."
   }
 
-  private fun allowedEnv(sink: Boolean): StateMachine {
-    return composeSysP().pruneError().determinate(sink).minimize()
+  fun weakestAssumption(name: String = "WE", sink: Boolean = false): String {
+    return composeSysP().pruneError().determinate(sink).minimize().buildFSP(name)
   }
 
   private fun composeSysP(): StateMachine {

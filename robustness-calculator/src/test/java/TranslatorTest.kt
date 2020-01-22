@@ -13,18 +13,7 @@ class TranslatorTest {
     val builder = StringBuilder()
     translator.translate(builder)
     println(builder.toString())
-    File(ClassLoader.getSystemResource("specs/coffee_eofm.lts").toURI()).writeText(builder.toString())
-
-//    val builder = StringBuilder()
-//    val processes = mutableListOf<String>()
-//
-//    translator.translate(builder, processes)
-//    File(ClassLoader.getSystemResource("specs/coffee_eofm.lts").toURI()).writeText(builder.toString())
-//
-//    val ltsaCall = LTSACall()
-//    val composite = ltsaCall.doCompile(builder.toString()).doCompose()
-//    val minimized = StateMachine(composite.composition).tauEliminationAndSubsetConstruct().first.minimize().buildFSP("EOFM_MIN")
-//    File(ClassLoader.getSystemResource("specs/coffee_eofm_min.lts").toURI()).writeText(minimized)
+    File(ClassLoader.getSystemResource("specs/coffee_eofm/coffee_eofm_human.lts").toURI()).writeText(builder.toString())
   }
 
   @Test

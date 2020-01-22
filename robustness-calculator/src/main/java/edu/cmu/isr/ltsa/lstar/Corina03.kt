@@ -7,8 +7,8 @@ import edu.cmu.isr.ltsa.propertyCheck
 
 fun main(args: Array<String>) {
   val P = "property P = (input -> output -> P)."
-  val M1 = ClassLoader.getSystemResource("./specs/retry.lts").readText()
-  val M2 = ClassLoader.getSystemResource("./specs/env.lts").readText()
+  val M1 = ClassLoader.getSystemResource("SENDER = (input -> SENDING), SENDING = (send -> (getack -> SENDER | timeout -> SENDING)).\nRECEIVER = (rec -> output -> ack -> RECEIVER).\n||SYS = (SENDER || RECEIVER).").readText()
+  val M2 = ClassLoader.getSystemResource("ENV = (send -> rec -> ack -> getack -> ENV).").readText()
 
   val lStar = CorinaLStar(M1, M2, P)
   lStar.run()

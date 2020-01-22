@@ -1,0 +1,241 @@
+
+const Absent = 0
+const Empty = 1
+const Full = 2
+range TMugState = Absent..Full
+
+const False = 0
+const True = 1
+range TBool = False..True
+
+const EmptyOrUsed = 0
+const New = 1
+range TPodState = EmptyOrUsed..New
+
+HPlaceMug = (start_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HPlaceMug),
+APrepMachine = (start_APrepMachine -> APlaceMug | end_APrepMachine -> END_REPEAT_ABrewCoffee | skip_APrepMachine -> END_REPEAT_ABrewCoffee),
+APlaceMug = (start_APlaceMug -> ACT | end_APlaceMug -> END_REPEAT_APrepMachine | skip_APlaceMug -> END_REPEAT_APrepMachine),
+ACT = (hPlaceMug -> END_REPEAT_APlaceMug),
+END_REPEAT_APlaceMug = (repeat_APlaceMug -> ACT | end_APlaceMug -> END_REPEAT_APrepMachine),
+END_REPEAT_APrepMachine = (repeat_APrepMachine -> APlaceMug | end_APrepMachine -> END_REPEAT_ABrewCoffee),
+END_REPEAT_ABrewCoffee = (repeat_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HPlaceMug).
+
+APlaceMug_COND = HUMAN[Absent],
+HUMAN[iMugState:TMugState] = (
+		when (iMugState == Absent && !(iMugState == Empty))
+			start_APlaceMug -> sys -> SYS[iMugState]
+	|	when (!(iMugState == Empty))
+			repeat_APlaceMug -> sys -> SYS[iMugState]
+	|	when (iMugState == Empty)
+			end_APlaceMug -> HUMAN[iMugState]
+	|	sys -> SYS[iMugState]
+),
+SYS[iMugState:TMugState] = (
+		set_iMugState[x:TMugState] -> SYS[x]
+	|	human -> HUMAN[iMugState]
+).
+
+||APlaceMug = (HPlaceMug || APlaceMug_COND).
+
+HLiftHandle = (start_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HLiftHandle),
+APrepMachine = (start_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee | skip_APrepMachine -> END_REPEAT_ABrewCoffee),
+AAddPod = (start_AAddPod -> ALiftHandle | end_AAddPod -> END_REPEAT_APrepMachine | skip_AAddPod -> END_REPEAT_APrepMachine),
+ALiftHandle = (start_ALiftHandle -> ACT | end_ALiftHandle -> END_REPEAT_AAddPod | skip_ALiftHandle -> END_REPEAT_AAddPod),
+ACT = (hLiftHandle -> END_REPEAT_ALiftHandle),
+END_REPEAT_ALiftHandle = (repeat_ALiftHandle -> ACT | end_ALiftHandle -> END_REPEAT_AAddPod),
+END_REPEAT_AAddPod = (repeat_AAddPod -> ALiftHandle | end_AAddPod -> END_REPEAT_APrepMachine),
+END_REPEAT_APrepMachine = (repeat_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee),
+END_REPEAT_ABrewCoffee = (repeat_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HLiftHandle).
+
+ALiftHandle_COND = HUMAN[True],
+HUMAN[iHandleDown:TBool] = (
+		when (iHandleDown == True && !(iHandleDown == False))
+			start_ALiftHandle -> sys -> SYS[iHandleDown]
+	|	when (!(iHandleDown == False))
+			repeat_ALiftHandle -> sys -> SYS[iHandleDown]
+	|	when (iHandleDown == False)
+			end_ALiftHandle -> HUMAN[iHandleDown]
+	|	sys -> SYS[iHandleDown]
+),
+SYS[iHandleDown:TBool] = (
+		set_iHandleDown[x:TBool] -> SYS[x]
+	|	human -> HUMAN[iHandleDown]
+).
+
+||ALiftHandle = (HLiftHandle || ALiftHandle_COND).
+
+HAddOrReplacePod = (start_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HAddOrReplacePod),
+APrepMachine = (start_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee | skip_APrepMachine -> END_REPEAT_ABrewCoffee),
+AAddPod = (start_AAddPod -> AReplacePod | end_AAddPod -> END_REPEAT_APrepMachine | skip_AAddPod -> END_REPEAT_APrepMachine),
+AReplacePod = (start_AReplacePod -> ACT | end_AReplacePod -> END_REPEAT_AAddPod | skip_AReplacePod -> END_REPEAT_AAddPod),
+ACT = (hAddOrReplacePod -> END_REPEAT_AReplacePod),
+END_REPEAT_AReplacePod = (repeat_AReplacePod -> ACT | end_AReplacePod -> END_REPEAT_AAddPod),
+END_REPEAT_AAddPod = (repeat_AAddPod -> AReplacePod | end_AAddPod -> END_REPEAT_APrepMachine),
+END_REPEAT_APrepMachine = (repeat_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee),
+END_REPEAT_ABrewCoffee = (repeat_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HAddOrReplacePod).
+
+AReplacePod_COND = HUMAN[EmptyOrUsed],
+HUMAN[iPodState:TPodState] = (
+		when (iPodState != New && !(iPodState == New))
+			start_AReplacePod -> sys -> SYS[iPodState]
+	|	when (!(iPodState == New))
+			repeat_AReplacePod -> sys -> SYS[iPodState]
+	|	when (iPodState == New)
+			end_AReplacePod -> HUMAN[iPodState]
+	|	sys -> SYS[iPodState]
+),
+SYS[iPodState:TPodState] = (
+		set_iPodState[x:TPodState] -> SYS[x]
+	|	human -> HUMAN[iPodState]
+).
+
+||AReplacePod = (HAddOrReplacePod || AReplacePod_COND).
+
+HLowerHandle = (start_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HLowerHandle),
+APrepMachine = (start_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee | skip_APrepMachine -> END_REPEAT_ABrewCoffee),
+AAddPod = (start_AAddPod -> ALowerHandle | end_AAddPod -> END_REPEAT_APrepMachine | skip_AAddPod -> END_REPEAT_APrepMachine),
+ALowerHandle = (start_ALowerHandle -> ACT | end_ALowerHandle -> END_REPEAT_AAddPod | skip_ALowerHandle -> END_REPEAT_AAddPod),
+ACT = (hLowerHandle -> END_REPEAT_ALowerHandle),
+END_REPEAT_ALowerHandle = (repeat_ALowerHandle -> ACT | end_ALowerHandle -> END_REPEAT_AAddPod),
+END_REPEAT_AAddPod = (repeat_AAddPod -> ALowerHandle | end_AAddPod -> END_REPEAT_APrepMachine),
+END_REPEAT_APrepMachine = (repeat_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee),
+END_REPEAT_ABrewCoffee = (repeat_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HLowerHandle).
+
+ALowerHandle_COND = HUMAN[True],
+HUMAN[iHandleDown:TBool] = (
+		when (iHandleDown == False && !(iHandleDown == True))
+			start_ALowerHandle -> sys -> SYS[iHandleDown]
+	|	when (!(iHandleDown == True))
+			repeat_ALowerHandle -> sys -> SYS[iHandleDown]
+	|	when (iHandleDown == True)
+			end_ALowerHandle -> HUMAN[iHandleDown]
+	|	sys -> SYS[iHandleDown]
+),
+SYS[iHandleDown:TBool] = (
+		set_iHandleDown[x:TBool] -> SYS[x]
+	|	human -> HUMAN[iHandleDown]
+).
+
+||ALowerHandle = (HLowerHandle || ALowerHandle_COND).
+
+ORD_ALiftHandle_AReplacePod_ALowerHandle = (start_ALiftHandle -> end_ALiftHandle -> AReplacePod | end_ALiftHandle -> AReplacePod),
+AReplacePod = (start_AReplacePod -> end_AReplacePod -> ALowerHandle | end_AReplacePod -> ALowerHandle),
+ALowerHandle = (start_ALowerHandle -> end_ALowerHandle -> ORD_ALiftHandle_AReplacePod_ALowerHandle | end_ALowerHandle -> ORD_ALiftHandle_AReplacePod_ALowerHandle)+{skip_ALiftHandle, skip_AReplacePod, skip_ALowerHandle}.
+
+||AAddPod = (ALiftHandle || AReplacePod || ALowerHandle || ORD_ALiftHandle_AReplacePod_ALowerHandle).
+
+AND_SEQ_APlaceMug_AAddPod = (
+		start_APlaceMug -> end_APlaceMug -> AND_SEQ_APlaceMug_AAddPod | end_APlaceMug -> AND_SEQ_APlaceMug_AAddPod
+	|	start_AAddPod -> end_AAddPod -> AND_SEQ_APlaceMug_AAddPod | end_AAddPod -> AND_SEQ_APlaceMug_AAddPod
+)+{skip_APlaceMug, skip_AAddPod}.
+
+APrepMachine_COND = HUMAN[Absent][True][EmptyOrUsed],
+HUMAN[iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] = (
+		when (!(iHandleDown == True && iMugState == Empty && iPodState == New))
+			start_APrepMachine -> sys -> SYS[iMugState][iHandleDown][iPodState]
+	|	when (!(iHandleDown == True && iMugState == Empty && iPodState == New))
+			repeat_APrepMachine -> sys -> SYS[iMugState][iHandleDown][iPodState]
+	|	when (iHandleDown == True && iMugState == Empty && iPodState == New)
+			end_APrepMachine -> HUMAN[iMugState][iHandleDown][iPodState]
+	|	sys -> SYS[iMugState][iHandleDown][iPodState]
+),
+SYS[iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] = (
+		set_iMugState[x:TMugState] -> SYS[x][iHandleDown][iPodState]
+	|	set_iHandleDown[x:TBool] -> SYS[iMugState][x][iPodState]
+	|	set_iPodState[x:TPodState] -> SYS[iMugState][iHandleDown][x]
+	|	human -> HUMAN[iMugState][iHandleDown][iPodState]
+).
+
+||APrepMachine = (APlaceMug || AAddPod || AND_SEQ_APlaceMug_AAddPod || APrepMachine_COND).
+
+HPressBrew = (start_ABrewCoffee -> ABrew | end_ABrewCoffee -> reset_ABrewCoffee -> HPressBrew),
+ABrew = (start_ABrew -> ACT | end_ABrew -> END_REPEAT_ABrewCoffee | skip_ABrew -> END_REPEAT_ABrewCoffee),
+ACT = (hPressBrew -> END_REPEAT_ABrew),
+END_REPEAT_ABrew = (repeat_ABrew -> ACT | end_ABrew -> END_REPEAT_ABrewCoffee),
+END_REPEAT_ABrewCoffee = (repeat_ABrewCoffee -> ABrew | end_ABrewCoffee -> reset_ABrewCoffee -> HPressBrew).
+
+ABrew_COND = HUMAN[False],
+HUMAN[iBrewing:TBool] = (
+		when (!(iBrewing == True))
+			start_ABrew -> sys -> SYS[iBrewing]
+	|	when (!(iBrewing == True))
+			repeat_ABrew -> sys -> SYS[iBrewing]
+	|	when (iBrewing == True)
+			end_ABrew -> HUMAN[iBrewing]
+	|	sys -> SYS[iBrewing]
+),
+SYS[iBrewing:TBool] = (
+		set_iBrewing[x:TBool] -> SYS[x]
+	|	human -> HUMAN[iBrewing]
+).
+
+||ABrew = (HPressBrew || ABrew_COND).
+
+HWaitBrewDone = (start_ABrewCoffee -> AWait | end_ABrewCoffee -> reset_ABrewCoffee -> HWaitBrewDone),
+AWait = (start_AWait -> ACT | end_AWait -> END_REPEAT_ABrewCoffee | skip_AWait -> END_REPEAT_ABrewCoffee),
+ACT = (hWaitBrewDone -> END_REPEAT_AWait),
+END_REPEAT_AWait = (repeat_AWait -> ACT | end_AWait -> END_REPEAT_ABrewCoffee),
+END_REPEAT_ABrewCoffee = (repeat_ABrewCoffee -> AWait | end_ABrewCoffee -> reset_ABrewCoffee -> HWaitBrewDone).
+
+AWait_COND = HUMAN[False][Absent],
+HUMAN[iBrewing:TBool][iMugState:TMugState] = (
+		when (!(iBrewing == False && iMugState == Full))
+			start_AWait -> sys -> SYS[iBrewing][iMugState]
+	|	when (!(iBrewing == False && iMugState == Full))
+			repeat_AWait -> sys -> SYS[iBrewing][iMugState]
+	|	when (iBrewing == False && iMugState == Full)
+			end_AWait -> HUMAN[iBrewing][iMugState]
+	|	sys -> SYS[iBrewing][iMugState]
+),
+SYS[iBrewing:TBool][iMugState:TMugState] = (
+		set_iBrewing[x:TBool] -> SYS[x][iMugState]
+	|	set_iMugState[x:TMugState] -> SYS[iBrewing][x]
+	|	human -> HUMAN[iBrewing][iMugState]
+).
+
+||AWait = (HWaitBrewDone || AWait_COND).
+
+HTakeMug = (start_ABrewCoffee -> ATakeCoffee | end_ABrewCoffee -> reset_ABrewCoffee -> HTakeMug),
+ATakeCoffee = (start_ATakeCoffee -> ACT | end_ATakeCoffee -> END_REPEAT_ABrewCoffee | skip_ATakeCoffee -> END_REPEAT_ABrewCoffee),
+ACT = (hTakeMug -> END_REPEAT_ATakeCoffee),
+END_REPEAT_ATakeCoffee = (repeat_ATakeCoffee -> ACT | end_ATakeCoffee -> END_REPEAT_ABrewCoffee),
+END_REPEAT_ABrewCoffee = (repeat_ABrewCoffee -> ATakeCoffee | end_ABrewCoffee -> reset_ABrewCoffee -> HTakeMug).
+
+ATakeCoffee_COND = HUMAN[Absent],
+HUMAN[iMugState:TMugState] = (
+		when (!(iMugState == Absent))
+			start_ATakeCoffee -> sys -> SYS[iMugState]
+	|	when (!(iMugState == Absent))
+			repeat_ATakeCoffee -> sys -> SYS[iMugState]
+	|	when (iMugState == Absent)
+			end_ATakeCoffee -> HUMAN[iMugState]
+	|	sys -> SYS[iMugState]
+),
+SYS[iMugState:TMugState] = (
+		set_iMugState[x:TMugState] -> SYS[x]
+	|	human -> HUMAN[iMugState]
+).
+
+||ATakeCoffee = (HTakeMug || ATakeCoffee_COND).
+
+ORD_APrepMachine_ABrew_AWait_ATakeCoffee = (start_APrepMachine -> end_APrepMachine -> ABrew | end_APrepMachine -> ABrew),
+ABrew = (start_ABrew -> end_ABrew -> AWait | end_ABrew -> AWait),
+AWait = (start_AWait -> end_AWait -> ATakeCoffee | end_AWait -> ATakeCoffee),
+ATakeCoffee = (start_ATakeCoffee -> end_ATakeCoffee -> ORD_APrepMachine_ABrew_AWait_ATakeCoffee | end_ATakeCoffee -> ORD_APrepMachine_ABrew_AWait_ATakeCoffee)+{skip_APrepMachine, skip_ABrew, skip_AWait, skip_ATakeCoffee}.
+
+ABrewCoffee_COND = HUMAN[False][Absent],
+HUMAN[iBrewing:TBool][iMugState:TMugState] = (
+		when (iBrewing == False && iMugState != Full)
+			start_ABrewCoffee -> sys -> SYS[iBrewing][iMugState]
+	|	repeat_ABrewCoffee -> sys -> SYS[iBrewing][iMugState]
+	|	end_ABrewCoffee -> HUMAN[iBrewing][iMugState]
+	|	sys -> SYS[iBrewing][iMugState]
+),
+SYS[iBrewing:TBool][iMugState:TMugState] = (
+		set_iBrewing[x:TBool] -> SYS[x][iMugState]
+	|	set_iMugState[x:TMugState] -> SYS[iBrewing][x]
+	|	human -> HUMAN[iBrewing][iMugState]
+).
+
+||ABrewCoffee = (APrepMachine || ABrew || AWait || ATakeCoffee || ORD_APrepMachine_ABrew_AWait_ATakeCoffee || ABrewCoffee_COND).
+
