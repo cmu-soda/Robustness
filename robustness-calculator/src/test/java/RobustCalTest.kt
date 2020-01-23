@@ -82,7 +82,8 @@ class RobustCalTest {
     val sys = ClassLoader.getSystemResource("specs/coffee_eofm/machine.lts").readText()
 
     val cal = RobustCal(p, env, sys)
-    val spec = cal.deltaEnv("COFFEE")
-    println(spec)
+    val traces = cal.deltaTraces("COFFEE")
+    for (t in traces)
+      println(t)
   }
 }

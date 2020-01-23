@@ -1,25 +1,42 @@
 package edu.cmu.isr.ltsa.eofm
 
-class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
+class EOFMTranslator2(
+    eofms: EOFMS,
+    initValues: Map<String, String>,
+
+    /**
+     * Labels to rename when composing with the machine specification.
+     */
+    private val relabels: Map<String, String> = emptyMap(),
+
+    /**
+     * The flag indicating whether injecting errors (omission, commission, repetition) to the translation.
+     */
+    private val withError: Boolean = false
+) {
   /**
    * The list of all the constants defined in the EOFM. These constants will be translated to LTSA constants. In LTSA,
    * constants should be numbers.
    */
   private val consts: List<Constant> = eofms.constants
+
   /**
    * The list of all the user defined types in EOFM. Each type is translated to a set of constants and a range.
    * For instance, 'Bool == {True, False}' will be translated to 'const True = 1 const False = 0
    * range Bool = False..True'.
    */
   private val userDefinedTypes: List<UserDefineType> = eofms.userDefinedTypes
+
   /**
    * The list of all the human actions. Right these actions are only used to define the actions exposed.
    */
   private val actions: List<HumanAction> = eofms.humanOperators.flatMap { it.humanActions }
+
   /**
    * The list of all the input variables. This is useful in the case of input variable links.
    */
   private val inputVariables: List<InputVariable> = eofms.humanOperators.flatMap { it.inputVariables }
+
   /**
    * The list of all the top-level activities. The translation will start from all the top-level activities.
    *
@@ -29,6 +46,7 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
    * top-level activity.
    */
   private val topLevelActivities: List<Activity> = eofms.humanOperators.flatMap { it.eofms.map { eofm -> eofm.activity } }
+
   /**
    * A map of all the activities by name. This is useful in the case of activity links.
    */
@@ -74,8 +92,15 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       builder.appendUserDefinedType(it)
 
     // Append all the top-level activities
-    for (it in topLevelActivities)
-      builder.appendActivity(it)
+    // TODO: Can only handle EOFM model with one top-level activity right now!
+    for (it in topLevelActivities) {
+      val name = builder.appendActivity(it)
+      builder.append("||ENV = ($name)")
+      if (relabels.isEmpty())
+        builder.append(".\n")
+      else
+        builder.append("/{${relabels.map { "${it.value}/${it.key}" }.joinToString(", ")}}.")
+    }
   }
 
   /**
@@ -138,7 +163,12 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
 
     // This activity is the parallel composition of all its sub-activity/action processes, operator process,
     // and condition process.
-    this.append("||$name = (${processes.joinToString(" || ")}).\n\n")
+    this.append("||$name = (${processes.joinToString(" || ")})")
+    // Make error indicator events higher priority
+    if (withError)
+      this.append("<<{commission_$name, repetition_$name, omission_$name}.\n\n")
+    else
+      this.append(".\n\n")
     return name
   }
 
@@ -159,11 +189,6 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
     fun helper(i: Int) {
       // End condition, all the ancestor activities have been translated.
       if (i == ancestors.size) {
-        /** Uncomment this for turn change
-        this.append("ACT = (${action.humanAction} -> sys -> human -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
-        // Append turn change
-        this.append(" | sys -> human -> ACT")
-         */
         this.append("ACT = (${action.humanAction} -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
         this.append("),\n")
         return
@@ -191,13 +216,6 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       if (i > 0)
         this.append(" | skip_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
 
-      // Append turn change
-      /** Uncomment for turn change
-      if (i == 0)
-      this.append(" | sys -> human -> $actName")
-      else
-      this.append(" | sys -> human -> $name")
-       */
       this.append("),\n")
 
       // recursively append this next ancestor
@@ -213,15 +231,9 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       // If this is the root activity, it can be reset
       if (i > 0) {
         this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
-        /** Uncomment for turn change
-        this.append(" | sys -> human -> END_REPEAT_$name")
-         */
         this.append("),\n")
       } else {
         this.append(" | end_$name -> reset_$name -> $actName")
-        /** Uncomment for turn change
-        this.append(" | sys -> human -> END_REPEAT_$name")
-         */
         this.append(").\n\n")
       }
     }
@@ -248,11 +260,6 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
     val skips = subNames.joinToString(", ") { "skip_$it" }
     // Name of the parent activity
     val parent = ancestors.last().name.capitalize()
-
-//    fun appendReset() {
-//      this.append(ancestors.joinToString(" | ") { "repeat_${it.name.capitalize()} -> $name" })
-//      this.append(" | reset_${ancestors[0].name.capitalize()} -> $name")
-//    }
 
     this.append("$name = (")
     when (operator) {
@@ -487,10 +494,12 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       this.append("when ($cond)\n")
       this.append("\t\t\tstart_$name -> sys -> $sys$variables\n")
 
-//      // !!!IMPORTANT: Append commission error
-//      this.append(tab); tab = "\t|\t"
-//      this.append("when (!($cond))\n")
-//      this.append("\t\t\tstart_$name -> commission_$name -> sys -> $sys$variables\n")
+      // !!!IMPORTANT: Append commission error
+      if (withError) {
+        this.append(tab); tab = "\t|\t"
+        this.append("when (!($cond))\n")
+        this.append("\t\t\tstart_$name -> commission_$name -> sys -> $sys$variables\n")
+      }
     } else {
       this.append(tab); tab = "\t|\t"
       this.append("start_$name -> sys -> $sys$variables\n")
@@ -509,10 +518,12 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       this.append("when ($cond)\n")
       this.append("\t\t\trepeat_$name -> sys -> $sys$variables\n")
 
-//      // !!!IMPORTANT: Append repetition error
-//      this.append(tab); tab = "\t|\t"
-//      this.append("when (!($cond))\n")
-//      this.append("\t\t\trepeat_$name -> repetition_$name -> sys -> $sys$variables\n")
+      // !!!IMPORTANT: Append repetition error
+      if (withError) {
+        this.append(tab); tab = "\t|\t"
+        this.append("when (!($cond))\n")
+        this.append("\t\t\trepeat_$name -> repetition_$name -> sys -> $sys$variables\n")
+      }
     } else {
       this.append(tab); tab = "\t|\t"
       this.append("repeat_$name -> sys -> $sys$variables\n")
@@ -524,10 +535,12 @@ class EOFMTranslator2(eofms: EOFMS, initValues: Map<String, String>) {
       this.append("when ($cond)\n")
       this.append("\t\t\tend_$name -> $human$variables\n")
 
-//      // !!!IMPORTANT: Append omission error!!!
-//      this.append(tab); tab = "\t|\t"
-//      this.append("when (!($cond))\n")
-//      this.append("\t\t\tend_$name -> omission_$name -> $human$variables\n")
+      // !!!IMPORTANT: Append omission error!!!
+      if (withError) {
+        this.append(tab); tab = "\t|\t"
+        this.append("when (!($cond))\n")
+        this.append("\t\t\tend_$name -> omission_$name -> $human$variables\n")
+      }
     } else {
       this.append(tab); tab = "\t|\t"
       this.append("end_$name -> $human$variables\n")

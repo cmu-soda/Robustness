@@ -236,7 +236,18 @@ SYS[iBrewing:TBool][iMugState:TMugState] = (
 	|	human -> HUMAN[iBrewing][iMugState]
 ).
 
-||ABrewCoffee = (APrepMachine || ABrew || AWait || ATakeCoffee || ORD_APrepMachine_ABrew_AWait_ATakeCoffee || ABrewCoffee_COND)/{mBrewDone/hWaitBrewDone}.
+||ABrewCoffee = (APrepMachine || ABrew || AWait || ATakeCoffee || ORD_APrepMachine_ABrew_AWait_ATakeCoffee || ABrewCoffee_COND).
+
+||ENV = (ABrewCoffee)/{mBrewDone/hWaitBrewDone}.
+
+SYS = Run[True],
+Run[iHandleDown:TBool] = (
+    when (iHandleDown == True) hLiftHandle -> Run[False]
+  | when (iHandleDown == False) hLowerHandle -> Run[True]
+  | when (iHandleDown == True) hPressBrew -> mBrew -> Brewing
+  | when (iHandleDown == False) hPressBrew -> Run[iHandleDown]
+),
+Brewing = (mBrew -> Brewing | mBrewDone -> Run[True]).
 
 WORLD = R[False][Absent][True][EmptyOrUsed],
 R[iBrewing:TBool][iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] = (
@@ -252,17 +263,8 @@ R[iBrewing:TBool][iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] =
     | sys -> human -> R[iBrewing][iMugState][iHandleDown][iPodState]
 ).
 
-SYS = Run[True],
-Run[iHandleDown:TBool] = (
-    when (iHandleDown == True) hLiftHandle -> Run[False]
-  | when (iHandleDown == False) hLowerHandle -> Run[True]
-  | when (iHandleDown == True) hPressBrew -> mBrew -> Brewing
-  | when (iHandleDown == False) hPressBrew -> Run[iHandleDown]
-),
-Brewing = (mBrew -> Brewing | mBrewDone -> Run[True]).
+property P = (hPlaceMug -> MugPlaced),
+MugPlaced = (mBrew -> Brewing | hTakeMug -> P),
+Brewing = (mBrewDone -> MugPlaced | mBrew -> Brewing).
 
-property P = (hPlaceMug -> MugPlaced | hTakeMug -> P | mBrewDone -> P),
-MugPlaced = (mBrew -> Brewing | hTakeMug -> P | mBrewDone -> MugPlaced | hPlaceMug -> MugPlaced),
-Brewing = (mBrewDone -> MugPlaced | mBrew -> Brewing | hPlaceMug -> Brewing).
-
-||T = (WORLD || SYS || ABrewCoffee || P)@{hPlaceMug, hTakeMug, hLiftHandle, hAddOrReplacePod, hLowerHandle, hPressBrew, mBrewDone}.
+||G = (WORLD || SYS || ENV || P)@{hPlaceMug, hTakeMug, hLiftHandle, hAddOrReplacePod, hLowerHandle, hPressBrew, mBrewDone}.

@@ -2,18 +2,35 @@ import edu.cmu.isr.ltsa.eofm.EOFMS
 import edu.cmu.isr.ltsa.eofm.EOFMTranslator2
 import edu.cmu.isr.ltsa.eofm.parseEOFMS
 import org.junit.jupiter.api.Test
-import java.io.File
 
 class TranslatorTest {
   @Test
   fun testCoffeeEOFM() {
     val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
-    val translator = EOFMTranslator2(pca, mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"))
+    val translator = EOFMTranslator2(
+        pca,
+        mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
+        mapOf("hWaitBrewDone" to "mBrewDone")
+    )
 
     val builder = StringBuilder()
     translator.translate(builder)
     println(builder.toString())
-    File(ClassLoader.getSystemResource("specs/coffee_eofm/coffee_eofm_human.lts").toURI()).writeText(builder.toString())
+  }
+
+  @Test
+  fun testCoffeeEOFMError() {
+    val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+    val translator = EOFMTranslator2(
+        pca,
+        mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
+        relabels = mapOf("hWaitBrewDone" to "mBrewDone"),
+        withError = true
+    )
+
+    val builder = StringBuilder()
+    translator.translate(builder)
+    println(builder.toString())
   }
 
   @Test

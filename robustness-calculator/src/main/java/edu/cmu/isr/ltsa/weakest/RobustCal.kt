@@ -21,8 +21,6 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     val ltsaCall = LTSACall()
     alphabetENV = ltsaCall.doCompile(ENV, "ENV").getAllAlphabet()
     alphabetSYS = ltsaCall.doCompile(SYS, "SYS").getAllAlphabet()
-//    TODO("What if one system is aware of drop but the other one is not, which means the other system cannot
-//     have drop event.")
 
     val alphabetP = ltsaCall.doCompile(P, "P").getAllAlphabet()
     val alphabetC = alphabetSYS intersect alphabetENV
@@ -41,15 +39,53 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     return re
   }
 
-  fun deltaEnv(delta: String, sink: Boolean = false): String {
-    val wa = weakestAssumption(delta)
+  fun deltaEnv(name: String, sink: Boolean = false): String {
+    val wa = weakestAssumption(name)
 
+    // For the environment, expose only the alphabets in the weakest assumption, and do tau elimination
     val env = "$ENV\n||E = (ENV)@{${alphabetR.joinToString(", ")}}."
     val ltsaCall = LTSACall()
     val composite = ltsaCall.doCompile(env, "E").doCompose()
     val envSM = StateMachine(composite.composition).tauEliminationAndSubsetConstruct().first
 
-    return "property ${envSM.buildFSP("ENV")}\n\n${wa}||D_${delta} = (ENV || ${delta})."
+    return "property ${envSM.buildFSP("ENV")}\n${wa}\n||D_${name} = (ENV || ${name})."
+  }
+
+  fun deltaTraces(name: String): List<String> {
+    val delta = deltaEnv(name)
+    val ltsaCall = LTSACall()
+    val composite = ltsaCall.doCompile(delta, "D_$name").doCompose()
+    val sm = StateMachine(composite.composition)
+
+    val paths = sm.pathToInit()
+    val traces = mutableListOf<String>()
+    val transToErr = sm.transitions.filter { it.third == -1 }
+    for (t in transToErr) {
+      val trace = (paths[t.first] ?: error(t.first)) + t
+      traces.add("TRACE = (${trace.joinToString(" -> ") { sm.alphabet[it.second] }} -> ERROR).")
+    }
+    return traces
+  }
+
+  private fun StateMachine.pathToInit(): Map<Int, List<Triple<Int, Int, Int>>> {
+    val traces = mutableMapOf<Int, List<Triple<Int, Int, Int>>>(0 to emptyList())
+    val visited = mutableListOf<Int>()
+
+    var search = mutableSetOf(0)
+    while (search.isNotEmpty()) {
+      visited.addAll(search)
+
+      val nextSearch = mutableSetOf<Int>()
+      for (s in search) {
+        val trans = this.transitions.filter { it.first == s && it.third !in visited }
+        for (t in trans) {
+          traces[t.third] = traces[t.first]!! + t
+        }
+        nextSearch.addAll(trans.map { it.third })
+      }
+      search = nextSearch
+    }
+    return traces
   }
 
   fun weakestAssumption(name: String = "WE", sink: Boolean = false): String {
@@ -92,12 +128,6 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
   private fun StateMachine.determinate(sink: Boolean): StateMachine {
     // tau elimination ans subset construction
     val (dfa, dfaStates) = this.tauEliminationAndSubsetConstruct()
-
-//    // tau elimination
-//    val nfa = this.tauElimination()
-//    // subset construction
-//    val (dfa, dfaStates) = nfa.subsetConstruct()
-
     // make sink state
     val dfa_sink = if (sink) dfa.makeSinkState(dfaStates) else dfa
     // delete all error states
