@@ -5,8 +5,18 @@ import org.junit.jupiter.api.Test
 
 class ManualTest {
   @Test
-  fun tmpTest() {
+  fun genCoffeeHumanTest() {
     val s = ClassLoader.getSystemResource("specs/coffee_eofm/generate_human.lts").readText()
+    val ltsaCall = LTSACall()
+    val composite = ltsaCall.doCompile(s, "G").doCompose()
+    val sm = StateMachine(composite.composition)
+    val dfa = sm.tauEliminationAndSubsetConstruct().first
+    print(dfa.minimize().buildFSP("ENV"))
+  }
+
+  @Test
+  fun genCoffeeHumanErrTest() {
+    val s = ClassLoader.getSystemResource("specs/coffee_eofm/generate_human_error.lts").readText()
     val ltsaCall = LTSACall()
     val composite = ltsaCall.doCompile(s, "G").doCompose()
     val sm = StateMachine(composite.composition)
