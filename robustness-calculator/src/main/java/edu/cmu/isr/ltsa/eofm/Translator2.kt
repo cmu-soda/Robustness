@@ -5,6 +5,13 @@ class EOFMTranslator2(
     initValues: Map<String, String>,
 
     /**
+     * The world model which describes how the 'physical world' should change. We assume that this model is predefined
+     * and should not contain error. And the mapping from world to human/system should also be correct. It means that
+     * we omit the state mismatches between the world and human/system.
+     */
+    private val world: Map<String, List<String>>,
+
+    /**
      * Labels to rename when composing with the machine specification.
      */
     private val relabels: Map<String, String> = emptyMap(),
