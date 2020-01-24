@@ -9,7 +9,7 @@ class EOFMTranslator2(
      * and should not contain error. And the mapping from world to human/system should also be correct. It means that
      * we omit the state mismatches between the world and human/system.
      */
-    private val world: Map<String, List<String>>,
+    private val world: Map<String, List<Triple<String, String, String>>>,
 
     /**
      * Labels to rename when composing with the machine specification.
@@ -191,7 +191,8 @@ class EOFMTranslator2(
     val actName = action.humanAction!!.capitalize()
 
     /**
-     * A helper function to append the action process.
+     * A helper function to append the action process. It should be translated as follows:
+     * TODO:
      */
     fun helper(i: Int) {
       // End condition, all the ancestor activities have been translated.
@@ -452,8 +453,6 @@ class EOFMTranslator2(
   private fun StringBuilder.appendCondition(activity: Activity): String {
     val name = activity.name.capitalize()
     val condName = name + "_COND"
-    val human = "HUMAN"
-    val sys = "SYS"
     var tab = "\t\t"
 
     // Get all the input variables related to the activity.
@@ -462,31 +461,33 @@ class EOFMTranslator2(
 
     /*
      * Append the process name and its initial value.
-     * A_COND = HUMAN[<initial values>],
+     * A_COND = VAR[<initial values>],
      */
-    this.append("$condName = $human")
+    this.append("$condName = VAR")
     this.append(inputs.joinToString("") { "[${it.initialValue}]" })
     this.append(",\n")
     /*
-     * HUMAN[<variables>] = (
+     * VAR[<variables>] = (
      *      when (precondition && !completioncondition)
-     *        start_A -> sys -> SYS[<variables>]
+     *        start_A -> VAR[<variables>]
      *    | when (!(precondition && !completioncondition))
-     *        start_A -> commission_A -> sys -> SYS[<variables>]
+     *        start_A -> commission_A -> VAR[<variables>]
      *    | when (repeatcondition && !(completioncondition))
-     *        repeat_A -> sys -> SYS[<vairables>]
+     *        repeat_A -> VAR[<vairables>]
      *    | when (!(repeatcondition && !(completioncondition)))
-     *        repeat_A -> repetition_A -> sys -> SYS[<vairables>]
+     *        repeat_A -> repetition_A -> VAR[<vairables>]
      *    | when (completioncondition)
-     *        end_A -> HUMAN[<variables>]
+     *        end_A -> VAR[<variables>]
      *    | when (!completioncondition)
-     *        end_A -> omission_A -> HUMAN[<variables>]
-     *    | sys -> SYS[<variables>]
+     *        end_A -> omission_A -> VAR[<variables>]
+     *    | <variables in world model>
      * ),
      */
-    this.append(human)
+    this.append("VAR")
     this.append(inputs.joinToString("") { "[${it.name}:${it.userDefinedType}]" })
     this.append(" = (\n")
+
+    // Append preconditions
     if (activity.preConditions.isNotEmpty() || activity.completionConditions.isNotEmpty()) {
       this.append(tab); tab = "\t|\t"
 
@@ -498,19 +499,21 @@ class EOFMTranslator2(
         pres
       else
         "!($completions)"
-      this.append("when ($cond)\n")
-      this.append("\t\t\tstart_$name -> sys -> $sys$variables\n")
+      this.append("when ($cond) ")
+      this.append("start_$name -> VAR$variables\n")
 
       // !!!IMPORTANT: Append commission error
       if (withError) {
         this.append(tab); tab = "\t|\t"
-        this.append("when (!($cond))\n")
-        this.append("\t\t\tstart_$name -> commission_$name -> sys -> $sys$variables\n")
+        this.append("when (!($cond)) ")
+        this.append("start_$name -> commission_$name -> VAR$variables\n")
       }
     } else {
       this.append(tab); tab = "\t|\t"
-      this.append("start_$name -> sys -> $sys$variables\n")
+      this.append("start_$name -> VAR$variables\n")
     }
+
+    // Append repetition conditions
     if (activity.repeatConditions.isNotEmpty() || activity.completionConditions.isNotEmpty()) {
       this.append(tab); tab = "\t|\t"
 
@@ -522,56 +525,41 @@ class EOFMTranslator2(
         repeats
       else
         "!($completions)"
-      this.append("when ($cond)\n")
-      this.append("\t\t\trepeat_$name -> sys -> $sys$variables\n")
+      this.append("when ($cond) ")
+      this.append("repeat_$name -> VAR$variables\n")
 
       // !!!IMPORTANT: Append repetition error
       if (withError) {
         this.append(tab); tab = "\t|\t"
-        this.append("when (!($cond))\n")
-        this.append("\t\t\trepeat_$name -> repetition_$name -> sys -> $sys$variables\n")
+        this.append("when (!($cond)) ")
+        this.append("repeat_$name -> repetition_$name -> VAR$variables\n")
       }
     } else {
       this.append(tab); tab = "\t|\t"
-      this.append("repeat_$name -> sys -> $sys$variables\n")
+      this.append("repeat_$name -> VAR$variables\n")
     }
+
+    // Append completion condition
     if (activity.completionConditions.isNotEmpty()) {
       this.append(tab); tab = "\t|\t"
 
       val cond = activity.completionConditions.joinToString(" && ")
-      this.append("when ($cond)\n")
-      this.append("\t\t\tend_$name -> $human$variables\n")
+      this.append("when ($cond) ")
+      this.append("end_$name -> VAR$variables\n")
 
       // !!!IMPORTANT: Append omission error!!!
       if (withError) {
         this.append(tab); tab = "\t|\t"
-        this.append("when (!($cond))\n")
-        this.append("\t\t\tend_$name -> omission_$name -> $human$variables\n")
+        this.append("when (!($cond)) ")
+        this.append("end_$name -> omission_$name -> VAR$variables\n")
       }
     } else {
       this.append(tab); tab = "\t|\t"
-      this.append("end_$name -> $human$variables\n")
+      this.append("end_$name -> VAR$variables\n")
     }
-    this.append(tab)
-    this.append("sys -> $sys$variables\n")
-    this.append("),\n"); tab = "\t\t"
-    /*
-     * SYS[<variables>] = (
-     *      set_<variables> -> SYS[<variables>]
-     *    | human -> HUMAN[<variables>]
-     * ).
-     */
-    this.append(sys)
-    this.append(inputs.joinToString("") { "[${it.name}:${it.userDefinedType}]" })
-    this.append(" = (\n")
-    for (it in inputs) {
-      this.append(tab); tab = "\t|\t"
-
-      val x = variables.replace(it.name, "x")
-      this.append("set_${it.name}[x:${it.userDefinedType}] -> $sys$x\n")
-    }
-    this.append(tab)
-    this.append("human -> $human$variables\n")
+    // Append variables change
+    // First, test that if there are actions that will cause multiple variables to change
+    // TODO
     this.append(").\n\n")
 
     return condName

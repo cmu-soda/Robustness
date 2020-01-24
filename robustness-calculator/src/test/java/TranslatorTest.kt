@@ -10,7 +10,26 @@ class TranslatorTest {
     val translator = EOFMTranslator2(
         pca,
         mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
-        mapOf("hWaitBrewDone" to "mBrewDone")
+        mapOf(
+            "iBrewing" to listOf(
+                Triple("1", "mBrew", "True"),
+                Triple("iBrewing == True", "mBrewDone", "False")
+            ),
+            "iMugState" to listOf(
+                Triple("iMugState == Absent", "hPlaceMug", "Empty"),
+                Triple("iMugState != Absent", "hTakeMug", "Absent"),
+                Triple("iMugState == Empty", "mBrewDone", "Full")
+            ),
+            "iHandleDown" to listOf(
+                Triple("iHandleDown == True", "hLiftHandle", "False"),
+                Triple("iHandleDown == False", "hLowerHandle", "True")
+            ),
+            "iPodState" to listOf(
+                Triple("iPodState == New", "mBrew", "EmptyOrUsed"),
+                Triple("iPodState == EmptyOrUsed", "hAddOrReplacePod", "New")
+            )
+        ),
+        relabels = mapOf("hWaitBrewDone" to "mBrewDone")
     )
 
     val builder = StringBuilder()
@@ -24,6 +43,25 @@ class TranslatorTest {
     val translator = EOFMTranslator2(
         pca,
         mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
+        mapOf(
+            "iBrewing" to listOf(
+                Triple("1", "mBrew", "True"),
+                Triple("iBrewing == True", "mBrewDone", "False")
+            ),
+            "iMugState" to listOf(
+                Triple("iMugState == Absent", "hPlaceMug", "Empty"),
+                Triple("iMugState != Absent", "hTakeMug", "Absent"),
+                Triple("iMugState == Empty", "mBrewDone", "Full")
+            ),
+            "iHandleDown" to listOf(
+                Triple("iHandleDown == True", "hLiftHandle", "False"),
+                Triple("iHandleDown == False", "hLowerHandle", "True")
+            ),
+            "iPodState" to listOf(
+                Triple("iPodState == New", "mBrew", "EmptyOrUsed"),
+                Triple("iPodState == EmptyOrUsed", "hAddOrReplacePod", "New")
+            )
+        ),
         relabels = mapOf("hWaitBrewDone" to "mBrewDone"),
         withError = true
     )
@@ -36,7 +74,15 @@ class TranslatorTest {
   @Test
   fun testTiny() {
     val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/tiny.xml"))
-    val translator = EOFMTranslator2(reset, mapOf("iX" to "False"))
+    val translator = EOFMTranslator2(
+        reset,
+        mapOf("iX" to "False"),
+        mapOf("iX" to listOf(
+            Triple("iX == False", "hA -> hB", "True"),
+            Triple("iX == False", "hB -> hA", "True"),
+            Triple("iX == True", "restart", "False")
+        ))
+    )
 
     val builder = StringBuilder()
     translator.translate(builder)
@@ -46,7 +92,7 @@ class TranslatorTest {
   @Test
   fun testOperators() {
     val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/operators.xml"))
-    val translator = EOFMTranslator2(reset, emptyMap())
+    val translator = EOFMTranslator2(reset, emptyMap(), emptyMap())
 
     val builder = StringBuilder()
     translator.translate(builder)
@@ -56,7 +102,14 @@ class TranslatorTest {
   @Test
   fun testOmission1() {
     val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/omission1.xml"))
-    val translator = EOFMTranslator2(reset, mapOf("iX" to "False"))
+    val translator = EOFMTranslator2(
+        reset,
+        mapOf("iX" to "False"),
+        mapOf("iX" to listOf(
+            Triple("iX == False", "hA", "True"),
+            Triple("iX == True", "restart", "False")
+        ))
+    )
 
     val builder = StringBuilder()
     translator.translate(builder)
@@ -66,7 +119,7 @@ class TranslatorTest {
   @Test
   fun testBenchmark() {
     val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/benchmark.xml"))
-    val translator = EOFMTranslator2(reset, emptyMap())
+    val translator = EOFMTranslator2(reset, emptyMap(), emptyMap())
 
     val builder = StringBuilder()
     translator.translate(builder)
