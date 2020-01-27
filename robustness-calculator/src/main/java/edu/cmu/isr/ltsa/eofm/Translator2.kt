@@ -186,12 +186,22 @@ class EOFMTranslator2(
     // Process name of this action (should be capitalized).
     val actName = action.humanAction!!.capitalize()
 
-    /**
-     * A helper function to append the action process. It should be translated as follows:
-     * TODO:
+    /*
+     * A helper function to append the action process. For an action A in the following hierarchy, P1 -> P2 -> A
+     * it should be translated as follows:
+     *
+     * A = (start_P1 -> P2 | end_P1 -> reset_P1 -> A),
+     * P2 = (start_P2 -> ACT | end_P2 -> END_REPEAT_P1 | skip_P2 -> END_REPEAT_P1),
+     * ACT = (action -> END_REPEAT_P2),
+     * END_REPEAT_P2 = (repeat_P2 -> ACT | end_P2 -> END_REPEAT_P1),
+     * END_REPEAT_P1 = (repeat_P1 -> P2 | end_P1 -> reset_P1 -> A).
+     *
      */
     fun helper(i: Int) {
-      // End condition, all the ancestor activities have been translated.
+      /*
+       * End condition, all the ancestor activities have been translated. Then,
+       * ACT = (action -> END_REPEAT_<parent>)
+       */
       if (i == ancestors.size) {
         this.append("ACT = (${action.humanAction} -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
         this.append("),\n")
@@ -199,46 +209,69 @@ class EOFMTranslator2(
       }
 
       val name = ancestors[i].name.capitalize()
-      // Append "start each activity"
+      /*
+       * Append "start each activity", i.e.,
+       * A = (start_P1 -> P2
+       * or
+       * P2 = (start_P2 -> ACT
+       */
       if (i == 0)
         this.append("$actName = (start_$name -> ")
       else
         this.append("$name = (start_$name -> ")
-      // Append the next process to go
       if (i + 1 < ancestors.size)
         this.append(ancestors[i + 1].name.capitalize())
       else
         this.append("ACT")
 
-      // Append directly end this activity from ready state.
+      /*
+       * Append directly end this activity from ready state, i.e.,
+       * end_P1 -> reset_P1 -> A
+       * or
+       * end_P2 -> END_REPEAT_P1
+       */
       if (i > 0)
         this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
       else
         this.append(" | end_$name -> reset_$name -> $actName")
 
-      // Append skip this activity. Cannot skip the root activity
+      /*
+       * Append skip this activity. Cannot skip the root activity, i.e.,
+       * skip_P2 -> END_REPEAT_P1
+       */
       if (i > 0)
         this.append(" | skip_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
 
       this.append("),\n")
 
-      // recursively append this next ancestor
+      // recursively append the next ancestor
       helper(i + 1)
 
       this.append("END_REPEAT_$name = (")
-      // Append repeat, restart the sub-activity
+      /*
+       * Append repeat the sub-activity, i.e.,
+       * repeat_P1 -> P2
+       * or
+       * repeat_P2 -> ACT
+       */
       if (i + 1 < ancestors.size)
         this.append("repeat_$name -> ${ancestors[i + 1].name.capitalize()}")
       else
         this.append("repeat_$name -> ACT")
 
-      // If this is the root activity, it can be reset
+      /*
+       * Append end an activity, if the activity is the root, it should be reset after end, i.e.,
+       * end_P2 -> END_REPEAT_P1
+       * or
+       * end_P1 -> reset_P1 -> A
+       */
       if (i > 0) {
         this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1].name.capitalize()}")
         this.append("),\n")
       } else {
         this.append(" | end_$name -> reset_$name -> $actName")
         this.append(")")
+        // Append relabel command if the action is renamed.
         if (action.humanAction !in relabels)
           this.append(".\n\n")
         else
