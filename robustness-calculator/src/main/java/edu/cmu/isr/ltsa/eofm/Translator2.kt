@@ -102,11 +102,7 @@ class EOFMTranslator2(
     // TODO: Can only handle EOFM model with one top-level activity right now!
     for (it in topLevelActivities) {
       val name = builder.appendActivity(it)
-      builder.append("||ENV = ($name)")
-      if (relabels.isEmpty())
-        builder.append(".\n")
-      else
-        builder.append("/{${relabels.map { "${it.value}/${it.key}" }.joinToString(", ")}}.")
+      builder.append("||ENV = ($name).\n")
     }
   }
 
@@ -242,7 +238,11 @@ class EOFMTranslator2(
         this.append("),\n")
       } else {
         this.append(" | end_$name -> reset_$name -> $actName")
-        this.append(").\n\n")
+        this.append(")")
+        if (action.humanAction !in relabels)
+          this.append(".\n\n")
+        else
+          this.append("/{${relabels[action.humanAction]}/${action.humanAction}}.\n\n")
       }
     }
 
@@ -558,8 +558,28 @@ class EOFMTranslator2(
       this.append("end_$name -> VAR$variables\n")
     }
     // Append variables change
-    // First, test that if there are actions that will cause multiple variables to change
-    // TODO
+    val varNames = inputs.map { it.name }.sorted()
+    val varKey = world.keys.find { it.split("|").sorted() == varNames }
+    if (varKey != null) {
+      for (l in world[varKey]!!) {
+        var x = variables
+        val vs = varKey.split("|")
+        val changeTo = l.third.split("|")
+        for (i in vs.indices) {
+          x = x.replace(vs[i], changeTo[i])
+        }
+
+        this.append(tab); tab = "\t|\t"
+        this.append("when (${l.first}) ${l.second} -> VAR$x\n")
+      }
+    } else {
+      for (v in varNames) {
+        for (l in world[v] ?: error("No key '$v' in world model")) {
+          this.append(tab); tab = "\t|\t"
+          this.append("when (${l.first}) ${l.second} -> VAR${variables.replace(v, l.third)}\n")
+        }
+      }
+    }
     this.append(").\n\n")
 
     return condName
