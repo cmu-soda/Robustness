@@ -202,4 +202,25 @@ class StateMachine {
     return transitions.filter { it.first == s && it.second == a }.map { it.third }.toSet()
   }
 
+  fun pathToInit(): Map<Int, List<Triple<Int, Int, Int>>> {
+    val traces = mutableMapOf<Int, List<Triple<Int, Int, Int>>>(0 to emptyList())
+    val visited = mutableListOf<Int>()
+
+    var search = mutableSetOf(0)
+    while (search.isNotEmpty()) {
+      visited.addAll(search)
+
+      val nextSearch = mutableSetOf<Int>()
+      for (s in search) {
+        val trans = this.transitions.filter { it.first == s && it.third !in visited }
+        for (t in trans) {
+          traces[t.third] = traces[t.first]!! + t
+        }
+        nextSearch.addAll(trans.map { it.third })
+      }
+      search = nextSearch
+    }
+    return traces
+  }
+
 }

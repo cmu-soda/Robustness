@@ -67,27 +67,6 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     return traces
   }
 
-  private fun StateMachine.pathToInit(): Map<Int, List<Triple<Int, Int, Int>>> {
-    val traces = mutableMapOf<Int, List<Triple<Int, Int, Int>>>(0 to emptyList())
-    val visited = mutableListOf<Int>()
-
-    var search = mutableSetOf(0)
-    while (search.isNotEmpty()) {
-      visited.addAll(search)
-
-      val nextSearch = mutableSetOf<Int>()
-      for (s in search) {
-        val trans = this.transitions.filter { it.first == s && it.third !in visited }
-        for (t in trans) {
-          traces[t.third] = traces[t.first]!! + t
-        }
-        nextSearch.addAll(trans.map { it.third })
-      }
-      search = nextSearch
-    }
-    return traces
-  }
-
   fun weakestAssumption(name: String = "WE", sink: Boolean = false): String {
     return composeSysP().pruneError().determinate(sink).minimize().buildFSP(name)
   }
