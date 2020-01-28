@@ -18,6 +18,16 @@ class ManualTest {
   }
 
   @Test
+  fun genCoffeeHumanErrTest() {
+    val s = ClassLoader.getSystemResource("specs/coffee_eofm/generate_human_error.lts").readText()
+    val ltsaCall = LTSACall()
+    val composite = ltsaCall.doCompile(s, "G").doCompose()
+    val sm = StateMachine(composite.composition)
+    val dfa = sm.tauElmAndSubsetConstr().first
+    print(dfa.minimize().buildFSP("ENV"))
+  }
+
+  @Test
   fun testErrorTrace1() {
     val s = ClassLoader.getSystemResource("specs/coffee_eofm/test_error_trace.lts").readText()
     val ltsaCall = LTSACall()

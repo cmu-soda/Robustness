@@ -88,5 +88,8 @@ class RobustCalTest {
     val traces = cal.deltaTraces("COFFEE")
     for (t in traces)
       println(t)
+
+    println("With sinK:")
+    println(cal.weakestAssumption("COFFEE_SINK", true))
   }
 }

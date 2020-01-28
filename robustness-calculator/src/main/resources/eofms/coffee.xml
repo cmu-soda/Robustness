@@ -44,6 +44,7 @@
                                         </decomposition>
                                     </activity>
                                     <activity name="aReplacePod">
+                                        <precondition>iHandleDown == False</precondition>
                                         <precondition>iPodState != New</precondition>
                                         <completioncondition>iPodState == New</completioncondition>
                                         <decomposition operator="ord">

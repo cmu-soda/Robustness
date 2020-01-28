@@ -39,7 +39,7 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     println("Alphabet for comparing the robustness: $alphabetR")
   }
 
-  fun deltaEnv(name: String, sink: Boolean = false): String {
+  fun deltaEnv(name: String): String {
     val wa = weakestAssumption(name)
 
     // For the environment, expose only the alphabets in the weakest assumption, and do tau elimination
