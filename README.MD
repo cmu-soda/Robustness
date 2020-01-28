@@ -30,3 +30,15 @@ File -> Project Structure -> Libraries -> Select '+' and Java -> Select the 'lts
 2. This should print the LTSA spec of the weakest assumption and the model to generate deviation traces.
 
 3. Also, processes named ```TRACE``` are the deviation traces which are allowed by the coffee machine but not defined in the human behavior model.
+
+### Test: match deviation traces in human behavior model with error
+0. 'main/resources/specs/coffee_eofm/test_error_trace.lts' - This file is the combination of the EOFM model with error (human_eofm_err.lts), the machine model (machine.lts), and a trace from previous test.
+
+1. Go to 'test/java/ManualTest' -> Right click on ```fun testErrorTrace1``` -> Select 'Run testErrorTrace1'
+
+2. This should print traces that how a deviation trace can happen in the human behavior model.
+
+### Putting all things together!
+1. Go to 'test/java/ManualTest' -> Right click on ```fun testCoffee``` -> Select 'Run testCoffee'
+
+2. This will print all the traces that deviate from the human behavior model but in the weakest assumption of the system.
