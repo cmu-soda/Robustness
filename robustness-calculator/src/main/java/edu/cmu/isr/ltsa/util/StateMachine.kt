@@ -104,7 +104,7 @@ class StateMachine {
     }
   }
 
-  fun tauEliminationAndSubsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
+  fun tauElmAndSubsetConstr(): Pair<StateMachine, List<Set<Int>>> {
     var hasTau = false
     val reachTable = Array(maxNumOfState() + 1) { s ->
       Array(alphabet.size) { a ->

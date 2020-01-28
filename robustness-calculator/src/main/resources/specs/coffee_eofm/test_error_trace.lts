@@ -32,7 +32,7 @@ VAR[iMugState:TMugState] = (
 	|	when (iMugState == Empty) mBrewDone -> VAR[Full]
 ).
 
-||APlaceMug = (HPlaceMug || APlaceMug_COND)<<{commission_APlaceMug, repetition_APlaceMug, omission_APlaceMug}.
+||APlaceMug = (HPlaceMug || APlaceMug_COND).
 
 HLiftHandle = (start_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HLiftHandle),
 APrepMachine = (start_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee | skip_APrepMachine -> END_REPEAT_ABrewCoffee),
@@ -56,7 +56,7 @@ VAR[iHandleDown:TBool] = (
 	|	when (iHandleDown == False) hLowerHandle -> VAR[True]
 ).
 
-||ALiftHandle = (HLiftHandle || ALiftHandle_COND)<<{commission_ALiftHandle, repetition_ALiftHandle, omission_ALiftHandle}.
+||ALiftHandle = (HLiftHandle || ALiftHandle_COND).
 
 HAddOrReplacePod = (start_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HAddOrReplacePod),
 APrepMachine = (start_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee | skip_APrepMachine -> END_REPEAT_ABrewCoffee),
@@ -80,7 +80,7 @@ VAR[iPodState:TPodState] = (
 	|	when (iPodState == EmptyOrUsed) hAddOrReplacePod -> VAR[New]
 ).
 
-||AReplacePod = (HAddOrReplacePod || AReplacePod_COND)<<{commission_AReplacePod, repetition_AReplacePod, omission_AReplacePod}.
+||AReplacePod = (HAddOrReplacePod || AReplacePod_COND).
 
 HLowerHandle = (start_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HLowerHandle),
 APrepMachine = (start_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee | skip_APrepMachine -> END_REPEAT_ABrewCoffee),
@@ -104,13 +104,13 @@ VAR[iHandleDown:TBool] = (
 	|	when (iHandleDown == False) hLowerHandle -> VAR[True]
 ).
 
-||ALowerHandle = (HLowerHandle || ALowerHandle_COND)<<{commission_ALowerHandle, repetition_ALowerHandle, omission_ALowerHandle}.
+||ALowerHandle = (HLowerHandle || ALowerHandle_COND).
 
 ORD_ALiftHandle_AReplacePod_ALowerHandle = (start_ALiftHandle -> end_ALiftHandle -> AReplacePod | end_ALiftHandle -> AReplacePod),
 AReplacePod = (start_AReplacePod -> end_AReplacePod -> ALowerHandle | end_AReplacePod -> ALowerHandle),
 ALowerHandle = (start_ALowerHandle -> end_ALowerHandle -> ORD_ALiftHandle_AReplacePod_ALowerHandle | end_ALowerHandle -> ORD_ALiftHandle_AReplacePod_ALowerHandle)+{skip_ALiftHandle, skip_AReplacePod, skip_ALowerHandle}.
 
-||AAddPod = (ALiftHandle || AReplacePod || ALowerHandle || ORD_ALiftHandle_AReplacePod_ALowerHandle)<<{commission_AAddPod, repetition_AAddPod, omission_AAddPod}.
+||AAddPod = (ALiftHandle || AReplacePod || ALowerHandle || ORD_ALiftHandle_AReplacePod_ALowerHandle).
 
 AND_SEQ_APlaceMug_AAddPod = (
 		start_APlaceMug -> end_APlaceMug -> AND_SEQ_APlaceMug_AAddPod | end_APlaceMug -> AND_SEQ_APlaceMug_AAddPod
@@ -134,7 +134,7 @@ VAR[iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] = (
 	|	when (iPodState == EmptyOrUsed) hAddOrReplacePod -> VAR[iMugState][iHandleDown][New]
 ).
 
-||APrepMachine = (APlaceMug || AAddPod || AND_SEQ_APlaceMug_AAddPod || APrepMachine_COND)<<{commission_APrepMachine, repetition_APrepMachine, omission_APrepMachine}.
+||APrepMachine = (APlaceMug || AAddPod || AND_SEQ_APlaceMug_AAddPod || APrepMachine_COND).
 
 HPressBrew = (start_ABrewCoffee -> ABrew | end_ABrewCoffee -> reset_ABrewCoffee -> HPressBrew),
 ABrew = (start_ABrew -> ACT | end_ABrew -> END_REPEAT_ABrewCoffee | skip_ABrew -> END_REPEAT_ABrewCoffee),
@@ -154,7 +154,7 @@ VAR[iBrewing:TBool] = (
 	|	when (iBrewing == True) mBrewDone -> VAR[False]
 ).
 
-||ABrew = (HPressBrew || ABrew_COND)<<{commission_ABrew, repetition_ABrew, omission_ABrew}.
+||ABrew = (HPressBrew || ABrew_COND).
 
 HWaitBrewDone = (start_ABrewCoffee -> AWait | end_ABrewCoffee -> reset_ABrewCoffee -> HWaitBrewDone),
 AWait = (start_AWait -> ACT | end_AWait -> END_REPEAT_ABrewCoffee | skip_AWait -> END_REPEAT_ABrewCoffee),
@@ -177,7 +177,7 @@ VAR[iBrewing:TBool][iMugState:TMugState] = (
 	|	when (iBrewing == True && iMugState == Empty) mBrewDone -> VAR[False][Full]
 ).
 
-||AWait = (HWaitBrewDone || AWait_COND)<<{commission_AWait, repetition_AWait, omission_AWait}.
+||AWait = (HWaitBrewDone || AWait_COND).
 
 HTakeMug = (start_ABrewCoffee -> ATakeCoffee | end_ABrewCoffee -> reset_ABrewCoffee -> HTakeMug),
 ATakeCoffee = (start_ATakeCoffee -> ACT | end_ATakeCoffee -> END_REPEAT_ABrewCoffee | skip_ATakeCoffee -> END_REPEAT_ABrewCoffee),
@@ -198,7 +198,7 @@ VAR[iMugState:TMugState] = (
 	|	when (iMugState == Empty) mBrewDone -> VAR[Full]
 ).
 
-||ATakeCoffee = (HTakeMug || ATakeCoffee_COND)<<{commission_ATakeCoffee, repetition_ATakeCoffee, omission_ATakeCoffee}.
+||ATakeCoffee = (HTakeMug || ATakeCoffee_COND).
 
 ORD_APrepMachine_ABrew_AWait_ATakeCoffee = (start_APrepMachine -> end_APrepMachine -> ABrew | end_APrepMachine -> ABrew),
 ABrew = (start_ABrew -> end_ABrew -> AWait | end_ABrew -> AWait),
@@ -218,9 +218,20 @@ VAR[iBrewing:TBool][iMugState:TMugState] = (
 	|	when (iBrewing == True && iMugState == Empty) mBrewDone -> VAR[False][Full]
 ).
 
-||ABrewCoffee = (APrepMachine || ABrew || AWait || ATakeCoffee || ORD_APrepMachine_ABrew_AWait_ATakeCoffee || ABrewCoffee_COND)<<{commission_ABrewCoffee, repetition_ABrewCoffee, omission_ABrewCoffee}.
+||ABrewCoffee = (APrepMachine || ABrew || AWait || ATakeCoffee || ORD_APrepMachine_ABrew_AWait_ATakeCoffee || ABrewCoffee_COND).
 
-||ENV = (ABrewCoffee).
+||ENV = (ABrewCoffee)<<{
+commission_ABrewCoffee, repetition_ABrewCoffee, omission_ABrewCoffee,
+commission_APrepMachine, repetition_APrepMachine, omission_APrepMachine,
+commission_APlaceMug, repetition_APlaceMug, omission_APlaceMug,
+commission_AAddPod, repetition_AAddPod, omission_AAddPod,
+commission_ALiftHandle, repetition_ALiftHandle, omission_ALiftHandle,
+commission_AReplacePod, repetition_AReplacePod, omission_AReplacePod,
+commission_ALowerHandle, repetition_ALowerHandle, omission_ALowerHandle,
+commission_ABrew, repetition_ABrew, omission_ABrew,
+commission_AWait, repetition_AWait, omission_AWait,
+commission_ATakeCoffee, repetition_ATakeCoffee, omission_ATakeCoffee
+}.
 
 SYS = Run[True],
 Run[iHandleDown:TBool] = (

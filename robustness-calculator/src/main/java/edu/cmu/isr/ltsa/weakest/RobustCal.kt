@@ -6,6 +6,16 @@ import edu.cmu.isr.ltsa.getAllAlphabet
 import edu.cmu.isr.ltsa.minimise
 import edu.cmu.isr.ltsa.util.StateMachine
 
+fun renameConsts(spec: String, prefix: String): String {
+  val p = """(const|range)\s+([_\w]+)\s*=""".toRegex()
+  var re = spec
+  p.findAll(spec).forEach {
+    val name = it.groupValues[2]
+    re = re.replace(name, "${prefix}_$name")
+  }
+  return re
+}
+
 class RobustCal(var P: String, var ENV: String, var SYS: String) {
   private val alphabetENV: Set<String>
   private val alphabetSYS: Set<String>
@@ -29,16 +39,6 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     println("Alphabet for comparing the robustness: $alphabetR")
   }
 
-  private fun renameConsts(spec: String, prefix: String): String {
-    val p = """(const|range)\s+([_\w]+)\s*=""".toRegex()
-    var re = spec
-    p.findAll(spec).forEach {
-      val name = it.groupValues[2]
-      re = re.replace(name, "${prefix}_$name")
-    }
-    return re
-  }
-
   fun deltaEnv(name: String, sink: Boolean = false): String {
     val wa = weakestAssumption(name)
 
@@ -46,7 +46,7 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     val env = "$ENV\n||E = (ENV)@{${alphabetR.joinToString(", ")}}."
     val ltsaCall = LTSACall()
     val composite = ltsaCall.doCompile(env, "E").doCompose()
-    val envSM = StateMachine(composite.composition).tauEliminationAndSubsetConstruct().first
+    val envSM = StateMachine(composite.composition).tauElmAndSubsetConstr().first
 
     return "property ${envSM.buildFSP("ENV")}\n${wa}\n||D_${name} = (ENV || ${name})."
   }
@@ -106,7 +106,7 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
 
   private fun StateMachine.determinate(sink: Boolean): StateMachine {
     // tau elimination ans subset construction
-    val (dfa, dfaStates) = this.tauEliminationAndSubsetConstruct()
+    val (dfa, dfaStates) = this.tauElmAndSubsetConstr()
     // make sink state
     val dfa_sink = if (sink) dfa.makeSinkState(dfaStates) else dfa
     // delete all error states

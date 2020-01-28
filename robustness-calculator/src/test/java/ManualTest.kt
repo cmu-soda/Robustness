@@ -1,7 +1,9 @@
 import edu.cmu.isr.ltsa.LTSACall
 import edu.cmu.isr.ltsa.doCompose
-import edu.cmu.isr.ltsa.propertyCheck
+import edu.cmu.isr.ltsa.eofm.EOFMS
+import edu.cmu.isr.ltsa.eofm.parseEOFMS
 import edu.cmu.isr.ltsa.util.StateMachine
+import edu.cmu.isr.ltsa.weakest.EOFMRobustCal
 import org.junit.jupiter.api.Test
 
 class ManualTest {
@@ -11,7 +13,7 @@ class ManualTest {
     val ltsaCall = LTSACall()
     val composite = ltsaCall.doCompile(s, "G").doCompose()
     val sm = StateMachine(composite.composition)
-    val dfa = sm.tauEliminationAndSubsetConstruct().first
+    val dfa = sm.tauElmAndSubsetConstr().first
     print(dfa.minimize().buildFSP("ENV"))
   }
 
@@ -30,5 +32,47 @@ class ManualTest {
       println("Length: ${trace.size}")
       println("TRACE = (\n${trace.joinToString(" -> \n") { sm.alphabet[it.second] }} -> END).\n")
     }
+  }
+
+  @Test
+  fun testCoffee() {
+    val p = ClassLoader.getSystemResource("specs/coffee_eofm/p.lts").readText()
+    val sys = ClassLoader.getSystemResource("specs/coffee_eofm/machine.lts").readText()
+    val coffee: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+
+    val cal = EOFMRobustCal(
+        sys,
+        p,
+        coffee,
+        mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
+        mapOf(
+            "iBrewing|iMugState" to listOf(
+                Triple("1", "mBrew", "True|iMugState"),
+                Triple("iBrewing == True && iMugState == Absent", "mBrewDone", "False|iMugState"),
+                Triple("iMugState == Absent", "hPlaceMug", "iBrewing|Empty"),
+                Triple("iMugState != Absent", "hTakeMug", "iBrewing|Absent"),
+                Triple("iBrewing == True && iMugState == Empty", "mBrewDone", "False|Full")
+            ),
+            "iBrewing" to listOf(
+                Triple("1", "mBrew", "True"),
+                Triple("iBrewing == True", "mBrewDone", "False")
+            ),
+            "iMugState" to listOf(
+                Triple("iMugState == Absent", "hPlaceMug", "Empty"),
+                Triple("iMugState != Absent", "hTakeMug", "Absent"),
+                Triple("iMugState == Empty", "mBrewDone", "Full")
+            ),
+            "iHandleDown" to listOf(
+                Triple("iHandleDown == True", "hLiftHandle", "False"),
+                Triple("iHandleDown == False", "hLowerHandle", "True")
+            ),
+            "iPodState" to listOf(
+                Triple("iPodState == New", "mBrew", "EmptyOrUsed"),
+                Triple("iPodState == EmptyOrUsed", "hAddOrReplacePod", "New")
+            )
+        ),
+        relabels = mapOf("hWaitBrewDone" to "mBrewDone")
+    )
+    cal.run()
   }
 }

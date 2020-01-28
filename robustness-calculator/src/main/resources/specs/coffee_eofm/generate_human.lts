@@ -204,6 +204,6 @@ Run[iHandleDown:TBool] = (
   | when (iHandleDown == True) hPressBrew -> mBrew -> Brewing
   | when (iHandleDown == False) hPressBrew -> Run[iHandleDown]
 ),
-Brewing = (mBrew -> Brewing | mBrewDone -> Run[True]).
+Brewing = (mBrew -> Brewing | mBrewDone -> Run[True] | hPressBrew -> Brewing).
 
 ||G = (SYS || ENV)@{hPlaceMug, hTakeMug, hLiftHandle, hAddOrReplacePod, hLowerHandle, hPressBrew, mBrewDone}.

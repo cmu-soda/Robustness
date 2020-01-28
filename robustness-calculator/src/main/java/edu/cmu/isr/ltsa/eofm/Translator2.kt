@@ -35,9 +35,13 @@ class EOFMTranslator2(
   private val userDefinedTypes: List<UserDefineType> = eofms.userDefinedTypes
 
   /**
-   * The list of all the human actions. Right these actions are only used to define the actions exposed.
+   * The list of all the human actions. Right now, these actions are only used to define the actions exposed.
    */
   private val actions: List<HumanAction> = eofms.humanOperators.flatMap { it.humanActions }
+
+  fun getActions(): List<String> {
+    return actions.map { it.name }
+  }
 
   /**
    * The list of all the input variables. This is useful in the case of input variable links.
@@ -58,6 +62,8 @@ class EOFMTranslator2(
    * A map of all the activities by name. This is useful in the case of activity links.
    */
   private val activities: MutableMap<String, Activity> = mutableMapOf()
+
+  private val processNames: MutableList<String> = mutableListOf()
 
   init {
     fun recursive(activity: Activity) {
@@ -101,8 +107,16 @@ class EOFMTranslator2(
     // Append all the top-level activities
     // TODO: Can only handle EOFM model with one top-level activity right now!
     for (it in topLevelActivities) {
+      processNames.clear()
       val name = builder.appendActivity(it)
-      builder.append("||ENV = ($name).\n")
+      builder.append("||ENV = ($name)")
+      if (withError) {
+        builder.append("<<{\n${processNames.joinToString(",\n") { 
+          "commission_$it, repetition_$it, omission_$it" }
+        }\n}.\n")
+      } else {
+        builder.append(".\n")
+      }
     }
   }
 
@@ -132,6 +146,7 @@ class EOFMTranslator2(
   private fun StringBuilder.appendActivity(activity: Activity, ancestors: List<Activity> = emptyList()): String {
     // Name of the translated process (should be capitalized)
     val name = activity.name.capitalize()
+    processNames.add(name)
     // The list of ancestors passed to children activities/actions
     val nextAncestors = ancestors + listOf(activity)
     // The list of all the sub-activities/actions
@@ -166,12 +181,7 @@ class EOFMTranslator2(
 
     // This activity is the parallel composition of all its sub-activity/action processes, operator process,
     // and condition process.
-    this.append("||$name = (${processes.joinToString(" || ")})")
-    // Make error indicator events higher priority
-    if (withError)
-      this.append("<<{commission_$name, repetition_$name, omission_$name}.\n\n")
-    else
-      this.append(".\n\n")
+    this.append("||$name = (${processes.joinToString(" || ")}).\n\n")
     return name
   }
 
