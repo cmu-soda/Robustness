@@ -1,11 +1,10 @@
-ENV = (hLiftHandle -> ENV_8 | hPlaceMug -> ENV_1),
+ENV = (hLiftHandle -> ENV_7 | hPlaceMug -> ENV_1),
 ENV_1 = (hLiftHandle -> ENV_2),
 ENV_2 = (hAddOrReplacePod -> ENV_3),
 ENV_3 = (hLowerHandle -> ENV_4),
 ENV_4 = (hLiftHandle -> ENV_3 | hPressBrew -> ENV_5),
-ENV_5 = (hPressBrew -> ENV_7 | mBrewDone -> ENV_6),
+ENV_5 = (mBrewDone -> ENV_6),
 ENV_6 = (hTakeMug -> ENV),
-ENV_7 = (mBrewDone -> ENV_6),
-ENV_8 = (hPlaceMug -> ENV_2 | hAddOrReplacePod -> ENV_9),
-ENV_9 = (hPlaceMug -> ENV_3 | hLowerHandle -> ENV_10),
-ENV_10 = (hLiftHandle -> ENV_9 | hPlaceMug -> ENV_4).
+ENV_7 = (hPlaceMug -> ENV_2 | hAddOrReplacePod -> ENV_8),
+ENV_8 = (hPlaceMug -> ENV_3 | hLowerHandle -> ENV_9),
+ENV_9 = (hLiftHandle -> ENV_8 | hPlaceMug -> ENV_4).

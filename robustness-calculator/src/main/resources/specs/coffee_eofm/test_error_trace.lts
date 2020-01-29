@@ -78,7 +78,7 @@ VAR[iHandleDown:TBool][iPodState:TPodState] = (
 	|	when (!(iPodState == New)) end_AReplacePod -> omission_AReplacePod -> VAR[iHandleDown][iPodState]
 	|	when (iHandleDown == True) hLiftHandle -> VAR[False][iPodState]
 	|	when (iHandleDown == False) hLowerHandle -> VAR[True][iPodState]
-	|	when (iPodState == New) mBrew -> VAR[iHandleDown][EmptyOrUsed]
+	|	when (iPodState == New) hPressBrew -> VAR[iHandleDown][EmptyOrUsed]
 	|	when (iPodState == EmptyOrUsed) hAddOrReplacePod -> VAR[iHandleDown][New]
 ).
 
@@ -129,7 +129,7 @@ VAR[iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] = (
 	|	when (iMugState == Absent) hPlaceMug -> VAR[Empty][iHandleDown][iPodState]
 	|	when (iMugState != Absent) hTakeMug -> VAR[Absent][iHandleDown][iPodState]
 	|	when (iMugState == Empty) mBrewDone -> VAR[Full][iHandleDown][iPodState]
-	|	when (iPodState == New) mBrew -> VAR[iMugState][iHandleDown][EmptyOrUsed]
+	|	when (iPodState == New) hPressBrew -> VAR[iMugState][iHandleDown][EmptyOrUsed]
 	|	when (iPodState == EmptyOrUsed) hAddOrReplacePod -> VAR[iMugState][iHandleDown][New]
 ).
 
@@ -149,7 +149,7 @@ VAR[iBrewing:TBool] = (
 	|	when (!(!(iBrewing == True))) repeat_ABrew -> repetition_ABrew -> VAR[iBrewing]
 	|	when (iBrewing == True) end_ABrew -> VAR[iBrewing]
 	|	when (!(iBrewing == True)) end_ABrew -> omission_ABrew -> VAR[iBrewing]
-	|	when (1) mBrew -> VAR[True]
+	|	when (iBrewing == False) hPressBrew -> VAR[True]
 	|	when (iBrewing == True) mBrewDone -> VAR[False]
 ).
 
@@ -169,7 +169,7 @@ VAR[iBrewing:TBool][iMugState:TMugState] = (
 	|	when (!(!(iBrewing == False && iMugState == Full))) repeat_AWait -> repetition_AWait -> VAR[iBrewing][iMugState]
 	|	when (iBrewing == False && iMugState == Full) end_AWait -> VAR[iBrewing][iMugState]
 	|	when (!(iBrewing == False && iMugState == Full)) end_AWait -> omission_AWait -> VAR[iBrewing][iMugState]
-	|	when (1) mBrew -> VAR[True][iMugState]
+	|	when (iBrewing == False) hPressBrew -> VAR[True][iMugState]
 	|	when (iBrewing == True && iMugState == Absent) mBrewDone -> VAR[False][iMugState]
 	|	when (iMugState == Absent) hPlaceMug -> VAR[iBrewing][Empty]
 	|	when (iMugState != Absent) hTakeMug -> VAR[iBrewing][Absent]
@@ -210,7 +210,7 @@ VAR[iBrewing:TBool][iMugState:TMugState] = (
 	|	when (!(iBrewing == False && iMugState != Full)) start_ABrewCoffee -> commission_ABrewCoffee -> VAR[iBrewing][iMugState]
 	|	repeat_ABrewCoffee -> VAR[iBrewing][iMugState]
 	|	end_ABrewCoffee -> VAR[iBrewing][iMugState]
-	|	when (1) mBrew -> VAR[True][iMugState]
+	|	when (iBrewing == False) hPressBrew -> VAR[True][iMugState]
 	|	when (iBrewing == True && iMugState == Absent) mBrewDone -> VAR[False][iMugState]
 	|	when (iMugState == Absent) hPlaceMug -> VAR[iBrewing][Empty]
 	|	when (iMugState != Absent) hTakeMug -> VAR[iBrewing][Absent]
@@ -239,8 +239,8 @@ Run[iHandleDown:TBool] = (
   | when (iHandleDown == True) hPressBrew -> mBrew -> Brewing
   | when (iHandleDown == False) hPressBrew -> Run[iHandleDown]
 ),
-Brewing = (mBrew -> Brewing | mBrewDone -> Run[True] | hPressBrew -> Brewing).
+Brewing = (mBrew -> Brewing | mBrewDone -> Run[True]).
 
-TRACE = (hPlaceMug -> hPressBrew -> ERROR).
+TRACE = (hPlaceMug -> hPressBrew -> ERROR)+{hLowerHandle, hPressBrew, hLiftHandle, mBrewDone, hPlaceMug, hTakeMug}.
 
 ||T = (SYS || ENV || TRACE).

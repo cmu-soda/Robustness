@@ -9,4 +9,4 @@ Run[iHandleDown:TBool] = (
   | when (iHandleDown == True) hPressBrew -> mBrew -> Brewing
   | when (iHandleDown == False) hPressBrew -> Run[iHandleDown]
 ),
-Brewing = (mBrew -> Brewing | mBrewDone -> Run[True] | hPressBrew -> Brewing).
+Brewing = (mBrew -> Brewing | mBrewDone -> Run[True]).

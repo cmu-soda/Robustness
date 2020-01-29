@@ -12,14 +12,14 @@ class TranslatorTest {
         mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
         mapOf(
             "iBrewing|iMugState" to listOf(
-                Triple("1", "mBrew", "True|iMugState"),
+                Triple("iBrewing == False", "hPressBrew", "True|iMugState"),
                 Triple("iBrewing == True && iMugState == Absent", "mBrewDone", "False|iMugState"),
                 Triple("iMugState == Absent", "hPlaceMug", "iBrewing|Empty"),
                 Triple("iMugState != Absent", "hTakeMug", "iBrewing|Absent"),
                 Triple("iBrewing == True && iMugState == Empty", "mBrewDone", "False|Full")
             ),
             "iBrewing" to listOf(
-                Triple("1", "mBrew", "True"),
+                Triple("iBrewing == False", "hPressBrew", "True"),
                 Triple("iBrewing == True", "mBrewDone", "False")
             ),
             "iMugState" to listOf(
@@ -32,7 +32,7 @@ class TranslatorTest {
                 Triple("iHandleDown == False", "hLowerHandle", "True")
             ),
             "iPodState" to listOf(
-                Triple("iPodState == New", "mBrew", "EmptyOrUsed"),
+                Triple("iPodState == New", "hPressBrew", "EmptyOrUsed"),
                 Triple("iPodState == EmptyOrUsed", "hAddOrReplacePod", "New")
             )
         ),
@@ -52,14 +52,14 @@ class TranslatorTest {
         mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
         mapOf(
             "iBrewing|iMugState" to listOf(
-                Triple("1", "mBrew", "True|iMugState"),
+                Triple("iBrewing == False", "hPressBrew", "True|iMugState"),
                 Triple("iBrewing == True && iMugState == Absent", "mBrewDone", "False|iMugState"),
                 Triple("iMugState == Absent", "hPlaceMug", "iBrewing|Empty"),
                 Triple("iMugState != Absent", "hTakeMug", "iBrewing|Absent"),
                 Triple("iBrewing == True && iMugState == Empty", "mBrewDone", "False|Full")
             ),
             "iBrewing" to listOf(
-                Triple("1", "mBrew", "True"),
+                Triple("iBrewing == False", "hPressBrew", "True"),
                 Triple("iBrewing == True", "mBrewDone", "False")
             ),
             "iMugState" to listOf(
@@ -72,7 +72,7 @@ class TranslatorTest {
                 Triple("iHandleDown == False", "hLowerHandle", "True")
             ),
             "iPodState" to listOf(
-                Triple("iPodState == New", "mBrew", "EmptyOrUsed"),
+                Triple("iPodState == New", "hPressBrew", "EmptyOrUsed"),
                 Triple("iPodState == EmptyOrUsed", "hAddOrReplacePod", "New")
             )
         ),

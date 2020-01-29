@@ -62,7 +62,10 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     val transToErr = sm.transitions.filter { it.third == -1 }
     for (t in transToErr) {
       val trace = (paths[t.first] ?: error(t.first)) + t
-      traces.add("TRACE = (${trace.joinToString(" -> ") { sm.alphabet[it.second] }} -> ERROR).")
+      traces.add(
+          "TRACE = (${trace.joinToString(" -> ") { sm.alphabet[it.second] }} -> ERROR)" +
+              "+{${alphabetR.joinToString(", ")}}."
+      )
     }
     return traces
   }
