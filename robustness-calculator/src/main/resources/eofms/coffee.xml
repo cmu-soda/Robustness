@@ -26,7 +26,7 @@
                         <completioncondition>iHandleDown == True</completioncondition>
                         <completioncondition>iMugState == Empty</completioncondition>
                         <completioncondition>iPodState == New</completioncondition>
-                        <decomposition operator="and_seq">
+                        <decomposition operator="and_par">
                             <activity name="aPlaceMug">
                                 <precondition>iMugState == Absent</precondition>
                                 <completioncondition>iMugState == Empty</completioncondition>

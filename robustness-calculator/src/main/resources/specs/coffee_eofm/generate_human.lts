@@ -62,13 +62,15 @@ END_REPEAT_AAddPod = (repeat_AAddPod -> AReplacePod | end_AAddPod -> END_REPEAT_
 END_REPEAT_APrepMachine = (repeat_APrepMachine -> AAddPod | end_APrepMachine -> END_REPEAT_ABrewCoffee),
 END_REPEAT_ABrewCoffee = (repeat_ABrewCoffee -> APrepMachine | end_ABrewCoffee -> reset_ABrewCoffee -> HAddOrReplacePod).
 
-AReplacePod_COND = VAR[EmptyOrUsed],
-VAR[iPodState:TPodState] = (
-		when (iPodState != New && !(iPodState == New)) start_AReplacePod -> VAR[iPodState]
-	|	when (!(iPodState == New)) repeat_AReplacePod -> VAR[iPodState]
-	|	when (iPodState == New) end_AReplacePod -> VAR[iPodState]
-	|	when (iPodState == New) mBrew -> VAR[EmptyOrUsed]
-	|	when (iPodState == EmptyOrUsed) hAddOrReplacePod -> VAR[New]
+AReplacePod_COND = VAR[True][EmptyOrUsed],
+VAR[iHandleDown:TBool][iPodState:TPodState] = (
+		when (iHandleDown == False && iPodState != New && !(iPodState == New)) start_AReplacePod -> VAR[iHandleDown][iPodState]
+	|	when (!(iPodState == New)) repeat_AReplacePod -> VAR[iHandleDown][iPodState]
+	|	when (iPodState == New) end_AReplacePod -> VAR[iHandleDown][iPodState]
+	|	when (iHandleDown == True) hLiftHandle -> VAR[False][iPodState]
+	|	when (iHandleDown == False) hLowerHandle -> VAR[True][iPodState]
+	|	when (iPodState == New) mBrew -> VAR[iHandleDown][EmptyOrUsed]
+	|	when (iPodState == EmptyOrUsed) hAddOrReplacePod -> VAR[iHandleDown][New]
 ).
 
 ||AReplacePod = (HAddOrReplacePod || AReplacePod_COND).
@@ -100,10 +102,7 @@ ALowerHandle = (start_ALowerHandle -> end_ALowerHandle -> ORD_ALiftHandle_ARepla
 
 ||AAddPod = (ALiftHandle || AReplacePod || ALowerHandle || ORD_ALiftHandle_AReplacePod_ALowerHandle).
 
-AND_SEQ_APlaceMug_AAddPod = (
-		start_APlaceMug -> end_APlaceMug -> AND_SEQ_APlaceMug_AAddPod | end_APlaceMug -> AND_SEQ_APlaceMug_AAddPod
-	|	start_AAddPod -> end_AAddPod -> AND_SEQ_APlaceMug_AAddPod | end_AAddPod -> AND_SEQ_APlaceMug_AAddPod
-)+{skip_APlaceMug, skip_AAddPod}.
+AND_PAR_APlaceMug_AAddPod = END+{skip_APlaceMug, skip_AAddPod}.
 
 APrepMachine_COND = VAR[Absent][True][EmptyOrUsed],
 VAR[iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] = (
@@ -119,7 +118,7 @@ VAR[iMugState:TMugState][iHandleDown:TBool][iPodState:TPodState] = (
 	|	when (iPodState == EmptyOrUsed) hAddOrReplacePod -> VAR[iMugState][iHandleDown][New]
 ).
 
-||APrepMachine = (APlaceMug || AAddPod || AND_SEQ_APlaceMug_AAddPod || APrepMachine_COND).
+||APrepMachine = (APlaceMug || AAddPod || AND_PAR_APlaceMug_AAddPod || APrepMachine_COND).
 
 HPressBrew = (start_ABrewCoffee -> ABrew | end_ABrewCoffee -> reset_ABrewCoffee -> HPressBrew),
 ABrew = (start_ABrew -> ACT | end_ABrew -> END_REPEAT_ABrewCoffee | skip_ABrew -> END_REPEAT_ABrewCoffee),

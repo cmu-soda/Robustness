@@ -1,0 +1,12 @@
+TRACE = (hPlaceMug -> hPressBrew -> ERROR).
+TRACE = (hPlaceMug -> hTakeMug -> ERROR).
+TRACE = (hPlaceMug -> hLiftHandle -> hPressBrew -> ERROR).
+TRACE = (hPlaceMug -> hLiftHandle -> hTakeMug -> ERROR).
+TRACE = (hLiftHandle -> hLowerHandle -> hPlaceMug -> hTakeMug -> ERROR).
+TRACE = (hLiftHandle -> hLowerHandle -> hPlaceMug -> hPressBrew -> mBrewDone -> hLiftHandle -> ERROR).
+TRACE = (hLiftHandle -> hLowerHandle -> hPlaceMug -> hPressBrew -> mBrewDone -> hPressBrew -> ERROR).
+TRACE = (hLiftHandle -> hLowerHandle -> hPlaceMug -> hPressBrew -> hPressBrew -> hPressBrew -> ERROR).
+TRACE = (hLiftHandle -> hLowerHandle -> hLiftHandle -> hPlaceMug -> hPressBrew -> ERROR).
+TRACE = (hLiftHandle -> hLowerHandle -> hLiftHandle -> hPlaceMug -> hTakeMug -> ERROR).
+TRACE = (hLiftHandle -> hPressBrew -> ERROR).
+TRACE = (hLiftHandle -> hLowerHandle -> hLiftHandle -> hPressBrew -> ERROR).
