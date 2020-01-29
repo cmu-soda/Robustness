@@ -55,31 +55,16 @@ class ManualTest {
         p,
         coffee,
         mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
-        mapOf(
-            "iBrewing|iMugState" to listOf(
-                Triple("iBrewing == False", "hPressBrew", "True|iMugState"),
-                Triple("iBrewing == True && iMugState == Absent", "mBrewDone", "False|iMugState"),
-                Triple("iMugState == Absent", "hPlaceMug", "iBrewing|Empty"),
-                Triple("iMugState != Absent", "hTakeMug", "iBrewing|Absent"),
-                Triple("iBrewing == True && iMugState == Empty", "mBrewDone", "False|Full")
-            ),
-            "iBrewing" to listOf(
-                Triple("iBrewing == False", "hPressBrew", "True"),
-                Triple("iBrewing == True", "mBrewDone", "False")
-            ),
-            "iMugState" to listOf(
-                Triple("iMugState == Absent", "hPlaceMug", "Empty"),
-                Triple("iMugState != Absent", "hTakeMug", "Absent"),
-                Triple("iMugState == Empty", "mBrewDone", "Full")
-            ),
-            "iHandleDown" to listOf(
-                Triple("iHandleDown == True", "hLiftHandle", "False"),
-                Triple("iHandleDown == False", "hLowerHandle", "True")
-            ),
-            "iPodState" to listOf(
-                Triple("iPodState == New", "hPressBrew", "EmptyOrUsed"),
-                Triple("iPodState == EmptyOrUsed", "hAddOrReplacePod", "New")
-            )
+        listOf(
+            "when (iMugState == Absent) hPlaceMug -> VAR[iBrewing][Empty][iHandleDown][iPodState]",
+            "when (iMugState != Absent) hTakeMug -> VAR[iBrewing][Absent][iHandleDown][iPodState]",
+            "when (iHandleDown == True) hLiftHandle -> VAR[iBrewing][iMugState][False][iPodState]",
+            "when (iHandleDown == False) hLowerHandle -> VAR[iBrewing][iMugState][True][iPodState]",
+            "when (1) hAddOrReplacePod -> VAR[iBrewing][iMugState][iHandleDown][New]",
+            "when (iPodState == New) hPressBrew -> VAR[True][iMugState][iHandleDown][EmptyOrUsed]",
+            "when (iPodState != New) hPressBrew -> VAR[True][iMugState][iHandleDown][iPodState]",
+            "when (iBrewing == True && iMugState == Empty) mBrewDone -> VAR[False][Full][iHandleDown][iPodState]",
+            "when (iBrewing == True && iMugState == Absent) mBrewDone -> VAR[False][iMugState][iHandleDown][iPodState]"
         ),
         relabels = mapOf("hWaitBrewDone" to "mBrewDone")
     )

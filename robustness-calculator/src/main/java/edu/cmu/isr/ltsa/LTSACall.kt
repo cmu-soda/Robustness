@@ -45,13 +45,13 @@ fun CompositeState.propertyCheck(): List<String>? {
   }
 }
 
-fun CompositeState.getAllAlphabet(): MutableSet<String> {
+fun CompositeState.getAllAlphabet(): Set<String> {
   val alphabet = this.machines
-    .flatMap { (it as CompactState).alphabet.toList() }
-    .fold(mutableSetOf<String>()) { s, a ->
-      s.add(a)
-      s
-    }
+      .flatMap { (it as CompactState).alphabet.toList() }
+      .fold(mutableSetOf<String>()) { s, a ->
+        s.add(a)
+        s
+      }
   alphabet.remove("tau")
   return alphabet
 }

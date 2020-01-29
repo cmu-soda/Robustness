@@ -16,21 +16,17 @@ fun renameConsts(spec: String, prefix: String): String {
   return re
 }
 
-class RobustCal(var P: String, var ENV: String, var SYS: String) {
-  private val alphabetENV: Set<String>
-  private val alphabetSYS: Set<String>
+class RobustCal(p: String, env: String, sys: String) {
+  private val P: String = renameConsts(p, "P")
+  private val ENV: String = renameConsts(env, "ENV")
+  private val SYS: String = renameConsts(sys, "SYS")
   private val alphabetR: Set<String>
 
   init {
-    // Rename constants in the specs
-    P = renameConsts(P, "P")
-    ENV = renameConsts(ENV, "ENV")
-    SYS = renameConsts(SYS, "SYS")
-
     // Generate alphabets
     val ltsaCall = LTSACall()
-    alphabetENV = ltsaCall.doCompile(ENV, "ENV").getAllAlphabet()
-    alphabetSYS = ltsaCall.doCompile(SYS, "SYS").getAllAlphabet()
+    val alphabetENV = ltsaCall.doCompile(ENV, "ENV").getAllAlphabet()
+    val alphabetSYS = ltsaCall.doCompile(SYS, "SYS").getAllAlphabet()
 
     val alphabetP = ltsaCall.doCompile(P, "P").getAllAlphabet()
     val alphabetC = alphabetSYS intersect alphabetENV
@@ -39,7 +35,24 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     println("Alphabet for comparing the robustness: $alphabetR")
   }
 
-  fun deltaEnv(name: String): String {
+  /**
+   * Return the alphabet of the weakest assumption
+   */
+  fun getAlphabet(): Set<String> {
+    return alphabetR
+  }
+
+  /**
+   * Return the LTSA spec representing the weakest assumption of the env.
+   */
+  fun weakestAssumption(name: String = "WE", sink: Boolean = false): String {
+    return composeSysP().pruneError().determinate(sink).minimize().buildFSP(name)
+  }
+
+  /**
+   * Return the LTSA spec to generate the deviation traces in the weakest assumption but not in the env model.
+   */
+  private fun deltaEnv(name: String): String {
     val wa = weakestAssumption(name)
 
     // For the environment, expose only the alphabets in the weakest assumption, and do tau elimination
@@ -51,27 +64,23 @@ class RobustCal(var P: String, var ENV: String, var SYS: String) {
     return "property ${envSM.buildFSP("ENV")}\n${wa}\n||D_${name} = (ENV || ${name})."
   }
 
-  fun deltaTraces(name: String): List<String> {
+  /**
+   * Return the list of shortest deviation traces
+   */
+  fun deltaTraces(name: String): List<List<String>> {
     val delta = deltaEnv(name)
     val ltsaCall = LTSACall()
     val composite = ltsaCall.doCompile(delta, "D_$name").doCompose()
     val sm = StateMachine(composite.composition)
 
     val paths = sm.pathToInit()
-    val traces = mutableListOf<String>()
+    val traces = mutableListOf<List<String>>()
     val transToErr = sm.transitions.filter { it.third == -1 }
     for (t in transToErr) {
       val trace = (paths[t.first] ?: error(t.first)) + t
-      traces.add(
-          "TRACE = (${trace.joinToString(" -> ") { sm.alphabet[it.second] }} -> ERROR)" +
-              "+{${alphabetR.joinToString(", ")}}."
-      )
+      traces.add(trace.map { sm.alphabet[it.second] })
     }
     return traces
-  }
-
-  fun weakestAssumption(name: String = "WE", sink: Boolean = false): String {
-    return composeSysP().pruneError().determinate(sink).minimize().buildFSP(name)
   }
 
   private fun composeSysP(): StateMachine {

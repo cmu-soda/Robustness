@@ -3,23 +3,16 @@ package edu.cmu.isr.ltsa.eofm
 class EOFMTranslator2(
     eofms: EOFMS,
     initValues: Map<String, String>,
-
     /**
      * The world model which describes how the 'physical world' should change. We assume that this model is predefined
      * and should not contain error. And the mapping from world to human/system should also be correct. It means that
      * we omit the state mismatches between the world and human/system.
      */
-    private val world: Map<String, List<Triple<String, String, String>>>,
-
+    private val world: List<String>,
     /**
      * Labels to rename when composing with the machine specification.
      */
-    private val relabels: Map<String, String> = emptyMap(),
-
-    /**
-     * The flag indicating whether injecting errors (omission, commission, repetition) to the translation.
-     */
-    private val withError: Boolean = false
+    private val relabels: Map<String, String> = emptyMap()
 ) {
   /**
    * The list of all the constants defined in the EOFM. These constants will be translated to LTSA constants. In LTSA,
@@ -39,8 +32,11 @@ class EOFMTranslator2(
    */
   private val actions: List<HumanAction> = eofms.humanOperators.flatMap { it.humanActions }
 
+  /**
+   *
+   */
   fun getActions(): List<String> {
-    return actions.map { it.name }
+    return actions.map { if (it.name in relabels) relabels[it.name]!! else it.name }
   }
 
   /**
@@ -63,9 +59,19 @@ class EOFMTranslator2(
    */
   private val activities: MutableMap<String, Activity> = mutableMapOf()
 
-  private val processNames: MutableList<String> = mutableListOf()
+  /**
+   * The list of activities that are translated when translating a top-level activity. When translating with error,
+   * we need these names to append the priority of '<error>_<activity>' events.
+   */
+  private val translatedActivities: MutableList<String> = mutableListOf()
+
+  /**
+   * The flag indicating whether injecting errors (omission, commission, repetition) to the translation.
+   */
+  private var withError: Boolean = false
 
   init {
+    // Recursively find all the activities
     fun recursive(activity: Activity) {
       activities[activity.name] = activity
       for (it in activity.decomposition.subActivities) {
@@ -94,7 +100,9 @@ class EOFMTranslator2(
   /**
    * The process to translate a EOFM model to LTSA.
    */
-  fun translate(builder: StringBuilder) {
+  fun translate(builder: StringBuilder, withError: Boolean = false) {
+    this.withError = withError
+
     // Append all the EOFM constants
     for (it in consts)
       builder.appendConstant(it)
@@ -107,12 +115,13 @@ class EOFMTranslator2(
     // Append all the top-level activities
     // TODO: Can only handle EOFM model with one top-level activity right now!
     for (it in topLevelActivities) {
-      processNames.clear()
+      translatedActivities.clear()
       val name = builder.appendActivity(it)
       builder.append("||ENV = ($name)")
       if (withError) {
-        builder.append("<<{\n${processNames.joinToString(",\n") { 
-          "commission_$it, repetition_$it, omission_$it" }
+        builder.append("<<{\n${translatedActivities.joinToString(",\n") {
+          "commission_$it, repetition_$it, omission_$it"
+        }
         }\n}.\n")
       } else {
         builder.append(".\n")
@@ -146,7 +155,7 @@ class EOFMTranslator2(
   private fun StringBuilder.appendActivity(activity: Activity, ancestors: List<Activity> = emptyList()): String {
     // Name of the translated process (should be capitalized)
     val name = activity.name.capitalize()
-    processNames.add(name)
+    translatedActivities.add(name)
     // The list of ancestors passed to children activities/actions
     val nextAncestors = ancestors + listOf(activity)
     // The list of all the sub-activities/actions
@@ -497,17 +506,14 @@ class EOFMTranslator2(
     val name = activity.name.capitalize()
     val condName = name + "_COND"
     var tab = "\t\t"
-
-    // Get all the input variables related to the activity.
-    val inputs = activity.getInputs(inputVariables)
-    val variables = inputs.joinToString("") { "[${it.name}]" }
+    val variables = inputVariables.joinToString("") { "[${it.name}]" }
 
     /*
      * Append the process name and its initial value.
      * A_COND = VAR[<initial values>],
      */
     this.append("$condName = VAR")
-    this.append(inputs.joinToString("") { "[${it.initialValue}]" })
+    this.append(inputVariables.joinToString("") { "[${it.initialValue}]" })
     this.append(",\n")
     /*
      * VAR[<variables>] = (
@@ -523,11 +529,11 @@ class EOFMTranslator2(
      *        end_A -> VAR[<variables>]
      *    | when (!completioncondition)
      *        end_A -> omission_A -> VAR[<variables>]
-     *    | <variables in world model>
+     *    | <variable changes in world model>
      * ),
      */
     this.append("VAR")
-    this.append(inputs.joinToString("") { "[${it.name}:${it.userDefinedType}]" })
+    this.append(inputVariables.joinToString("") { "[${it.name}:${it.userDefinedType}]" })
     this.append(" = (\n")
 
     // Append preconditions
@@ -601,27 +607,10 @@ class EOFMTranslator2(
       this.append("end_$name -> VAR$variables\n")
     }
     // Append variables change
-    val varNames = inputs.map { it.name }.sorted()
-    val varKey = world.keys.find { it.split("|").sorted() == varNames }
-    if (varKey != null) {
-      for (l in world[varKey]!!) {
-        var x = variables
-        val vs = varKey.split("|")
-        val changeTo = l.third.split("|")
-        for (i in vs.indices) {
-          x = x.replace(vs[i], changeTo[i])
-        }
-
-        this.append(tab); tab = "\t|\t"
-        this.append("when (${l.first}) ${l.second} -> VAR$x\n")
-      }
-    } else {
-      for (v in varNames) {
-        for (l in world[v] ?: error("No key '$v' in world model")) {
-          this.append(tab); tab = "\t|\t"
-          this.append("when (${l.first}) ${l.second} -> VAR${variables.replace(v, l.third)}\n")
-        }
-      }
+    for (l in world) {
+      this.append(tab); tab = "\t|\t"
+      this.append(l)
+      this.append('\n')
     }
     this.append(").\n\n")
 

@@ -11,13 +11,12 @@ class EOFMRobustCal(
     val p: String,
     val human: EOFMS,
     val initState: Map<String, String>,
-    val world: Map<String, List<Triple<String, String, String>>>,
+    val world: List<String>,
     val relabels: Map<String, String>
 ) {
-  fun run() {
+  private fun genHumanModel(translator: EOFMTranslator2): String {
     // Translate human behavior model
-    val translator = EOFMTranslator2(human, initState, world, relabels)
-    val actions = translator.getActions().map { if (it in relabels) relabels[it]!! else it }
+    val actions = translator.getActions()
     val builder = StringBuilder()
     translator.translate(builder)
 
@@ -29,32 +28,88 @@ class EOFMRobustCal(
         "G"
     ).doCompose()
     val conciseHuman = StateMachine(composite.composition).tauElmAndSubsetConstr().first
-    val conciseHumanSpec = conciseHuman.minimize().buildFSP("ENV")
+    return conciseHuman.minimize().buildFSP("ENV")
+  }
+
+  private fun genHumanModelErr(translator: EOFMTranslator2): String {
+    val builder = StringBuilder()
+    translator.translate(builder, withError = true)
+    return builder.toString()
+  }
+
+  fun run() {
+    val translator = EOFMTranslator2(human, initState, world, relabels)
+    val humanModel = genHumanModel(translator)
+    val humanModelErr = genHumanModelErr(translator)
 
     // Calculate weakest assumption of the system and extract deviation traces
-    val cal = RobustCal(p, conciseHumanSpec, machine)
+    val cal = RobustCal(p, humanModel, machine)
     val traces = cal.deltaTraces("COFFEE")
 
-    // Translate human behavior model with error
-    val translatorErr = EOFMTranslator2(human, initState, world, relabels, withError = true)
-    val builderErr = StringBuilder()
-    translatorErr.translate(builderErr)
+    val renamedMachine = renameConsts(machine, "M")
     // Match each deviation trace back to the human model with error
     for (t in traces) {
+      val trace = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
+      val ltsaCall = LTSACall()
       val tComposite = ltsaCall.doCompile(
-          "$builderErr$renamedMachine$t||T = (SYS || ENV || TRACE).", "T"
+          "$humanModelErr$renamedMachine$trace||T = (SYS || ENV || TRACE).", "T"
       ).doCompose()
       val tSM = StateMachine(tComposite.composition)
-      val paths = tSM.pathToInit()
-      var minTrace: List<Triple<Int, Int, Int>>? = null
-      val transToErr = tSM.transitions.filter { it.third == -1 }
-      for (trans in transToErr) {
-        val tToErr = (paths[trans.first]?: error("No path to init for '${trans.first}'")) + trans
-        if (minTrace == null || tToErr.size < minTrace.size)
-          minTrace = tToErr
-      }
-      println("Orignial: $t")
-      println("FOUND: TRACE = (\n${minTrace?.joinToString(" -> \n") { tSM.alphabet[it.second] }} -> END).\n")
+      println("Match error trace: $t")
+      searchErrors(tSM, t.last())
+      break
     }
+  }
+
+  private fun searchErrors(sm: StateMachine, last: String) {
+    val transNormToErr = mutableSetOf<Triple<Int, Int, Int>>()
+    val ts = sm.transitions.filter { it.third == -1 }
+    val validMap = mutableMapOf<Int, Boolean>()
+    val visited = mutableSetOf<Int>()
+
+    fun dfs(s: Int, foundLast: Boolean, t: Triple<Int, Int, Int>): Boolean {
+      if (s in visited) {
+        if (validMap[s] == true) {
+          transNormToErr.add(t)
+          return true
+        }
+        return false
+      }
+
+      visited.add(s)
+      if (foundLast && s == 0) {
+        validMap[s] = true
+        transNormToErr.add(t)
+        return true
+      }
+      val ts = if (foundLast) {
+        sm.transitions.filter {
+          val a = sm.alphabet[it.second]
+          it.third == s && !a.startsWith("omission") && !a.startsWith("commission")
+              && !a.startsWith("repetition")
+        }
+      } else {
+        sm.transitions.filter { it.third == s }
+      }
+      var atLeastOne = false
+      for (next in ts) {
+        if (dfs(next.first, foundLast || sm.alphabet[next.second] == last, next))
+          atLeastOne = true
+      }
+      return if (atLeastOne) {
+        validMap[s] = true
+        transNormToErr.add(t)
+        true
+      } else {
+        validMap[s] = false
+        false
+      }
+    }
+
+    for (t in ts) {
+      dfs(t.first, false, t)
+    }
+
+    println(StateMachine(transNormToErr, sm.alphabet).buildFSP())
   }
 }
