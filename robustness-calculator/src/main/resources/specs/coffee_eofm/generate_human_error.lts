@@ -289,4 +289,15 @@ Run[iHandleDown:TBool] = (
 ),
 Brewing = (mBrew -> Brewing | mBrewDone -> Run[True]).
 
-||G = (SYS || ENV)@{hPlaceMug, hTakeMug, hLiftHandle, hAddOrReplacePod, hLowerHandle, hPressBrew, mBrewDone}.
+||G = (SYS || ENV)@{hPlaceMug, hTakeMug, hLiftHandle, hAddOrReplacePod, hLowerHandle, hPressBrew, mBrewDone,
+commission_ABrewCoffee, repetition_ABrewCoffee, omission_ABrewCoffee,
+commission_APrepMachine, repetition_APrepMachine, omission_APrepMachine,
+commission_APlaceMug, repetition_APlaceMug, omission_APlaceMug,
+commission_AAddPod, repetition_AAddPod, omission_AAddPod,
+commission_ALiftHandle, repetition_ALiftHandle, omission_ALiftHandle,
+commission_AReplacePod, repetition_AReplacePod, omission_AReplacePod,
+commission_ALowerHandle, repetition_ALowerHandle, omission_ALowerHandle,
+commission_ABrew, repetition_ABrew, omission_ABrew,
+commission_AWait, repetition_AWait, omission_AWait,
+commission_ATakeCoffee, repetition_ATakeCoffee, omission_ATakeCoffee
+}.

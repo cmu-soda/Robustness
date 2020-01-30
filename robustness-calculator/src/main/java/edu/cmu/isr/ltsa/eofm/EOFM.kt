@@ -222,6 +222,7 @@ fun parseEOFMS(xmlStream: InputStream?): EOFMS {
 
 private fun _parse(doc: Document): EOFMS {
   val decompositions = doc.getElementsByTagName("decomposition")
+  // Wrap all the sub-activities with <subactivity> tag
   for (i in 0 until decompositions.length) {
     val n = decompositions.item(i)
     val children = n.childNodes
@@ -251,36 +252,6 @@ private fun _parse(doc: Document): EOFMS {
 }
 
 fun main(args: Array<String>) {
-//  val eofms = EOFMS(
-//      constants = listOf(Constant("a", value = "0", basicType = "INTEGER"), Constant("b", value = "On", userDefinedType = "tLight")),
-//      userDefinedTypes = listOf(UserDefineType(name = "tLight", value = "{On, Off}")),
-//      humanOperators = listOf(HumanOperator(
-//          name = "human",
-//          inputVariables = listOf(InputVariable(name = "i", basicType = "INTEGER"), InputVariable(name = "j", userDefinedType = "tLight")),
-//          inputVariableLinks = listOf(InputVariableLink(link = "i_link")),
-//          localVariables = listOf(LocalVariable(name = "l_i", basicType = "INTEGER", initialValue = "0")),
-//          humanActions = listOf(HumanAction(name = "act", behavior = "autoreset")),
-//          eofms = listOf(EOFM(
-//              activity = Activity(
-//                  name = "activity1",
-//                  preConditions = listOf("iInterfaceMessage = SystemOff", "iInterfaceMessage = TreatmentAdministering"),
-//                  completionConditions = listOf("iInterfaceMessage /= SystemOff"),
-//                  decomposition = Decomposition(
-//                      operator = "optor_seq",
-//                      subActivities = listOf(Activity(
-//                          name = "activity1-1",
-//                          repeatConditions = listOf("true"),
-//                          decomposition = Decomposition(
-//                              operator = "ord",
-//                              subActivities = listOf(Action(humanAction = "act"))
-//                          )
-//                      ), ActivityLink(link = "activity_link-1"), ActivityLink(link = "activity_link-2"))
-//                  )
-//              )
-//          ))
-//      ))
-//  )
-
   val pca = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/pca.xml"))
   println(pca)
   println(pca.toXmlString())

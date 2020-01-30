@@ -56,31 +56,27 @@ class EOFMRobustCal(
       ).doCompose()
       val tSM = StateMachine(tComposite.composition)
       println("Match error trace: $t")
-      searchErrors(tSM, t.last())
+      searchErrors(tSM, t[t.size - 2])
       break
     }
   }
 
-  private fun searchErrors(sm: StateMachine, last: String) {
-    val transNormToErr = mutableSetOf<Triple<Int, Int, Int>>()
-    val ts = sm.transitions.filter { it.third == -1 }
-    val validMap = mutableMapOf<Int, Boolean>()
+  private fun searchErrors(sm: StateMachine, lastNormEvent: String) {
     val visited = mutableSetOf<Int>()
+    val validMap = mutableMapOf<Int, Pair<Boolean, Map<String, Int>>>()
 
-    fun dfs(s: Int, foundLast: Boolean, t: Triple<Int, Int, Int>): Boolean {
+    fun dfs(s: Int, foundLast: Boolean, t: Triple<Int, Int, Int>): Pair<Boolean, Map<String, Int>> {
       if (s in visited) {
-        if (validMap[s] == true) {
-          transNormToErr.add(t)
-          return true
+        if (validMap[s]?.first == true) {
+          return validMap[s]!!
         }
-        return false
+        return Pair(false, emptyMap())
       }
 
       visited.add(s)
-      if (foundLast && s == 0) {
-        validMap[s] = true
-        transNormToErr.add(t)
-        return true
+      if (s == 0) {
+        validMap[s] = Pair(true, emptyMap())
+        return validMap[s]!!
       }
       val ts = if (foundLast) {
         sm.transitions.filter {
@@ -91,25 +87,39 @@ class EOFMRobustCal(
       } else {
         sm.transitions.filter { it.third == s }
       }
+      val errors = mutableMapOf<String, Int>()
       var atLeastOne = false
       for (next in ts) {
-        if (dfs(next.first, foundLast || sm.alphabet[next.second] == last, next))
+        val r = dfs(next.first, foundLast || sm.alphabet[next.second] == lastNormEvent, next)
+        if (r.first) {
           atLeastOne = true
+          for ((k, v) in r.second) {
+            errors[k] = (errors[k] ?: 0) + v
+          }
+
+          val a = sm.alphabet[next.second]
+          if (a.startsWith("omission") || a.startsWith("commission") || a.startsWith("repetition")) {
+            errors[a] = (errors[a] ?: 0) + 1
+          }
+        }
       }
-      return if (atLeastOne) {
-        validMap[s] = true
-        transNormToErr.add(t)
-        true
+      validMap[s] = if (atLeastOne) {
+        Pair(true, errors)
       } else {
-        validMap[s] = false
-        false
+        Pair(false, mapOf<String, Int>())
+      }
+      return validMap[s]!!
+    }
+
+    val errors = mutableMapOf<String, Int>()
+    for (t in sm.transitions.filter { it.third == -1 }) {
+      val r = dfs(t.first, false, t)
+      if (r.first) {
+        for ((k, v) in r.second)
+          errors[k] = (errors[k] ?: 0) + v
       }
     }
 
-    for (t in ts) {
-      dfs(t.first, false, t)
-    }
-
-    println(StateMachine(transNormToErr, sm.alphabet).buildFSP())
+    println(errors)
   }
 }

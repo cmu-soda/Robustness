@@ -106,7 +106,7 @@ class StateMachine {
 
   fun tauElmAndSubsetConstr(): Pair<StateMachine, List<Set<Int>>> {
     var hasTau = false
-    val reachTable = Array(maxNumOfState() + 1) { s ->
+    val reachTable = Array(maxIndexOfState() + 1) { s ->
       Array(alphabet.size) { a ->
         val next = nextState(s, a)
         if (a == tau && next.isNotEmpty())
@@ -156,20 +156,9 @@ class StateMachine {
     return Pair(StateMachine(dfaTrans, alphabet), dfaStates)
   }
 
-  fun maxNumOfState(): Int {
+  fun maxIndexOfState(): Int {
     val states = transitions.map { it.first }
     return states.max() ?: error("Cannot find the state with the max index number")
-  }
-
-  fun tauElimination(): StateMachine {
-    val ts = transitions.toMutableSet()
-    while (true) {
-      val t = ts.find { it.second == tau } ?: break
-      ts.remove(t)
-      // FIXME
-      ts.addAll(ts.filter { it.first == t.third }.map { it.copy(first = t.first) })
-    }
-    return StateMachine(ts, alphabet)
   }
 
   fun subsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
