@@ -63,20 +63,17 @@ class EOFMRobustCal(
 
   private fun searchErrors(sm: StateMachine, lastNormEvent: String) {
     val visited = mutableSetOf<Int>()
-    val validMap = mutableMapOf<Int, Pair<Boolean, Map<String, Int>>>()
+    val visitedMap = mutableMapOf<Int, Boolean>()
+    val trans = mutableSetOf<Triple<Int, Int, Int>>()
 
-    fun dfs(s: Int, foundLast: Boolean, t: Triple<Int, Int, Int>): Pair<Boolean, Map<String, Int>> {
+    fun dfs(s: Int, foundLast: Boolean): Boolean {
       if (s in visited) {
-        if (validMap[s]?.first == true) {
-          return validMap[s]!!
-        }
-        return Pair(false, emptyMap())
+        return visitedMap[s]?: false
       }
-
       visited.add(s)
       if (s == 0) {
-        validMap[s] = Pair(true, emptyMap())
-        return validMap[s]!!
+        visitedMap[s] = true
+        return true
       }
       val ts = if (foundLast) {
         sm.transitions.filter {
@@ -87,39 +84,21 @@ class EOFMRobustCal(
       } else {
         sm.transitions.filter { it.third == s }
       }
-      val errors = mutableMapOf<String, Int>()
       var atLeastOne = false
-      for (next in ts) {
-        val r = dfs(next.first, foundLast || sm.alphabet[next.second] == lastNormEvent, next)
-        if (r.first) {
+      for (t in ts) {
+        val isLast = sm.alphabet[t.second] == lastNormEvent
+        val r = dfs(t.first, foundLast || isLast)
+        if (r) {
           atLeastOne = true
-          for ((k, v) in r.second) {
-            errors[k] = (errors[k] ?: 0) + v
-          }
-
-          val a = sm.alphabet[next.second]
-          if (a.startsWith("omission") || a.startsWith("commission") || a.startsWith("repetition")) {
-            errors[a] = (errors[a] ?: 0) + 1
-          }
+          if (!foundLast)
+            trans.add(if (isLast) t.copy(first = 0) else t)
         }
       }
-      validMap[s] = if (atLeastOne) {
-        Pair(true, errors)
-      } else {
-        Pair(false, mapOf<String, Int>())
-      }
-      return validMap[s]!!
+      visitedMap[s] = atLeastOne
+      return atLeastOne
     }
 
-    val errors = mutableMapOf<String, Int>()
-    for (t in sm.transitions.filter { it.third == -1 }) {
-      val r = dfs(t.first, false, t)
-      if (r.first) {
-        for ((k, v) in r.second)
-          errors[k] = (errors[k] ?: 0) + v
-      }
-    }
-
-    println(errors)
+    dfs(-1, false)
+    println(StateMachine(trans, sm.alphabet).buildFSP())
   }
 }
