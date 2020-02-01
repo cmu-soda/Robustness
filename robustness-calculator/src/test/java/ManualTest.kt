@@ -36,7 +36,7 @@ class ManualTest {
 
     val paths = sm.pathToInit()
 //    val traces = mutableListOf<String>()
-    val transToErr = sm.transitions.filter { it.third == -1 }
+    val transToErr = sm.transitions.inTrans()[-1] ?: emptyList()
     for (t in transToErr) {
       val trace = (paths[t.first] ?: error(t.first)) + t
       println("Length: ${trace.size}")

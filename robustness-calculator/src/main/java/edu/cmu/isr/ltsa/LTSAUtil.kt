@@ -23,6 +23,9 @@ class LTSACall {
   }
 }
 
+/**
+ *
+ */
 fun CompositeState.doCompose(): CompositeState {
   val ltsOutput = StringLTSOutput()
   try {
@@ -34,6 +37,9 @@ fun CompositeState.doCompose(): CompositeState {
   }
 }
 
+/**
+ *
+ */
 fun CompositeState.propertyCheck(): List<String>? {
   val ltsOutput = StringLTSOutput()
   this.analyse(ltsOutput)
@@ -45,6 +51,9 @@ fun CompositeState.propertyCheck(): List<String>? {
   }
 }
 
+/**
+ *
+ */
 fun CompositeState.getAllAlphabet(): Set<String> {
   val alphabet = this.machines
       .flatMap { (it as CompactState).alphabet.toList() }
@@ -74,6 +83,9 @@ fun CompositeState.determinise(): CompositeState {
   return this
 }
 
+/**
+ *
+ */
 fun CompositeState.getCompositeName(): String {
   doCompose()
   return if (this.name != "DEFAULT") {
@@ -81,4 +93,23 @@ fun CompositeState.getCompositeName(): String {
   } else {
     (this.machines[0] as CompactState).name
   }
+}
+
+/**
+ *
+ */
+private fun renameConsts(spec: String, prefix: String): String {
+  val p = """(const|range)\s+([_\w]+)\s*=""".toRegex()
+  var re = spec
+  p.findAll(spec).forEach {
+    val name = it.groupValues[2]
+    re = re.replace(name, "${prefix}_$name")
+  }
+  return re
+}
+
+fun combineSpecs(vararg specs: String): String {
+  assert(specs.size <= 26)
+  val a = 'A'
+  return specs.mapIndexed { idx, s -> renameConsts(s, (a + idx).toString()) }.joinToString("\n")
 }

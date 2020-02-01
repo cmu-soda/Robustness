@@ -4,35 +4,26 @@ import edu.cmu.isr.ltsa.LTSACall
 import edu.cmu.isr.ltsa.doCompose
 import edu.cmu.isr.ltsa.minimise
 import lts.CompactState
-import lts.EventState
 import java.util.*
-
-typealias Transitions = Set<Triple<Int, Int, Int>>
 
 class StateMachine {
   /**
-   *
+   * The transitions of this state machine. States and labels are all represented in integers.
    */
   val transitions: Transitions
+
   /**
-   * The array of alphabets which contains tau transition.
+   * The array of alphabets which contains tau event.
    */
   val alphabet: Array<String>
+
+  /**
+   * The index number which represents the tau event.
+   */
   val tau: Int
 
   constructor(m: CompactState) {
-    val trans = mutableSetOf<Triple<Int, Int, Int>>()
-    for (s in m.states.indices) {
-      for (a in m.alphabet.indices) {
-        val nexts: IntArray? = EventState.nextState(m.states[s], a)
-        if (nexts != null) {
-          for (n in nexts) {
-            trans.add(Triple(s, a, n))
-          }
-        }
-      }
-    }
-    transitions = trans
+    transitions = SimpleTransitions(m)
     alphabet = m.alphabet
     tau = alphabet.indexOf("tau")
   }
@@ -43,20 +34,19 @@ class StateMachine {
     this.tau = this.alphabet.indexOf("tau")
   }
 
-  override fun toString(): String {
-    return transitions.map { Triple(it.first, this.alphabet[it.second], it.third) }.joinToString("\n")
-  }
-
   fun buildFSP(name: String = "A"): String {
     if (transitions.isEmpty()) {
       return "$name = END."
     }
 
+    // Escaped event names
     val escaped = alphabet.map(::escapeEvent)
-    val groups = transitions.groupBy { it.first }
-    val used = transitions.map { it.second }.toSet()
+    val groups = transitions.outTrans()
+    val used = transitions.allEvents()
+    // The alphabets that are not used in the actual transitions
     val extra = alphabet.indices - used
 
+    // A helper function to generate LTSA process names.
     fun processName(i: Int): String {
       return if (i == 0) name else if (i in groups.keys) "${name}_$i" else "END"
     }
@@ -83,6 +73,11 @@ class StateMachine {
     return StateMachine(composite.composition)
   }
 
+  /**
+   * Rename the events:
+   * if e == "tau" then e' = "_tau_"
+   * if e match abc.123 then e' = abc[123]
+   */
   private fun escapeEvent(e: String): String {
     if (e == "tau")
       return "_tau_"
@@ -94,10 +89,13 @@ class StateMachine {
     return e
   }
 
-  fun getReachable(initial: Set<Int>): Set<Int> {
-    var reachable = initial
+  /**
+   * Get all the states that have a path to the given final states.
+   */
+  fun getBackwardReachable(final: Set<Int>): Set<Int> {
+    var reachable = final
     while (true) {
-      val s = reachable union transitions.filter { it.third in reachable }.map { it.first }
+      val s = reachable union reachable.flatMap { transitions.prevStates(it) }
       if (s.size == reachable.size)
         return reachable
       reachable = s
@@ -108,7 +106,7 @@ class StateMachine {
     var hasTau = false
     val reachTable = Array(maxIndexOfState() + 1) { s ->
       Array(alphabet.size) { a ->
-        val next = nextState(s, a)
+        val next = transitions.nextStates(s, a)
         if (a == tau && next.isNotEmpty())
           hasTau = true
         next
@@ -128,7 +126,7 @@ class StateMachine {
     // Do subset construct by using this reachability table
     // initial state of the DFA is {0} union its closure
     val dfaStates = mutableListOf(setOf(0) union reachTable[0][tau])
-    val dfaTrans = mutableSetOf<Triple<Int, Int, Int>>()
+    val dfaTrans = mutableSetOf<Transition>()
     // create a queue for the new dfa states
     val q: Queue<Set<Int>> = LinkedList()
     q.addAll(dfaStates)
@@ -153,17 +151,16 @@ class StateMachine {
         dfaTrans.add(Triple(i_s, a, i_n))
       }
     }
-    return Pair(StateMachine(dfaTrans, alphabet), dfaStates)
+    return Pair(StateMachine(SimpleTransitions(dfaTrans), alphabet), dfaStates)
   }
 
   fun maxIndexOfState(): Int {
-    val states = transitions.map { it.first }
-    return states.max() ?: error("Cannot find the state with the max index number")
+    return transitions.allStates().max() ?: error("Cannot find the state with the max index number")
   }
 
   fun subsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
     val dfaStates = mutableListOf(setOf(0))  // initial state of the DFA is {0}
-    val dfaTrans = mutableSetOf<Triple<Int, Int, Int>>()
+    val dfaTrans = mutableSetOf<Transition>()
     // create a queue for the new dfa states
     val q: Queue<Set<Int>> = LinkedList()
     q.addAll(dfaStates)
@@ -171,7 +168,7 @@ class StateMachine {
       val s = q.poll()
       val i_s = dfaStates.indexOf(s)
       for (a in alphabet.indices) {
-        val n = s.flatMap { nextState(it, a) }.toSet()
+        val n = s.flatMap { transitions.nextStates(it, a) }.toSet()
         if (n.isEmpty())
           continue
         val i_n = if (n !in dfaStates) {
@@ -184,24 +181,21 @@ class StateMachine {
         dfaTrans.add(Triple(i_s, a, i_n))
       }
     }
-    return Pair(StateMachine(dfaTrans, alphabet), dfaStates)
+    return Pair(StateMachine(SimpleTransitions(dfaTrans), alphabet), dfaStates)
   }
 
-  fun nextState(s: Int, a: Int): Set<Int> {
-    return transitions.filter { it.first == s && it.second == a }.map { it.third }.toSet()
-  }
-
-  fun pathToInit(): Map<Int, List<Triple<Int, Int, Int>>> {
-    val traces = mutableMapOf<Int, List<Triple<Int, Int, Int>>>(0 to emptyList())
+  fun pathToInit(): Map<Int, List<Transition>> {
+    val traces = mutableMapOf<Int, List<Transition>>(0 to emptyList())
     val visited = mutableListOf<Int>()
 
     var search = mutableSetOf(0)
     while (search.isNotEmpty()) {
       visited.addAll(search)
 
+      val outTrans = this.transitions.outTrans()
       val nextSearch = mutableSetOf<Int>()
       for (s in search) {
-        val trans = this.transitions.filter { it.first == s && it.third !in visited }
+        val trans = (outTrans[s] ?: emptyList()).filter { it.third !in visited }
         for (t in trans) {
           traces[t.third] = traces[t.first]!! + t
         }

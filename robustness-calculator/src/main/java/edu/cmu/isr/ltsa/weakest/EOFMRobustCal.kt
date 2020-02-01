@@ -1,10 +1,13 @@
 package edu.cmu.isr.ltsa.weakest
 
 import edu.cmu.isr.ltsa.LTSACall
+import edu.cmu.isr.ltsa.combineSpecs
 import edu.cmu.isr.ltsa.doCompose
 import edu.cmu.isr.ltsa.eofm.EOFMS
 import edu.cmu.isr.ltsa.eofm.EOFMTranslator2
+import edu.cmu.isr.ltsa.util.SimpleTransitions
 import edu.cmu.isr.ltsa.util.StateMachine
+import edu.cmu.isr.ltsa.util.Transition
 
 class EOFMRobustCal(
     val machine: String,
@@ -22,11 +25,8 @@ class EOFMRobustCal(
 
     // Generate concise human model
     val ltsaCall = LTSACall()
-    val renamedMachine = renameConsts(machine, "M")
-    val composite = ltsaCall.doCompile(
-        "$builder$renamedMachine||G = (SYS || ENV)@{${actions.joinToString(", ")}}.",
-        "G"
-    ).doCompose()
+    val spec = combineSpecs(builder.toString(), machine, "||G = (SYS || ENV)@{${actions.joinToString(", ")}}.")
+    val composite = ltsaCall.doCompile(spec, "G").doCompose()
     val conciseHuman = StateMachine(composite.composition).tauElmAndSubsetConstr().first
     return conciseHuman.minimize().buildFSP("ENV")
   }
@@ -46,14 +46,12 @@ class EOFMRobustCal(
     val cal = RobustCal(p, humanModel, machine)
     val traces = cal.deltaTraces("COFFEE")
 
-    val renamedMachine = renameConsts(machine, "M")
     // Match each deviation trace back to the human model with error
     for (t in traces) {
       val trace = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
       val ltsaCall = LTSACall()
-      val tComposite = ltsaCall.doCompile(
-          "$humanModelErr$renamedMachine$trace||T = (SYS || ENV || TRACE).", "T"
-      ).doCompose()
+      val spec = combineSpecs(humanModelErr, machine, trace, "||T = (SYS || ENV || TRACE).")
+      val tComposite = ltsaCall.doCompile(spec, "T").doCompose()
       val tSM = StateMachine(tComposite.composition)
       println("Match error trace: $t")
       searchErrors(tSM, t[t.size - 2])
@@ -64,7 +62,7 @@ class EOFMRobustCal(
   private fun searchErrors(sm: StateMachine, lastNormEvent: String) {
     val visited = mutableSetOf<Int>()
     val visitedMap = mutableMapOf<Int, Boolean>()
-    val trans = mutableSetOf<Triple<Int, Int, Int>>()
+    val trans = mutableSetOf<Transition>()
 
     fun dfs(s: Int, foundLast: Boolean): Boolean {
       if (s in visited) {
@@ -76,22 +74,26 @@ class EOFMRobustCal(
         return true
       }
       val ts = if (foundLast) {
-        sm.transitions.filter {
+        sm.transitions.inTrans()[s]?.filter {
           val a = sm.alphabet[it.second]
-          it.third == s && !a.startsWith("omission") && !a.startsWith("commission")
+          !a.startsWith("omission") && !a.startsWith("commission")
               && !a.startsWith("repetition")
         }
       } else {
-        sm.transitions.filter { it.third == s }
+        sm.transitions.inTrans()[s]
       }
       var atLeastOne = false
-      for (t in ts) {
+      for (t in ts ?: emptyList()) {
         val isLast = sm.alphabet[t.second] == lastNormEvent
         val r = dfs(t.first, foundLast || isLast)
         if (r) {
           atLeastOne = true
-          if (!foundLast)
-            trans.add(if (isLast) t.copy(first = 0) else t)
+          if (!foundLast && s != -1) {
+            val a = sm.alphabet[t.second]
+            val notError = !a.startsWith("omission") && !a.startsWith("commission") &&
+                !a.startsWith("repetition")
+            trans.add(if (isLast) t.copy(first = 0) else if (notError) t.copy(second = sm.tau) else t)
+          }
         }
       }
       visitedMap[s] = atLeastOne
@@ -99,6 +101,6 @@ class EOFMRobustCal(
     }
 
     dfs(-1, false)
-    println(StateMachine(trans, sm.alphabet).buildFSP())
+    println(StateMachine(SimpleTransitions(trans), sm.alphabet).minimize().buildFSP())
   }
 }
