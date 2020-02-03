@@ -53,6 +53,16 @@ interface Transitions {
    *
    */
   fun prevStates(s: Int, a: Int): Set<Int>
+
+  /**
+   *
+   */
+  fun findEndStates(): Set<Int>
+
+  /**
+   *
+   */
+  fun transFromState(s: Int): Iterable<Transition>
 }
 
 class SimpleTransitions : Transitions {
@@ -126,6 +136,22 @@ class SimpleTransitions : Transitions {
 
   override fun prevStates(s: Int, a: Int): Set<Int> {
     return inTrans()[s]?.filter { it.second == a }?.map { it.first }?.toSet() ?: emptySet()
+  }
+
+  override fun findEndStates(): Set<Int> {
+    return inTrans().keys - outTrans().keys
+  }
+
+  override fun transFromState(s: Int): Iterable<Transition> {
+    val trans = mutableListOf<Transition>()
+    val visited = mutableSetOf<Int>()
+    var search = setOf(s)
+    while (search.isNotEmpty()) {
+      visited.addAll(search)
+      trans.addAll(search.flatMap { outTrans()[it] ?: emptyList() })
+      search = search.flatMap { nextStates(it) }.toSet() - visited
+    }
+    return trans
   }
 
 }

@@ -116,7 +116,9 @@ class StateMachine {
     while (hasTau) {
       hasTau = false
       for (s in reachTable.indices) {
-        val next = reachTable[s][tau] union reachTable[s][tau].flatMap { reachTable[it][tau] }.toSet()
+        val next = reachTable[s][tau] union reachTable[s][tau].flatMap {
+          if (it != -1) reachTable[it][tau] else emptySet()
+        }.toSet()
         if (next.size != reachTable[s][tau].size)
           hasTau = true
         reachTable[s][tau] = next
