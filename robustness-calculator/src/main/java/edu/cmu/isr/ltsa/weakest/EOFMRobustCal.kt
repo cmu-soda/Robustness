@@ -76,10 +76,7 @@ class EOFMRobustCal(
       val tComposite = ltsaCall.doCompile(spec, "T").doCompose()
       val tSM = StateMachine(tComposite.composition)
       println("Match error trace: $t")
-//      println(buildErrorSM(tSM, t).buildFSP())
-      println(buildErrorIndex(tSM, t))
-
-      break
+      println(buildErrorSM(tSM, t).buildFSP("T", unused = false))
     }
   }
 
@@ -156,7 +153,7 @@ class EOFMRobustCal(
         // Find only non-error transitions if we've already found the last normal event
         sm.transitions.inTrans()[s]?.filter { !isHumanError(sm.alphabet[it.second]) }
       } else {
-        sm.transitions.inTrans()[s]
+        sm.transitions.inTrans()[s]?.filter { !sm.alphabet[it.second].startsWith("repeat") }
       }
       var atLeastOne = false
       for (t in ts ?: emptyList()) {
@@ -184,8 +181,8 @@ class EOFMRobustCal(
   private fun removeRedundant(sm: StateMachine): StateMachine {
     val endStates = sm.transitions.findEndStates()
     val (dfa, dfaStates) = sm.tauElmAndSubsetConstr()
-    val remove = dfaStates.indices.filter { (dfaStates[it] intersect endStates).isNotEmpty() }
-    val trans = dfa.transitions.allTrans().filter { it.first !in remove }
-    return StateMachine(SimpleTransitions(trans), dfa.alphabet)
+    val redundant = dfaStates.indices.filter { (dfaStates[it] intersect endStates).isNotEmpty() }
+    val trans = dfa.transitions.allTrans().filter { it.first !in redundant }
+    return StateMachine(SimpleTransitions(trans), dfa.alphabet).minimize()
   }
 }

@@ -34,7 +34,7 @@ class StateMachine {
     this.tau = this.alphabet.indexOf("tau")
   }
 
-  fun buildFSP(name: String = "A"): String {
+  fun buildFSP(name: String = "A", unused: Boolean = true): String {
     if (transitions.isEmpty()) {
       return "$name = END."
     }
@@ -57,7 +57,7 @@ class StateMachine {
     }.joinToString(",\n")
 
     val add = extra.filter { it != tau }.map { escaped[it] }
-    if (add.isNotEmpty()) {
+    if (add.isNotEmpty() && unused) {
       fsp = "$fsp+{${add.joinToString(", ")}}"
     }
     if (tau in used) {
