@@ -38,9 +38,9 @@ class ManualTest {
 //    val traces = mutableListOf<String>()
     val transToErr = sm.transitions.inTrans()[-1] ?: emptyList()
     for (t in transToErr) {
-      val trace = (paths[t.first] ?: error(t.first)) + t
+      val trace = (paths[t.first] ?: error(t.first)) + sm.alphabet[t.second]
       println("Length: ${trace.size}")
-      println("TRACE = (\n${trace.joinToString(" -> \n") { sm.alphabet[it.second] }} -> END).\n")
+      println("TRACE = (\n${trace.joinToString(" -> \n")} -> END).\n")
     }
   }
 
@@ -68,6 +68,33 @@ class ManualTest {
         ),
         relabels = mapOf("hWaitBrewDone" to "mBrewDone")
     )
-    cal.run()
+    cal.errsRobustAgainst()
+  }
+
+  @Test
+  fun testCoffee2() {
+    val p = ClassLoader.getSystemResource("specs/coffee_eofm/p.lts").readText()
+    val sys = ClassLoader.getSystemResource("specs/coffee_eofm/machine.lts").readText()
+    val coffee: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+
+    val cal = EOFMRobustCal(
+        sys,
+        p,
+        coffee,
+        mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
+        listOf(
+            "when (iMugState == Absent) hPlaceMug -> VAR[iBrewing][Empty][iHandleDown][iPodState]",
+            "when (iMugState != Absent) hTakeMug -> VAR[iBrewing][Absent][iHandleDown][iPodState]",
+            "when (iHandleDown == True) hLiftHandle -> VAR[iBrewing][iMugState][False][iPodState]",
+            "when (iHandleDown == False) hLowerHandle -> VAR[iBrewing][iMugState][True][iPodState]",
+            "when (1) hAddOrReplacePod -> VAR[iBrewing][iMugState][iHandleDown][New]",
+            "when (iPodState == New) hPressBrew -> VAR[True][iMugState][iHandleDown][EmptyOrUsed]",
+            "when (iPodState != New) hPressBrew -> VAR[True][iMugState][iHandleDown][iPodState]",
+            "when (iBrewing == True && iMugState == Empty) mBrewDone -> VAR[False][Full][iHandleDown][iPodState]",
+            "when (iBrewing == True && iMugState == Absent) mBrewDone -> VAR[False][iMugState][iHandleDown][iPodState]"
+        ),
+        relabels = mapOf("hWaitBrewDone" to "mBrewDone")
+    )
+    cal.errsNotRobustAgainst("omission_AWait")
   }
 }

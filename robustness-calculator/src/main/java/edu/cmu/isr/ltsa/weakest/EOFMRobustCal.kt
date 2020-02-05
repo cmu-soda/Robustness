@@ -11,12 +11,34 @@ import edu.cmu.isr.ltsa.util.Transition
 
 class EOFMRobustCal(
     private val machine: String,
-    private val p: String,
-    private val human: EOFMS,
-    private val initState: Map<String, String>,
-    private val world: List<String>,
-    private val relabels: Map<String, String>
+    p: String,
+    human: EOFMS,
+    initState: Map<String, String>,
+    world: List<String>,
+    relabels: Map<String, String>
 ) {
+
+  private val translator: EOFMTranslator2 = EOFMTranslator2(human, initState, world, relabels)
+  private val cal: RobustCal
+  private val humanModel: String
+  private val humanErrModel: String
+  private val wa: String
+  private val waSinked: String
+
+
+  init {
+    humanModel = genHumanModel(translator)
+    humanErrModel = genHumanErrModel(translator)
+    println("Generating the LTSA spec of the EOFM human model")
+    println(humanModel)
+
+    // Calculate weakest assumption of the system and extract deviation traces
+    cal = RobustCal(p, humanModel, machine)
+    wa = cal.weakestAssumption()
+    waSinked = cal.weakestAssumption(sink = true)
+    println("Generating the weakest assumption")
+    println(wa)
+  }
 
   /**
    *
@@ -28,9 +50,8 @@ class EOFMRobustCal(
     translator.translate(builder)
 
     // Generate concise human model
-    val ltsaCall = LTSACall()
     val spec = combineSpecs(builder.toString(), machine, "||G = (SYS || ENV)@{${actions.joinToString(", ")}}.")
-    val composite = ltsaCall.doCompile(spec, "G").doCompose()
+    val composite = LTSACall().doCompile(spec, "G").doCompose()
     val conciseHuman = StateMachine(composite.composition).tauElmAndSubsetConstr().first
     return conciseHuman.minimize().buildFSP("ENV")
   }
@@ -38,7 +59,7 @@ class EOFMRobustCal(
   /**
    *
    */
-  private fun genHumanModelErr(translator: EOFMTranslator2): String {
+  private fun genHumanErrModel(translator: EOFMTranslator2): String {
     val builder = StringBuilder()
     translator.translate(builder, withError = true)
     return builder.toString()
@@ -56,30 +77,30 @@ class EOFMRobustCal(
         !a.startsWith("repeat") && !a.startsWith("reset") && !a.startsWith("skip")
   }
 
-  /**
-   *
-   */
-  fun run() {
-    val translator = EOFMTranslator2(human, initState, world, relabels)
-    val humanModel = genHumanModel(translator)
-    println("STEP1: Generating the LTSA spec of the EOFM human model")
-    println(humanModel)
+  fun errsNotRobustAgainst(vararg errType: String) {
+    // Build constraint process
+    val allErrors = translator.errorTypes
+    val constraint = "C = (${errType.joinToString(" | ") { "$it -> C" }})+{${allErrors.joinToString(",")}}."
+    val spec = combineSpecs(humanErrModel, waSinked, "property ||PWE = (WE).", constraint, "||T = (ENV || PWE || C).")
+    val composite = LTSACall().doCompile(spec, "T").doCompose()
+    val sm = StateMachine(composite.composition)
+    val t = sm.pathToInit(-1)
+    val ft = t?.filter { isAction(it) || isHumanError(it) }
+    if (ft != null)
+      println("Found trace to property violation:\n\t${ft.joinToString("\n\t")}")
+    else
+      println("No trace found. System is robust against errors: ${errType.joinToString(", ")}")
+  }
 
-    // Calculate weakest assumption of the system and extract deviation traces
-    val cal = RobustCal(p, humanModel, machine)
-    val wa = cal.weakestAssumption()
-    println("STEP2: Generating the weakest assumption")
-    println(wa)
-
+  fun errsRobustAgainst() {
     val traces = cal.shortestErrTraces(wa)
-    println("STEP3: Generating the shorted paths to error state")
+    println("Generating the shorted paths to error state")
 
-    val humanModelErr = genHumanModelErr(translator)
     // Match each deviation trace back to the human model with error
     for (t in traces) {
       val trace = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
       val ltsaCall = LTSACall()
-      val spec = combineSpecs(humanModelErr, machine, trace, "||T = (SYS || ENV || TRACE).")
+      val spec = combineSpecs(humanErrModel, machine, trace, "||T = (SYS || ENV || TRACE).")
       val tComposite = ltsaCall.doCompile(spec, "T").doCompose()
       val tSM = StateMachine(tComposite.composition)
       println("Match error trace: $t")

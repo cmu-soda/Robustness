@@ -33,13 +33,6 @@ class EOFMTranslator2(
   private val actions: List<HumanAction> = eofms.humanOperators.flatMap { it.humanActions }
 
   /**
-   *
-   */
-  fun getActions(): List<String> {
-    return actions.map { if (it.name in relabels) relabels[it.name]!! else it.name }
-  }
-
-  /**
    * The list of all the input variables. This is useful in the case of input variable links.
    */
   private val inputVariables: List<InputVariable> = eofms.humanOperators.flatMap { it.inputVariables }
@@ -70,6 +63,9 @@ class EOFMTranslator2(
    */
   private var withError: Boolean = false
 
+  var errorTypes: List<String> = emptyList()
+    private set
+
   init {
     // Recursively find all the activities
     fun recursive(activity: Activity) {
@@ -98,6 +94,13 @@ class EOFMTranslator2(
   }
 
   /**
+   *
+   */
+  fun getActions(): List<String> {
+    return actions.map { relabels[it.name] ?: it.name }
+  }
+
+  /**
    * The process to translate a EOFM model to LTSA.
    */
   fun translate(builder: StringBuilder, withError: Boolean = false) {
@@ -119,6 +122,7 @@ class EOFMTranslator2(
       val name = builder.appendActivity(it)
       builder.append("||ENV = ($name)")
       if (withError) {
+        errorTypes = translatedActivities.flatMap { listOf("commission_$it", "repetition_$it", "omission_$it") }
         builder.append("<<{\n${translatedActivities.joinToString(",\n") {
           "commission_$it, repetition_$it, omission_$it"
         }

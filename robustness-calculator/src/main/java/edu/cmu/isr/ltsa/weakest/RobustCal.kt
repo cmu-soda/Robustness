@@ -36,7 +36,7 @@ class RobustCal(val p: String, val env: String, val sys: String) {
 
   fun shortestErrTraces(wa: String, name: String = "WE"): List<List<String>> {
     val pEnv = projectedEnv()
-    val deltaSpec = combineSpecs("property $pEnv", wa, "||D_$name = (ENV || $name).")
+    val deltaSpec = combineSpecs(pEnv, "property ||PENV = (ENV).", wa, "||D_$name = (PENV || $name).")
     println("Internal spec to generate the error traces:")
     println(deltaSpec)
     println()
@@ -48,8 +48,8 @@ class RobustCal(val p: String, val env: String, val sys: String) {
     val traces = mutableListOf<List<String>>()
     val transToErr = sm.transitions.inTrans()[-1] ?: emptyList()
     for (t in transToErr) {
-      val trace = (paths[t.first] ?: error(t.first)) + t
-      traces.add(trace.map { sm.alphabet[it.second] })
+      val trace = (paths[t.first] ?: error(t.first)) + sm.alphabet[t.second]
+      traces.add(trace)
     }
     return traces
   }

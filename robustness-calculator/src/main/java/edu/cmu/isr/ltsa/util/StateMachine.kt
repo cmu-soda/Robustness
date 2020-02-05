@@ -156,7 +156,7 @@ class StateMachine {
     return Pair(StateMachine(SimpleTransitions(dfaTrans), alphabet), dfaStates)
   }
 
-  fun maxIndexOfState(): Int {
+  private fun maxIndexOfState(): Int {
     return transitions.allStates().max() ?: error("Cannot find the state with the max index number")
   }
 
@@ -186,20 +186,29 @@ class StateMachine {
     return Pair(StateMachine(SimpleTransitions(dfaTrans), alphabet), dfaStates)
   }
 
-  fun pathToInit(): Map<Int, List<Transition>> {
-    val traces = mutableMapOf<Int, List<Transition>>(0 to emptyList())
+  fun pathToInit(): Map<Int, List<String>> {
+    return pathToInitHelper { true }
+  }
+
+  fun pathToInit(stop: Int): List<String>? {
+    val traces = pathToInitHelper { stop !in it }
+    return traces[stop]
+  }
+
+  private fun pathToInitHelper(stop: (Map<Int, List<String>>) -> Boolean): Map<Int, List<String>> {
+    val traces = mutableMapOf<Int, List<String>>(0 to emptyList())
     val visited = mutableListOf<Int>()
 
     var search = mutableSetOf(0)
-    while (search.isNotEmpty()) {
+    while (search.isNotEmpty() && stop(traces)) {
       visited.addAll(search)
 
-      val outTrans = this.transitions.outTrans()
+      val outTrans = transitions.outTrans()
       val nextSearch = mutableSetOf<Int>()
       for (s in search) {
         val trans = (outTrans[s] ?: emptyList()).filter { it.third !in visited }
         for (t in trans) {
-          traces[t.third] = traces[t.first]!! + t
+          traces[t.third] = traces[t.first]!! + alphabet[t.second]
         }
         nextSearch.addAll(trans.map { it.third })
       }
