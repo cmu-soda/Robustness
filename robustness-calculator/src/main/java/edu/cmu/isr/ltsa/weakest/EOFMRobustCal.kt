@@ -62,12 +62,19 @@ class EOFMRobustCal(
   fun run() {
     val translator = EOFMTranslator2(human, initState, world, relabels)
     val humanModel = genHumanModel(translator)
-    val humanModelErr = genHumanModelErr(translator)
+    println("STEP1: Generating the LTSA spec of the EOFM human model")
+    println(humanModel)
 
     // Calculate weakest assumption of the system and extract deviation traces
     val cal = RobustCal(p, humanModel, machine)
-    val traces = cal.deltaTraces("COFFEE")
+    val wa = cal.weakestAssumption()
+    println("STEP2: Generating the weakest assumption")
+    println(wa)
 
+    val traces = cal.shortestErrTraces(wa)
+    println("STEP3: Generating the shorted paths to error state")
+
+    val humanModelErr = genHumanModelErr(translator)
     // Match each deviation trace back to the human model with error
     for (t in traces) {
       val trace = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
@@ -153,6 +160,8 @@ class EOFMRobustCal(
         // Find only non-error transitions if we've already found the last normal event
         sm.transitions.inTrans()[s]?.filter { !isHumanError(sm.alphabet[it.second]) }
       } else {
+        // Ignore the repeat transition which ignores the case that human made a series of errors then decide to repeat
+        // the entire activity and repeat the errors again.
         sm.transitions.inTrans()[s]?.filter { !sm.alphabet[it.second].startsWith("repeat") }
       }
       var atLeastOne = false

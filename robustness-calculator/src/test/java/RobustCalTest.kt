@@ -82,7 +82,8 @@ class RobustCalTest {
     val sys = ClassLoader.getSystemResource("specs/coffee_eofm/machine.lts").readText()
 
     val cal = RobustCal(p, env, sys)
-    val traces = cal.deltaTraces("COFFEE")
+    val wa = cal.weakestAssumption("COFFEE")
+    val traces = cal.shortestErrTraces(wa, "COFFEE")
     for (t in traces)
       println(t)
 

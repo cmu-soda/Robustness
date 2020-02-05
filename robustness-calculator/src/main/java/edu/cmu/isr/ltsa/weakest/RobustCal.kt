@@ -34,32 +34,14 @@ class RobustCal(val p: String, val env: String, val sys: String) {
     return composeSysP().pruneError().determinate(sink).minimize().buildFSP(name)
   }
 
-  /**
-   * Return the LTSA spec to generate the deviation traces in the weakest assumption but not in the env model.
-   */
-  private fun deltaEnv(name: String): String {
-    val wa = weakestAssumption(name)
+  fun shortestErrTraces(wa: String, name: String = "WE"): List<List<String>> {
+    val pEnv = projectedEnv()
+    val deltaSpec = combineSpecs("property $pEnv", wa, "||D_$name = (ENV || $name).")
+    println("Internal spec to generate the error traces:")
+    println(deltaSpec)
+    println()
 
-    // For the environment, expose only the alphabets in the weakest assumption, and do tau elimination
-    val env = combineSpecs(env, "||E = (ENV)@{${alphabetR.joinToString(", ")}}.")
-    val ltsaCall = LTSACall()
-    val composite = ltsaCall.doCompile(env, "E").doCompose()
-    val envSM = StateMachine(composite.composition).tauElmAndSubsetConstr().first
-
-    return combineSpecs(
-        "property ${envSM.buildFSP("ENV")}",
-        wa,
-        "||D_${name} = (ENV || ${name})."
-    )
-  }
-
-  /**
-   * Return the list of shortest deviation traces
-   */
-  fun deltaTraces(name: String): List<List<String>> {
-    val delta = deltaEnv(name)
-    val ltsaCall = LTSACall()
-    val composite = ltsaCall.doCompile(delta, "D_$name").doCompose()
+    val composite = LTSACall().doCompile(deltaSpec, "D_$name").doCompose()
     val sm = StateMachine(composite.composition)
 
     val paths = sm.pathToInit()
@@ -70,6 +52,14 @@ class RobustCal(val p: String, val env: String, val sys: String) {
       traces.add(trace.map { sm.alphabet[it.second] })
     }
     return traces
+  }
+
+  private fun projectedEnv(): String {
+    // For the environment, expose only the alphabets in the weakest assumption, and do tau elimination
+    val pEnv = combineSpecs(env, "||E = (ENV)@{${alphabetR.joinToString(", ")}}.")
+    val composite = LTSACall().doCompile(pEnv, "E").doCompose()
+    val envSM = StateMachine(composite.composition).tauElmAndSubsetConstr().first
+    return envSM.buildFSP("ENV")
   }
 
   private fun composeSysP(): StateMachine {
