@@ -8,6 +8,7 @@ import edu.cmu.isr.ltsa.eofm.EOFMTranslator2
 import edu.cmu.isr.ltsa.util.SimpleTransitions
 import edu.cmu.isr.ltsa.util.StateMachine
 import edu.cmu.isr.ltsa.util.Transition
+import java.util.*
 
 class EOFMRobustCal(
     private val machine: String,
@@ -84,12 +85,28 @@ class EOFMRobustCal(
     val spec = combineSpecs(humanErrModel, waSinked, "property ||PWE = (WE).", constraint, "||T = (ENV || PWE || C).")
     val composite = LTSACall().doCompile(spec, "T").doCompose()
     val sm = StateMachine(composite.composition)
-    val t = sm.pathToInit(-1)
+
+    fun bfs(): List<String>? {
+      val q: Queue<Triple<Int, List<String>, Set<Int>>> = LinkedList()
+      val outTrans = sm.transitions.outTrans()
+      q.offer(Triple(0, emptyList(), emptySet()))
+      while (q.isNotEmpty()) {
+        val (s, p, visited) = q.poll()
+        if (s == -1 && p.containsAll(errType.asList()))
+          return p
+        for (t in outTrans[s]?.filter { it.third !in visited } ?: emptyList()) {
+          q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
+        }
+      }
+      return null
+    }
+
+    val t = bfs()
     val ft = t?.filter { isAction(it) || isHumanError(it) }
     if (ft != null)
-      println("Found trace to property violation:\n\t${ft.joinToString("\n\t")}")
+      println("Found a trace to property violation with '${errType.joinToString(", ")}':\n\t${ft.joinToString("\n\t")}\n")
     else
-      println("No trace found. System is robust against errors: ${errType.joinToString(", ")}")
+      println("No trace found. System is robust or Try adding errors of its parent activity.\n")
   }
 
   fun errsRobustAgainst() {
@@ -104,7 +121,11 @@ class EOFMRobustCal(
       val tComposite = ltsaCall.doCompile(spec, "T").doCompose()
       val tSM = StateMachine(tComposite.composition)
       println("Match error trace: $t")
-      println(buildErrorSM(tSM, t).buildFSP("T", unused = false))
+      if (tSM.hasError()) {
+        println(buildErrorSM(tSM, t).buildFSP("T", unused = false))
+      } else {
+        println("Cannot find a path in error model, potentially deadlock")
+      }
     }
   }
 

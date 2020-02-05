@@ -95,6 +95,8 @@ class ManualTest {
         ),
         relabels = mapOf("hWaitBrewDone" to "mBrewDone")
     )
+    cal.errsNotRobustAgainst("omission_APrepMachine")
+    cal.errsNotRobustAgainst("omission_APlaceMug", "omission_APrepMachine")
     cal.errsNotRobustAgainst("omission_AWait")
   }
 }

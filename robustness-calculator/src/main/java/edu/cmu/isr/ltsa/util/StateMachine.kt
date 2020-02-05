@@ -34,6 +34,10 @@ class StateMachine {
     this.tau = this.alphabet.indexOf("tau")
   }
 
+  fun hasError(): Boolean {
+    return -1 in transitions.inTrans()
+  }
+
   fun buildFSP(name: String = "A", unused: Boolean = true): String {
     if (transitions.isEmpty()) {
       return "$name = END."
@@ -199,11 +203,11 @@ class StateMachine {
     val traces = mutableMapOf<Int, List<String>>(0 to emptyList())
     val visited = mutableListOf<Int>()
 
+    val outTrans = transitions.outTrans()
     var search = mutableSetOf(0)
     while (search.isNotEmpty() && stop(traces)) {
       visited.addAll(search)
 
-      val outTrans = transitions.outTrans()
       val nextSearch = mutableSetOf<Int>()
       for (s in search) {
         val trans = (outTrans[s] ?: emptyList()).filter { it.third !in visited }
