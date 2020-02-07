@@ -103,9 +103,10 @@ class EOFMRobustCal(
 
     val t = bfs()
     val ft = t?.filter { isAction(it) || isHumanError(it) }
-    if (ft != null)
-      println("Found a trace to property violation with '${errType.joinToString(", ")}':\n\t${ft.joinToString("\n\t")}\n")
-    else
+    if (ft != null) {
+      println("Found a trace to property violation with '${errType.joinToString(", ")}':")
+      println("\t${ft.joinToString("\n\t")}\n")
+    } else
       println("No trace found. System is robust or Try adding errors of its parent activity.\n")
   }
 
@@ -120,12 +121,43 @@ class EOFMRobustCal(
       val spec = combineSpecs(humanErrModel, machine, trace, "||T = (SYS || ENV || TRACE).")
       val tComposite = ltsaCall.doCompile(spec, "T").doCompose()
       val tSM = StateMachine(tComposite.composition)
-      println("Match error trace: $t")
-      if (tSM.hasError()) {
-        println(buildErrorSM(tSM, t).buildFSP("T", unused = false))
-      } else {
-        println("Cannot find a path in error model, potentially deadlock")
+//      println("Match error trace: $t")
+//      if (tSM.hasError()) {
+//        println(buildErrorSM(tSM, t).buildFSP("T", unused = false))
+//      } else {
+//        println("Cannot find a path in error model, potentially deadlock")
+//      }
+      shortestErrTrace(tSM, t)
+    }
+  }
+
+  private fun shortestErrTrace(sm: StateMachine, trace: List<String>) {
+    fun bfs(): List<String>? {
+      val q: Queue<Triple<Int, List<String>, Set<Int>>> = LinkedList()
+      val outTrans = sm.transitions.outTrans()
+      q.offer(Triple(0, emptyList(), emptySet()))
+      while (q.isNotEmpty()) {
+        val (s, p, visited) = q.poll()
+        if (s == -1)
+          return p
+        val ts = if (p.filter { it in cal.getAlphabet() } == trace.subList(0, trace.size - 1))
+          outTrans[s]?.filter { it.third !in visited }
+        else
+          outTrans[s]?.filter { it.third !in visited && !isHumanError(sm.alphabet[it.second]) }
+        for (t in ts ?: emptyList()) {
+          q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
+        }
       }
+      return null
+    }
+
+    val t = bfs()
+    val ft = t?.filter { isAction(it) || isHumanError(it) }
+    if (ft != null) {
+      println("Found shortest human error trace to represent $trace:")
+      println("\t${ft.joinToString("\n\t")}\n")
+    } else {
+      println("No trace found for $trace. Potentially deadlock.\n")
     }
   }
 
