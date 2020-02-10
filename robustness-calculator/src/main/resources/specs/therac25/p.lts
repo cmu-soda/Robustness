@@ -9,8 +9,8 @@ range P_TPowerLevel = P_NotSet..P_EBeamLevel
 
 P = VAR[P_OutPlace][P_NotSet],
 VAR[iSpreader:P_TSpreader][iPowerLevel:P_TPowerLevel] = (
-      when (iSpreader == P_OutPlace) mInPlace -> VAR[P_InPlace][iPowerLevel]
-    | when (iSpreader == P_InPlace) mOutPlace -> VAR[P_OutPlace][iPowerLevel]
+      when (iSpreader != P_InPlace) mInPlace -> VAR[P_InPlace][iPowerLevel]
+    | when (iSpreader != P_OutPlace) mOutPlace -> VAR[P_OutPlace][iPowerLevel]
     | when (iPowerLevel != P_XrayLevel) mXrayLvl -> VAR[iSpreader][P_XrayLevel]
     | when (iPowerLevel != P_EBeamLevel) mEBeamLvl -> VAR[iSpreader][P_EBeamLevel]
     | when (iSpreader == P_InPlace && iPowerLevel == P_XrayLevel) mFire -> VAR[iSpreader][iPowerLevel]

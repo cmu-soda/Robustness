@@ -129,9 +129,10 @@ class EOFMRobustCal(
       println(t)
     }
 
-    println("Matching the error trace to erroneous human behavior model...")
     // Match each deviation trace back to the human model with error
     for (t in traces) {
+      println("Matching the error trace '$t' to erroneous human behavior model...")
+
       val trace = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
       val ltsaCall = LTSACall()
       val spec = combineSpecs(humanErrModel, machine, trace, "||T = (SYS || ENV || TRACE).")

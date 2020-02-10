@@ -49,25 +49,9 @@ class ManualTest {
     val p = ClassLoader.getSystemResource("specs/coffee_eofm/p.lts").readText()
     val sys = ClassLoader.getSystemResource("specs/coffee_eofm/machine.lts").readText()
     val coffee: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+    val config = CoffeeConfig()
+    val cal = EOFMRobustCal(sys, p, coffee, config.initialValues, config.world, config.relabels)
 
-    val cal = EOFMRobustCal(
-        sys,
-        p,
-        coffee,
-        mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
-        listOf(
-            "when (iMugState == Absent) hPlaceMug -> VAR[iBrewing][Empty][iHandleDown][iPodState]",
-            "when (iMugState != Absent) hTakeMug -> VAR[iBrewing][Absent][iHandleDown][iPodState]",
-            "when (iHandleDown == True) hLiftHandle -> VAR[iBrewing][iMugState][False][iPodState]",
-            "when (iHandleDown == False) hLowerHandle -> VAR[iBrewing][iMugState][True][iPodState]",
-            "when (1) hAddOrReplacePod -> VAR[iBrewing][iMugState][iHandleDown][New]",
-            "when (iPodState == New) hPressBrew -> VAR[True][iMugState][iHandleDown][EmptyOrUsed]",
-            "when (iPodState != New) hPressBrew -> VAR[True][iMugState][iHandleDown][iPodState]",
-            "when (iBrewing == True && iMugState == Empty) mBrewDone -> VAR[False][Full][iHandleDown][iPodState]",
-            "when (iBrewing == True && iMugState == Absent) mBrewDone -> VAR[False][iMugState][iHandleDown][iPodState]"
-        ),
-        relabels = mapOf("hWaitBrewDone" to "mBrewDone")
-    )
     cal.errsRobustAgainst()
   }
 
@@ -76,25 +60,9 @@ class ManualTest {
     val p = ClassLoader.getSystemResource("specs/coffee_eofm/p.lts").readText()
     val sys = ClassLoader.getSystemResource("specs/coffee_eofm/machine.lts").readText()
     val coffee: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+    val config = CoffeeConfig()
+    val cal = EOFMRobustCal(sys, p, coffee, config.initialValues, config.world, config.relabels)
 
-    val cal = EOFMRobustCal(
-        sys,
-        p,
-        coffee,
-        mapOf("iBrewing" to "False", "iMugState" to "Absent", "iHandleDown" to "True", "iPodState" to "EmptyOrUsed"),
-        listOf(
-            "when (iMugState == Absent) hPlaceMug -> VAR[iBrewing][Empty][iHandleDown][iPodState]",
-            "when (iMugState != Absent) hTakeMug -> VAR[iBrewing][Absent][iHandleDown][iPodState]",
-            "when (iHandleDown == True) hLiftHandle -> VAR[iBrewing][iMugState][False][iPodState]",
-            "when (iHandleDown == False) hLowerHandle -> VAR[iBrewing][iMugState][True][iPodState]",
-            "when (1) hAddOrReplacePod -> VAR[iBrewing][iMugState][iHandleDown][New]",
-            "when (iPodState == New) hPressBrew -> VAR[True][iMugState][iHandleDown][EmptyOrUsed]",
-            "when (iPodState != New) hPressBrew -> VAR[True][iMugState][iHandleDown][iPodState]",
-            "when (iBrewing == True && iMugState == Empty) mBrewDone -> VAR[False][Full][iHandleDown][iPodState]",
-            "when (iBrewing == True && iMugState == Absent) mBrewDone -> VAR[False][iMugState][iHandleDown][iPodState]"
-        ),
-        relabels = mapOf("hWaitBrewDone" to "mBrewDone")
-    )
     cal.errsNotRobustAgainst("omission_APrepMachine")
     cal.errsNotRobustAgainst("omission_APlaceMug", "omission_APrepMachine")
     cal.errsNotRobustAgainst("omission_AWait")
@@ -105,31 +73,9 @@ class ManualTest {
     val p = ClassLoader.getSystemResource("specs/therac25/p.lts").readText()
     val sys = ClassLoader.getSystemResource("specs/therac25/sys.lts").readText()
     val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25.xml"))
-    val cal = EOFMRobustCal(
-        sys,
-        p,
-        therac,
-        mapOf("iInterface" to "Edit", "iBeamState" to "NotReady", "iSpreader" to "OutPlace", "iPowerLevel" to "NotSet"),
-        listOf(
-            "when (iInterface == Edit) hPressX -> VAR[ConfirmXray][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == Edit) hPressE -> VAR[ConfirmEBeam][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == ConfirmXray || iInterface == ConfirmEBeam) hPressUp -> VAR[Edit][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == PrepXray) hPressUp1 -> VAR[ConfirmXray][NotReady][iSpreader][iPowerLevel]",
-            "when (iInterface == PrepEBeam) hPressUp1 -> VAR[ConfirmEBeam][NotReady][iSpreader][iPowerLevel]",
-            "when (iInterface == ConfirmXray) hPressEnter -> VAR[PrepXray][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == ConfirmEBeam) hPressEnter -> VAR[PrepEBeam][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == PrepXray || iInterface == PrepEBeam) hPressB -> VAR[Administered][iBeamState][iSpreader][iPowerLevel]",
-            "when (iBeamState == NotReady) mBeamReady -> VAR[iInterface][Ready][iSpreader][iPowerLevel]",
-            "when (iSpreader == OutPlace) mInPlace -> VAR[iInterface][iBeamState][InPlace][iPowerLevel]",
-            "when (iSpreader == InPlace) mOutPlace -> VAR[iInterface][iBeamState][OutPlace][iPowerLevel]",
-            "when (iPowerLevel != XrayLevel) mXrayLvl -> VAR[iInterface][iBeamState][iSpreader][XrayLevel]",
-            "when (iPowerLevel != EBeamLevel) mEBeamLvl -> VAR[iInterface][iBeamState][iSpreader][EBeamLevel]"
-        ),
-        mapOf(
-            "hWaitBeam" to "mBeamReady", "hWaitInPlace" to "mInPlace", "hWaitOutPlace" to "mOutPlace",
-            "hWaitXrayPower" to "mXrayLvl", "hWaitEBeamPower" to "mEBeamLvl"
-        )
-    )
+    val config = TheracConfig()
+    val cal = EOFMRobustCal(sys, p, therac, config.initialValues, config.world, config.relabels)
+
     cal.errsRobustAgainst()
   }
 
@@ -138,33 +84,22 @@ class ManualTest {
     val p = ClassLoader.getSystemResource("specs/therac25/p.lts").readText()
     val sys = ClassLoader.getSystemResource("specs/therac25/sys.lts").readText()
     val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25.xml"))
-    val cal = EOFMRobustCal(
-        sys,
-        p,
-        therac,
-        mapOf("iInterface" to "Edit", "iBeamState" to "NotReady", "iSpreader" to "OutPlace", "iPowerLevel" to "NotSet"),
-        listOf(
-            "when (iInterface == Edit) hPressX -> VAR[ConfirmXray][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == Edit) hPressE -> VAR[ConfirmEBeam][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == ConfirmXray || iInterface == ConfirmEBeam) hPressUp -> VAR[Edit][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == PrepXray) hPressUp1 -> VAR[ConfirmXray][NotReady][iSpreader][iPowerLevel]",
-            "when (iInterface == PrepEBeam) hPressUp1 -> VAR[ConfirmEBeam][NotReady][iSpreader][iPowerLevel]",
-            "when (iInterface == ConfirmXray) hPressEnter -> VAR[PrepXray][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == ConfirmEBeam) hPressEnter -> VAR[PrepEBeam][iBeamState][iSpreader][iPowerLevel]",
-            "when (iInterface == PrepXray || iInterface == PrepEBeam) hPressB -> VAR[Administered][iBeamState][iSpreader][iPowerLevel]",
-            "when (iBeamState == NotReady) mBeamReady -> VAR[iInterface][Ready][iSpreader][iPowerLevel]",
-            "when (iSpreader == OutPlace) mInPlace -> VAR[iInterface][iBeamState][InPlace][iPowerLevel]",
-            "when (iSpreader == InPlace) mOutPlace -> VAR[iInterface][iBeamState][OutPlace][iPowerLevel]",
-            "when (iPowerLevel != XrayLevel) mXrayLvl -> VAR[iInterface][iBeamState][iSpreader][XrayLevel]",
-            "when (iPowerLevel != EBeamLevel) mEBeamLvl -> VAR[iInterface][iBeamState][iSpreader][EBeamLevel]"
-        ),
-        mapOf(
-            "hWaitBeam" to "mBeamReady", "hWaitInPlace" to "mInPlace", "hWaitOutPlace" to "mOutPlace",
-            "hWaitXrayPower" to "mXrayLvl", "hWaitEBeamPower" to "mEBeamLvl"
-        )
-    )
+    val config = TheracConfig()
+    val cal = EOFMRobustCal(sys, p, therac, config.initialValues, config.world, config.relabels)
+
     cal.errsNotRobustAgainst("omission_AWaitReady")
     cal.errsNotRobustAgainst("omission_AWaitInPlace", "omission_AWaitReady")
+  }
+
+  @Test
+  fun testTherac3() {
+    val p = ClassLoader.getSystemResource("specs/therac25/p.lts").readText()
+    val sys = ClassLoader.getSystemResource("specs/therac25/sys.lts").readText()
+    val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25_2.xml"))
+    val config = TheracConfig2()
+    val cal = EOFMRobustCal(sys, p, therac, config.initialValues, config.world, config.relabels)
+
+    cal.errsRobustAgainst()
   }
 
 }
