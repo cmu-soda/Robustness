@@ -43,6 +43,9 @@ class RobustCal(val p: String, val env: String, val sys: String) {
 
     val composite = LTSACall().doCompile(deltaSpec, "D_$name").doCompose()
     val sm = StateMachine(composite.composition)
+    if (!sm.hasError()) {
+      error("No error found. The weakest assumption to satisfy p has less behavior than the env.")
+    }
 
     val paths = sm.pathToInit()
     val traces = mutableListOf<List<String>>()

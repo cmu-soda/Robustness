@@ -1,0 +1,13 @@
+INTERFACE = (hPressX -> CONFIRM | hPressE -> CONFIRM),
+CONFIRM = (hPressUp -> INTERFACE | hPressEnter -> PREP),
+PREP = (mBeamReady -> (hPressB -> FIRE | hPressUp1 -> CONFIRM) | hPressUp1 -> CONFIRM),
+FIRE = (mFire -> FIRE).
+
+SPREADER = (hPressX -> mInPlace -> INPLACE | hPressE -> SPREADER),
+INPLACE = (hPressX -> INPLACE | hPressE -> mOutPlace -> SPREADER).
+
+POWER = (hPressX -> mXrayLvl -> XRAY | hPressE -> mEBeamLvl -> EBEAM),
+XRAY = (hPressX -> XRAY | hPressE -> mToBeam -> (mEBeamLvl -> EBEAM | hPressX -> XRAY)),
+EBEAM = (hPressE -> EBEAM | hPressX -> mToXray -> (mXrayLvl -> XRAY | hPressE -> EBEAM)).
+
+||SYS = (INTERFACE || SPREADER || POWER).

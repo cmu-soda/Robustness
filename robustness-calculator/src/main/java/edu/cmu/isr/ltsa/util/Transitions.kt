@@ -115,7 +115,7 @@ class SimpleTransitions : Transitions {
   }
 
   override fun allStates(): Set<Int> {
-    return trans.flatMap { listOf(it.first, it.second) }.toSet()
+    return trans.flatMap { listOf(it.first, it.third) }.toSet()
   }
 
   override fun allEvents(): Set<Int> {

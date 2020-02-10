@@ -5,6 +5,7 @@ import edu.cmu.isr.ltsa.combineSpecs
 import edu.cmu.isr.ltsa.doCompose
 import edu.cmu.isr.ltsa.eofm.EOFMS
 import edu.cmu.isr.ltsa.eofm.EOFMTranslator2
+import edu.cmu.isr.ltsa.propertyCheck
 import edu.cmu.isr.ltsa.util.SimpleTransitions
 import edu.cmu.isr.ltsa.util.StateMachine
 import edu.cmu.isr.ltsa.util.Transition
@@ -12,7 +13,7 @@ import java.util.*
 
 class EOFMRobustCal(
     private val machine: String,
-    p: String,
+    private val p: String,
     human: EOFMS,
     initState: Map<String, String>,
     world: List<String>,
@@ -28,16 +29,16 @@ class EOFMRobustCal(
 
 
   init {
+    println("Generating the LTSA spec of the EOFM human model")
     humanModel = genHumanModel(translator)
     humanErrModel = genHumanErrModel(translator)
-    println("Generating the LTSA spec of the EOFM human model")
     println(humanModel)
 
     // Calculate weakest assumption of the system and extract deviation traces
+    println("Generating the weakest assumption")
     cal = RobustCal(p, humanModel, machine)
     wa = cal.weakestAssumption()
     waSinked = cal.weakestAssumption(sink = true)
-    println("Generating the weakest assumption")
     println(wa)
   }
 
@@ -50,8 +51,16 @@ class EOFMRobustCal(
     val builder = StringBuilder()
     translator.translate(builder)
 
+    val translated = builder.toString()
+    // Check that SYS||ENV |= P
+    var spec = combineSpecs(translated, machine, p, "||T = (SYS || ENV || P).")
+    val errs = LTSACall().doCompile(spec, "T").doCompose().propertyCheck()
+    if (errs != null) {
+      error("SYS || ENV |= P does not hold, property violation or deadlock:\n\r${errs.joinToString("\n\t")}")
+    }
+
     // Generate concise human model
-    val spec = combineSpecs(builder.toString(), machine, "||G = (SYS || ENV)@{${actions.joinToString(", ")}}.")
+    spec = combineSpecs(builder.toString(), machine, "||G = (SYS || ENV)@{${actions.joinToString(", ")}}.")
     val composite = LTSACall().doCompile(spec, "G").doCompose()
     val conciseHuman = StateMachine(composite.composition).tauElmAndSubsetConstr().first
     return conciseHuman.minimize().buildFSP("ENV")

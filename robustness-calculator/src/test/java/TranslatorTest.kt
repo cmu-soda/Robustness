@@ -109,4 +109,32 @@ class TranslatorTest {
     translator.translate(builder)
     println(builder.toString())
   }
+
+  @Test
+  fun testTherac() {
+    val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25.xml"))
+    val translator = EOFMTranslator2(
+        therac,
+        mapOf("iInterface" to "Edit", "iBeamState" to "NotReady", "iSpreader" to "OutPlace", "iPowerLevel" to "NotSet"),
+        listOf(
+            "when (iInterface == Edit) hPressX -> VAR[ConfirmXray][iBeamState][iSpreader][iPowerLevel]",
+            "when (iInterface == Edit) hPressE -> VAR[ConfirmEBeam][iBeamState][iSpreader][iPowerLevel]",
+            "when (iInterface == ConfirmXray || iInterface == ConfirmEBeam) hPressUp -> VAR[Edit][iBeamState][iSpreader][iPowerLevel]",
+            "when (iInterface == PrepXray) hPressUp1 -> VAR[ConfirmXray][NotReady][iSpreader][iPowerLevel]",
+            "when (iInterface == PrepEBeam) hPressUp1 -> VAR[ConfirmEBeam][NotReady][iSpreader][iPowerLevel]",
+            "when (iInterface == ConfirmXray) hPressEnter -> VAR[PrepXray][iBeamState][iSpreader][iPowerLevel]",
+            "when (iInterface == ConfirmEBeam) hPressEnter -> VAR[PrepEBeam][iBeamState][iSpreader][iPowerLevel]",
+            "when (iInterface == PrepXray || iInterface == PrepEBeam) hPressB -> VAR[Administered][iBeamState][iSpreader][iPowerLevel]",
+            "when (iBeamState == NotReady) mBeamReady -> VAR[iInterface][Ready][iSpreader][iPowerLevel]",
+            "when (iSpreader == OutPlace) mInPlace -> VAR[iInterface][iBeamState][InPlace][iPowerLevel]",
+            "when (iSpreader == InPlace) mOutPlace -> VAR[iInterface][iBeamState][OutPlace][iPowerLevel]",
+            "when (iPowerLevel != XrayLevel) mXrayLvl -> VAR[iInterface][iBeamState][iSpreader][XrayLevel]",
+            "when (iPowerLevel != EBeamLevel) mEBeamLvl -> VAR[iInterface][iBeamState][iSpreader][EBeamLevel]"
+        )
+    )
+
+    val builder = StringBuilder()
+    translator.translate(builder)
+    println(builder.toString())
+  }
 }

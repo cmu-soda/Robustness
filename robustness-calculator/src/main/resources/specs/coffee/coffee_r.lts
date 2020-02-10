@@ -1,24 +1,24 @@
-const HandleDown = 0
-const HandleUp = 1
-range HandleState = HandleDown..HandleUp
+const S_HandleDown = 0
+const S_HandleUp = 1
+range S_HandleState = S_HandleDown..S_HandleUp
 
 // There's a cost to enable the system with sensing the mug.
-const NoMug = 0
-const MugPlaced = 1
-range MugState = NoMug..MugPlaced
+const S_NoMug = 0
+const S_MugPlaced = 1
+range S_MugState = S_NoMug..S_MugPlaced
 
-SYS = Run[HandleUp][NoMug],
-Run[h:HandleState][m:MugState] = (
-    when (h == HandleDown) hLiftHandle -> Run[HandleUp][m]
-  | when (h == HandleUp) hLowerHandle -> Run[HandleDown][m]
-  | when (h == HandleDown && m == NoMug) hPressBrew -> Run[h][m]
-  | when (h == HandleDown && m == MugPlaced) hPressBrew -> brew -> Brewing
-  | when (h == HandleUp) hPressBrew -> Run[h][m]
-  | when (m == NoMug) hPlaceMug -> Run[h][MugPlaced]
-  | when (m == MugPlaced) hTakeMug -> Run[h][NoMug]
+SYS = Run[S_HandleUp][S_NoMug],
+Run[h:S_HandleState][m:S_MugState] = (
+    when (h == S_HandleDown) hLiftHandle -> Run[S_HandleUp][m]
+  | when (h == S_HandleUp) hLowerHandle -> Run[S_HandleDown][m]
+  | when (h == S_HandleDown && m == S_NoMug) hPressBrew -> Run[h][m]
+  | when (h == S_HandleDown && m == S_MugPlaced) hPressBrew -> brew -> Brewing
+  | when (h == S_HandleUp) hPressBrew -> Run[h][m]
+  | when (m == S_NoMug) hPlaceMug -> Run[h][S_MugPlaced]
+  | when (m == S_MugPlaced) hTakeMug -> Run[h][S_NoMug]
 ),
 Brewing = (
     brew -> Brewing
-  | complete -> Run[HandleDown][MugPlaced]
+  | complete -> Run[S_HandleDown][S_MugPlaced]
   | hTakeMug -> Brewing
 ).

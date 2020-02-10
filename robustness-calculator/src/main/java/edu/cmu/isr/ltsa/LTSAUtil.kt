@@ -109,7 +109,8 @@ private fun renameConsts(spec: String, prefix: String): String {
 }
 
 fun combineSpecs(vararg specs: String): String {
-  assert(specs.size <= 26)
-  val a = 'A'
-  return specs.mapIndexed { idx, s -> renameConsts(s, (a + idx).toString()) }.joinToString("\n")
+  return specs.joinToString("\n")
+//  assert(specs.size <= 26)
+//  val a = 'A'
+//  return specs.mapIndexed { idx, s -> renameConsts(s, (a + idx).toString()) }.joinToString("\n")
 }
