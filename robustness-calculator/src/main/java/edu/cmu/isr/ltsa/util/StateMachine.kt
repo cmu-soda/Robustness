@@ -113,19 +113,20 @@ class StateMachine {
         val next = transitions.nextStates(s, a)
         if (a == tau && next.isNotEmpty())
           hasTau = true
-        next
+        next.toMutableSet()
       }
     }
     // Calculate epsilon closure
     while (hasTau) {
       hasTau = false
       for (s in reachTable.indices) {
-        val next = reachTable[s][tau] union reachTable[s][tau].flatMap {
-          if (it != -1) reachTable[it][tau] else emptySet()
-        }.toSet()
-        if (next.size != reachTable[s][tau].size)
+        val size = reachTable[s][tau].size
+        for (i in reachTable[s][tau].toSet()) {
+          if (i != -1)
+            reachTable[s][tau].addAll(reachTable[i][tau])
+        }
+        if (reachTable[s][tau].size != size)
           hasTau = true
-        reachTable[s][tau] = next
       }
     }
 
@@ -143,8 +144,15 @@ class StateMachine {
         if (a == tau)
           continue
 
-        var next = ss.flatMap { if (it != -1) reachTable[it][a] else emptySet() }.toSet()
-        next = next union next.flatMap { if (it != -1) reachTable[it][tau] else emptySet() }.toSet()
+        val next = mutableSetOf<Int>()
+        for (i in ss) {
+          if (i != -1)
+            next.addAll(reachTable[i][a])
+        }
+        for (i in next.toSet()) {
+          if (i != -1)
+            next.addAll(reachTable[i][tau])
+        }
         if (next.isEmpty())
           continue
         val i_n = if (next !in dfaStates) {

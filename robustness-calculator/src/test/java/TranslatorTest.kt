@@ -130,6 +130,10 @@ class TranslatorTest {
             "when (iSpreader == InPlace) mOutPlace -> VAR[iInterface][iBeamState][OutPlace][iPowerLevel]",
             "when (iPowerLevel != XrayLevel) mXrayLvl -> VAR[iInterface][iBeamState][iSpreader][XrayLevel]",
             "when (iPowerLevel != EBeamLevel) mEBeamLvl -> VAR[iInterface][iBeamState][iSpreader][EBeamLevel]"
+        ),
+        mapOf(
+            "hWaitBeam" to "mBeamReady", "hWaitInPlace" to "mInPlace", "hWaitOutPlace" to "mOutPlace",
+            "hWaitXrayPower" to "mXrayLvl", "hWaitEBeamPower" to "mEBeamLvl"
         )
     )
 

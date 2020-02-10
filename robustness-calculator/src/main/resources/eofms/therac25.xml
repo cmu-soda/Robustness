@@ -1,6 +1,5 @@
 <eofms>
-    <userdefinedtype name="TInterfaceState">{Edit, ConfirmXray, ConfirmEBeam, PrepXray, PrepEBeam, Administered}
-    </userdefinedtype>
+    <userdefinedtype name="TInterfaceState">{Edit, ConfirmXray, ConfirmEBeam, PrepXray, PrepEBeam, Administered}</userdefinedtype>
     <!--    <userdefinedtype name="TDisplayData">{XrayData, EBeamData}</userdefinedtype>-->
     <userdefinedtype name="TBeamState">{NotReady, Ready}</userdefinedtype>
     <userdefinedtype name="TSpreader">{OutPlace, InPlace}</userdefinedtype>
@@ -19,7 +18,11 @@
         <humanaction name="hPressUp1" behavior="autoreset"/>
         <humanaction name="hPressEnter" behavior="autoreset"/>
         <humanaction name="hPressB" behavior="autoreset"/>
-        <humanaction name="hWaitReady" behavior="autoreset"/>
+        <humanaction name="hWaitBeam" behavior="autoreset"/>
+        <humanaction name="hWaitInPlace" behavior="autoreset"/>
+        <humanaction name="hWaitOutPlace" behavior="autoreset"/>
+        <humanaction name="hWaitXrayPower" behavior="autoreset"/>
+        <humanaction name="hWaitEBeamPower" behavior="autoreset"/>
 
         <eofm>
             <activity name="aSelectXorE">
@@ -44,8 +47,7 @@
         <eofm>
             <activity name="aConfirm">
                 <precondition>(iInterface == ConfirmXray || iInterface == ConfirmEBeam)</precondition>
-                <completioncondition>iInterface == Edit || iInterface == PrepXray || iInterface == PrepEBeam
-                </completioncondition>
+                <completioncondition>iInterface == Edit || iInterface == PrepXray || iInterface == PrepEBeam</completioncondition>
                 <decomposition operator="xor">
                     <activity name="aConfirmData">
                         <completioncondition>iInterface == PrepXray || iInterface == PrepEBeam</completioncondition>
@@ -65,25 +67,60 @@
         <eofm>
             <activity name="aFireBeam">
                 <precondition>(iInterface == PrepXray || iInterface == PrepEBeam)</precondition>
-                <completioncondition>iInterface == Administered || iInterface == ConfirmXray || iInterface ==
-                    ConfirmEBeam
-                </completioncondition>
+                <completioncondition>iInterface == Administered || iInterface == ConfirmXray || iInterface == ConfirmEBeam</completioncondition>
                 <decomposition operator="xor">
                     <activity name="aGoFire">
                         <completioncondition>iInterface == Administered</completioncondition>
                         <decomposition operator="ord">
                             <activity name="aWaitReady">
                                 <completioncondition>iBeamState == Ready</completioncondition>
-                                <completioncondition>(iInterface != PrepXray || iSpreader == InPlace)
-                                </completioncondition>
-                                <completioncondition>(iInterface != PrepEBeam || iSpreader == OutPlace)
-                                </completioncondition>
-                                <completioncondition>(iInterface != PrepXray || iPowerLevel == XrayLevel)
-                                </completioncondition>
-                                <completioncondition>(iInterface != PrepEBeam || iPowerLevel == EBeamLevel)
-                                </completioncondition>
-                                <decomposition operator="ord">
-                                    <action humanaction="hWaitReady"/>
+                                <completioncondition>(iInterface != PrepXray || iSpreader == InPlace)</completioncondition>
+                                <completioncondition>(iInterface != PrepEBeam || iSpreader == OutPlace)</completioncondition>
+                                <completioncondition>(iInterface != PrepXray || iPowerLevel == XrayLevel)</completioncondition>
+                                <completioncondition>(iInterface != PrepEBeam || iPowerLevel == EBeamLevel)</completioncondition>
+                                <decomposition operator="and_par">
+                                    <activity name="aWaitBeam">
+                                        <completioncondition>iBeamState == Ready</completioncondition>
+                                        <decomposition operator="ord">
+                                            <action humanaction="hWaitBeam"/>
+                                        </decomposition>
+                                    </activity>
+                                    <activity name="aWaitSpreader">
+                                        <decomposition operator="xor">
+                                            <activity name="aWaitInPlace">
+                                                <precondition>iInterface == PrepXray</precondition>
+                                                <completioncondition>iSpreader == InPlace</completioncondition>
+                                                <decomposition operator="ord">
+                                                    <action humanaction="hWaitInPlace"/>
+                                                </decomposition>
+                                            </activity>
+                                            <activity name="aWaitOutPlace">
+                                                <precondition>iInterface == PrepEBeam</precondition>
+                                                <completioncondition>iSpreader == OutPlace</completioncondition>
+                                                <decomposition operator="ord">
+                                                    <action humanaction="hWaitOutPlace"/>
+                                                </decomposition>
+                                            </activity>
+                                        </decomposition>
+                                    </activity>
+                                    <activity name="aWaitPower">
+                                        <decomposition operator="xor">
+                                            <activity name="aWaitXrayPower">
+                                                <precondition>iInterface == PrepXray</precondition>
+                                                <completioncondition>iPowerLevel == XrayLevel</completioncondition>
+                                                <decomposition operator="ord">
+                                                    <action humanaction="hWaitXrayPower"/>
+                                                </decomposition>
+                                            </activity>
+                                            <activity name="aWaitEBeamPower">
+                                                <precondition>iInterface == PrepEBeam</precondition>
+                                                <completioncondition>iPowerLevel == EBeamLevel</completioncondition>
+                                                <decomposition operator="ord">
+                                                    <action humanaction="hWaitEBeamPower"/>
+                                                </decomposition>
+                                            </activity>
+                                        </decomposition>
+                                    </activity>
                                 </decomposition>
                             </activity>
                             <activity name="aFire">
@@ -95,8 +132,7 @@
                         </decomposition>
                     </activity>
                     <activity name="aGoBack">
-                        <completioncondition>iInterface == ConfirmXray || iInterface == ConfirmEBeam
-                        </completioncondition>
+                        <completioncondition>iInterface == ConfirmXray || iInterface == ConfirmEBeam</completioncondition>
                         <decomposition operator="ord">
                             <action humanaction="hPressUp1"/>
                         </decomposition>

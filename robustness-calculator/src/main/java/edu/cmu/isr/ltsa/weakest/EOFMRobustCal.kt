@@ -29,13 +29,13 @@ class EOFMRobustCal(
 
 
   init {
-    println("Generating the LTSA spec of the EOFM human model")
+    println("Generating the LTSA spec of the EOFM human model...")
     humanModel = genHumanModel(translator)
     humanErrModel = genHumanErrModel(translator)
     println(humanModel)
 
     // Calculate weakest assumption of the system and extract deviation traces
-    println("Generating the weakest assumption")
+    println("Generating the weakest assumption...")
     cal = RobustCal(p, humanModel, machine)
     wa = cal.weakestAssumption()
     waSinked = cal.weakestAssumption(sink = true)
@@ -88,6 +88,7 @@ class EOFMRobustCal(
   }
 
   fun errsNotRobustAgainst(vararg errType: String) {
+    println("Searching the shortest trace that contains errors '${errType.joinToString(", ")}'...")
     // Build constraint process
     val allErrors = translator.errorTypes
     val constraint = "C = (${errType.joinToString(" | ") { "$it -> C" }})+{${allErrors.joinToString(",")}}."
@@ -96,15 +97,17 @@ class EOFMRobustCal(
     val sm = StateMachine(composite.composition)
 
     fun bfs(): List<String>? {
+      val errs = errType.asList()
       val q: Queue<Triple<Int, List<String>, Set<Int>>> = LinkedList()
       val outTrans = sm.transitions.outTrans()
       q.offer(Triple(0, emptyList(), emptySet()))
       while (q.isNotEmpty()) {
         val (s, p, visited) = q.poll()
-        if (s == -1 && p.containsAll(errType.asList()))
+        if (s == -1 && p.containsAll(errs))
           return p
-        for (t in outTrans[s]?.filter { it.third !in visited } ?: emptyList()) {
-          q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
+        for (t in outTrans[s] ?: emptyList()) {
+          if (t.third !in visited)
+            q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
         }
       }
       return null
@@ -121,8 +124,12 @@ class EOFMRobustCal(
 
   fun errsRobustAgainst() {
     val traces = cal.shortestErrTraces(wa)
-    println("Generating the shorted paths to error state")
+    println("Generating the shorted paths to error state...")
+    for (t in traces) {
+      println(t)
+    }
 
+    println("Matching the error trace to erroneous human behavior model...")
     // Match each deviation trace back to the human model with error
     for (t in traces) {
       val trace = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
@@ -149,12 +156,17 @@ class EOFMRobustCal(
         val (s, p, visited) = q.poll()
         if (s == -1)
           return p
-        val ts = if (p.filter { it in cal.getAlphabet() } == trace.subList(0, trace.size - 1))
-          outTrans[s]?.filter { it.third !in visited }
-        else
-          outTrans[s]?.filter { it.third !in visited && !isHumanError(sm.alphabet[it.second]) }
-        for (t in ts ?: emptyList()) {
-          q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
+
+        val prefixMatched = p.filter { it in cal.getAlphabet() } == trace.subList(0, trace.size - 1)
+        for (t in outTrans[s] ?: emptyList()) {
+          if (t.third in visited)
+            continue
+          if (prefixMatched) {
+            q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
+          }
+          else if (!isHumanError(sm.alphabet[t.second])) {
+            q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
+          }
         }
       }
       return null
