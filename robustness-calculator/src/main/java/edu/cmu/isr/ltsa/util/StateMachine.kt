@@ -218,11 +218,12 @@ class StateMachine {
 
       val nextSearch = mutableSetOf<Int>()
       for (s in search) {
-        val trans = (outTrans[s] ?: emptyList()).filter { it.third !in visited }
-        for (t in trans) {
-          traces[t.third] = traces[t.first]!! + alphabet[t.second]
+        for (t in outTrans[s] ?: emptyList()) {
+          if (t.third !in visited) {
+            traces[t.third] = traces[t.first]!! + alphabet[t.second]
+            nextSearch.add(t.third)
+          }
         }
-        nextSearch.addAll(trans.map { it.third })
       }
       search = nextSearch
     }

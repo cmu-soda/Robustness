@@ -20,6 +20,8 @@ class EOFMRobustCal(
     relabels: Map<String, String>
 ) {
 
+  private class Node(val s: Int, val t: String, val pren: Node?)
+
   private val translator: EOFMTranslator2 = EOFMTranslator2(human, initState, world, relabels)
   private val cal: RobustCal
   private val humanModel: String
@@ -103,17 +105,36 @@ class EOFMRobustCal(
     val sm = StateMachine(composite.composition)
 
     fun bfs(): List<String>? {
-      val errs = errType.asList()
-      val q: Queue<Triple<Int, List<String>, Set<Int>>> = LinkedList()
+      val q: Queue<Node> = LinkedList()
       val outTrans = sm.transitions.outTrans()
-      q.offer(Triple(0, emptyList(), emptySet()))
+
+      q.offer(Node(0, "", null))
       while (q.isNotEmpty()) {
-        val (s, p, visited) = q.poll()
-        if (s == -1 && p.containsAll(errs))
-          return p
-        for (t in outTrans[s] ?: emptyList()) {
-          if (t.third !in visited)
-            q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
+        val n = q.poll()
+        if (n.s == -1) {
+          val errs = errType.map { it to false }.toMap().toMutableMap()
+          val p = mutableListOf<String>()
+          var nn: Node? = n
+          while (nn != null) {
+            if (nn.pren != null)
+              p.add(0, nn.t)
+            if (nn.t in errs)
+              errs[nn.t] = true
+            nn = nn.pren
+          }
+          if (errs.values.reduce { acc, b -> acc && b })
+            return p
+        } else {
+          val visited = mutableSetOf<Int>()
+          var nn: Node? = n
+          while (nn != null) {
+            visited.add(nn.s)
+            nn = nn.pren
+          }
+          for (t in outTrans[n.s] ?: emptyList()) {
+            if (t.third !in visited)
+              q.offer(Node(t.third, sm.alphabet[t.second], n))
+          }
         }
       }
       return null
