@@ -37,10 +37,6 @@ class RobustCal(val p: String, val env: String, val sys: String) {
   fun shortestErrTraces(wa: String, name: String = "WE"): List<List<String>> {
     val pEnv = projectedEnv()
     val deltaSpec = combineSpecs(pEnv, "property ||PENV = (ENV).", wa, "||D_$name = (PENV || $name).")
-    println("Internal spec to generate the error traces:")
-    println(deltaSpec)
-    println()
-
     val composite = LTSACall().doCompile(deltaSpec, "D_$name").doCompose()
     val sm = StateMachine(composite.composition)
     if (!sm.hasError()) {

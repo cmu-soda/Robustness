@@ -199,11 +199,15 @@ class StateMachine {
   }
 
   fun pathFromInit(): Map<Int, List<String>> {
-    return pathFromInitHelper { true }
+    return pathFromInitHelper { false }
   }
 
   fun pathFromInit(stop: Set<Int>): Map<Int, List<String>> {
-    return pathFromInitHelper { !it.keys.containsAll(stop) }
+    return pathFromInitHelper { it.keys.containsAll(stop) }
+  }
+
+  fun pathFromInit(stop: Int): List<String> {
+    return (pathFromInitHelper { stop in it })[stop]!!
   }
 
   private fun pathFromInitHelper(stop: (Map<Int, List<String>>) -> Boolean): Map<Int, List<String>> {
@@ -212,7 +216,7 @@ class StateMachine {
 
     val outTrans = transitions.outTrans()
     var search = mutableSetOf(0)
-    while (search.isNotEmpty() && stop(traces)) {
+    while (search.isNotEmpty() && !stop(traces)) {
       visited.addAll(search)
 
       val nextSearch = mutableSetOf<Int>()

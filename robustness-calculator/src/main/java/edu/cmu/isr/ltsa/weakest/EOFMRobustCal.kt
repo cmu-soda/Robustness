@@ -24,19 +24,21 @@ class EOFMRobustCal(
 
   private val translator: EOFMTranslator2 = EOFMTranslator2(human, initState, world, relabels)
   private val cal: RobustCal
-  private val humanModel: String
+  private val rawHumanModel: String
+  private val conciseHumanModel: String
   private val wa: String
   private val waSinked: String
 
 
   init {
     println("Generating the LTSA spec of the EOFM human model...")
-    humanModel = genHumanModel(translator)
-    println(humanModel)
+    rawHumanModel = genHumanModel()
+    conciseHumanModel = genConciseHumanModel()
+    println(conciseHumanModel)
 
     // Calculate weakest assumption of the system and extract deviation traces
     println("Generating the weakest assumption...")
-    cal = RobustCal(p, humanModel, machine)
+    cal = RobustCal(p, conciseHumanModel, machine)
     wa = cal.weakestAssumption()
     waSinked = cal.weakestAssumption(sink = true)
     println(wa)
@@ -45,13 +47,11 @@ class EOFMRobustCal(
   /**
    *
    */
-  private fun genHumanModel(translator: EOFMTranslator2): String {
-    // Translate human behavior model
-    val actions = translator.getActions()
+  private fun genHumanModel(): String {
     val builder = StringBuilder()
     translator.translate(builder)
-
     val translated = builder.toString()
+
     // Check that SYS||ENV |= P
     var spec = combineSpecs(translated, machine, p, "||T = (SYS || ENV || P).")
     val errs = LTSACall().doCompile(spec, "T").doCompose().propertyCheck()
@@ -59,26 +59,30 @@ class EOFMRobustCal(
       error("SYS || ENV |= P does not hold, property violation or deadlock:\n\r${errs.joinToString("\n\t")}")
     }
 
-    // Generate concise human model
-    spec = combineSpecs(builder.toString(), machine, "||G = (SYS || ENV)@{${actions.joinToString(", ")}}.")
-    val composite = LTSACall().doCompile(spec, "G").doCompose()
-    val conciseHuman = StateMachine(composite.composition).tauElmAndSubsetConstr().first
-    return conciseHuman.minimize().buildFSP("ENV")
+    return translated
   }
 
   /**
    *
    */
-  private fun genHumanErrModel(translator: EOFMTranslator2): String {
+  private fun genHumanErrModel(): String {
     val builder = StringBuilder()
     translator.translate(builder, withError = true)
     return builder.toString()
   }
 
-  private fun genHumanErrModel(translator: EOFMTranslator2, errs: List<String>): String {
+  private fun genHumanErrModel(errs: List<String>): String {
     val builder = StringBuilder()
     translator.translate(builder, errs = errs)
     return builder.toString()
+  }
+
+  private fun genConciseHumanModel(): String {
+    val actions = translator.getActions()
+    val spec = combineSpecs(rawHumanModel, machine, "||G = (SYS || ENV)@{${actions.joinToString(", ")}}.")
+    val composite = LTSACall().doCompile(spec, "G").doCompose()
+    val conciseHuman = StateMachine(composite.composition).tauElmAndSubsetConstr().first
+    return conciseHuman.minimize().buildFSP("ENV")
   }
 
   /**
@@ -99,7 +103,7 @@ class EOFMRobustCal(
   fun errsNotRobustAgainst(vararg errType: String) {
     println("Searching an trace that contains errors '${errType.joinToString(", ")}'...")
     // Build constraint process
-    val humanErrModel = genHumanErrModel(translator, errType.asList())
+    val humanErrModel = genHumanErrModel(errType.asList())
     val spec = combineSpecs(humanErrModel, waSinked, "property ||PWE = (WE).", "||T = (ENV || PWE).")
     val composite = LTSACall().doCompile(spec, "T").doCompose()
     val sm = StateMachine(composite.composition)
@@ -178,16 +182,16 @@ class EOFMRobustCal(
     for (t in traces) {
       println("Matching the error trace '$t' to erroneous human behavior model...")
 
-      val trace = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
-      val humanErrModel = genHumanErrModel(translator)
-      val spec = combineSpecs(humanErrModel, machine, trace, "||T = (SYS || ENV || TRACE).")
-      val tComposite = LTSACall().doCompile(spec, "T").doCompose()
-      val tSM = StateMachine(tComposite.composition)
-      shortestErrTrace(tSM, t)
+      val tSpec = "TRACE = (${t.subList(0, t.size-1).joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
+      val spec = combineSpecs(rawHumanModel, machine, tSpec, "||T = (SYS || ENV || TRACE).")
+      val composite = LTSACall().doCompile(spec, "T").doCompose()
+      val sm = StateMachine(composite.composition)
+      println(sm.pathFromInit(-1))
+      println()
     }
   }
 
-  private fun shortestErrTrace(sm: StateMachine, trace: List<String>) {
+  /*private fun shortestErrTrace(sm: StateMachine, trace: List<String>) {
     fun bfs(): List<String>? {
       val q: Queue<Triple<Int, List<String>, Set<Int>>> = LinkedList()
       val outTrans = sm.transitions.outTrans()
@@ -222,9 +226,6 @@ class EOFMRobustCal(
     }
   }
 
-  /**
-   *
-   */
   private fun buildErrorSM(sm: StateMachine, t: List<String>): StateMachine {
     val errorSM = searchErrors(sm, if (t.size > 1) t[t.size - 2] else "")
     return removeRedundant(errorSM)
@@ -274,9 +275,6 @@ class EOFMRobustCal(
     return counter[0]!!
   }
 
-  /**
-   *
-   */
   private fun searchErrors(sm: StateMachine, lastNormEvent: String): StateMachine {
     val visited = mutableSetOf<Int>()
     val visitedMap = mutableMapOf<Int, Boolean>()
@@ -328,5 +326,6 @@ class EOFMRobustCal(
     val redundant = dfaStates.indices.filter { (dfaStates[it] intersect endStates).isNotEmpty() }
     val trans = dfa.transitions.allTrans().filter { it.first !in redundant }
     return StateMachine(SimpleTransitions(trans), dfa.alphabet).minimize()
-  }
+  }*/
+
 }
