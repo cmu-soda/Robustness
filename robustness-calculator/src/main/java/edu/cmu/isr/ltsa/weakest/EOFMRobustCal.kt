@@ -23,7 +23,6 @@ class EOFMRobustCal(
   private val translator: EOFMTranslator2 = EOFMTranslator2(human, initState, world, relabels)
   private val cal: RobustCal
   private val humanModel: String
-  private val humanErrModel: String
   private val wa: String
   private val waSinked: String
 
@@ -31,7 +30,6 @@ class EOFMRobustCal(
   init {
     println("Generating the LTSA spec of the EOFM human model...")
     humanModel = genHumanModel(translator)
-    humanErrModel = genHumanErrModel(translator)
     println(humanModel)
 
     // Calculate weakest assumption of the system and extract deviation traces
@@ -75,6 +73,12 @@ class EOFMRobustCal(
     return builder.toString()
   }
 
+  private fun genHumanErrModel(translator: EOFMTranslator2, errs: List<String>): String {
+    val builder = StringBuilder()
+    translator.translate(builder, errs = errs)
+    return builder.toString()
+  }
+
   /**
    *
    */
@@ -87,12 +91,14 @@ class EOFMRobustCal(
         !a.startsWith("repeat") && !a.startsWith("reset") && !a.startsWith("skip")
   }
 
+  /**
+   *
+   */
   fun errsNotRobustAgainst(vararg errType: String) {
     println("Searching the shortest trace that contains errors '${errType.joinToString(", ")}'...")
     // Build constraint process
-    val allErrors = translator.errorTypes
-    val constraint = "C = (${errType.joinToString(" | ") { "$it -> C" }})+{${allErrors.joinToString(",")}}."
-    val spec = combineSpecs(humanErrModel, waSinked, "property ||PWE = (WE).", constraint, "||T = (ENV || PWE || C).")
+    val humanErrModel = genHumanErrModel(translator, errType.asList())
+    val spec = combineSpecs(humanErrModel, waSinked, "property ||PWE = (WE).", "||T = (ENV || PWE).")
     val composite = LTSACall().doCompile(spec, "T").doCompose()
     val sm = StateMachine(composite.composition)
 
@@ -122,6 +128,9 @@ class EOFMRobustCal(
       println("No trace found. System is robust or Try adding errors of its parent activity.\n")
   }
 
+  /**
+   *
+   */
   fun errsRobustAgainst() {
     val traces = cal.shortestErrTraces(wa)
     println("Generating the shorted paths to error state...")
@@ -134,16 +143,10 @@ class EOFMRobustCal(
       println("Matching the error trace '$t' to erroneous human behavior model...")
 
       val trace = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
-      val ltsaCall = LTSACall()
+      val humanErrModel = genHumanErrModel(translator)
       val spec = combineSpecs(humanErrModel, machine, trace, "||T = (SYS || ENV || TRACE).")
-      val tComposite = ltsaCall.doCompile(spec, "T").doCompose()
+      val tComposite = LTSACall().doCompile(spec, "T").doCompose()
       val tSM = StateMachine(tComposite.composition)
-//      println("Match error trace: $t")
-//      if (tSM.hasError()) {
-//        println(buildErrorSM(tSM, t).buildFSP("T", unused = false))
-//      } else {
-//        println("Cannot find a path in error model, potentially deadlock")
-//      }
       shortestErrTrace(tSM, t)
     }
   }

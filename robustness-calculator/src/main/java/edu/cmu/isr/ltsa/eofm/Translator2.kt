@@ -57,6 +57,10 @@ class EOFMTranslator2(
    * we need these names to append the priority of '<error>_<activity>' events.
    */
   private val translatedActivities: MutableList<String> = mutableListOf()
+
+  /**
+   *
+   */
   private val translatedActions: MutableList<String> = mutableListOf()
 
   /**
@@ -64,8 +68,10 @@ class EOFMTranslator2(
    */
   private var withError: Boolean = false
 
-  var errorTypes: List<String> = emptyList()
-    private set
+  /**
+   *
+   */
+  private var withErrs: List<String> = emptyList()
 
   init {
     // Recursively find all the activities
@@ -101,11 +107,20 @@ class EOFMTranslator2(
     return actions.map { relabels[it.name] ?: it.name }
   }
 
+  fun translate(builder: StringBuilder, withError: Boolean = false) {
+    translate(builder, withError, emptyList())
+  }
+
+  fun translate(builder: StringBuilder, errs: List<String>) {
+    translate(builder, true, errs)
+  }
+
   /**
    * The process to translate a EOFM model to LTSA.
    */
-  fun translate(builder: StringBuilder, withError: Boolean = false) {
+  private fun translate(builder: StringBuilder, withError: Boolean, errs: List<String>) {
     this.withError = withError
+    this.withErrs = errs
 
     // Append all the EOFM constants
     for (it in consts)
@@ -122,9 +137,12 @@ class EOFMTranslator2(
     val topLevelNames = topLevelActivities.map { builder.appendActivity(it) }
     builder.append("||ENV = (${topLevelNames.joinToString(" || ")})")
     if (withError) {
-      val errors = translatedActivities.map { listOf("commission_$it", "repetition_$it", "omission_$it") }
-      errorTypes = errors.flatten()
-      builder.append("<<{${errors.joinToString(",\n") { it.joinToString(",") }}\n}.\n")
+      if (errs.isEmpty()) {
+        val errors = translatedActivities.map { "commission_$it, repetition_$it, omission_$it" }
+        builder.append("<<{${errors.joinToString(",\n")}\n}.\n")
+      } else {
+        builder.append("<<{${errs.joinToString(", ")}}.\n")
+      }
     } else {
       builder.append(".\n")
     }
@@ -556,7 +574,7 @@ class EOFMTranslator2(
       this.append("start_$name -> VAR$variables\n")
 
       // !!!IMPORTANT: Append commission error
-      if (withError) {
+      if (withError && (withErrs.isEmpty() || "commission_$name" in withErrs)) {
         this.append(tab); tab = "\t|\t"
         this.append("when (!($cond)) ")
         this.append("start_$name -> commission_$name -> VAR$variables\n")
@@ -582,7 +600,7 @@ class EOFMTranslator2(
       this.append("repeat_$name -> VAR$variables\n")
 
       // !!!IMPORTANT: Append repetition error
-      if (withError) {
+      if (withError && (withErrs.isEmpty() || "repetition_$name" in withErrs)) {
         this.append(tab); tab = "\t|\t"
         this.append("when (!($cond)) ")
         this.append("repeat_$name -> repetition_$name -> VAR$variables\n")
@@ -601,7 +619,7 @@ class EOFMTranslator2(
       this.append("end_$name -> VAR$variables\n")
 
       // !!!IMPORTANT: Append omission error!!!
-      if (withError) {
+      if (withError && (withErrs.isEmpty() || "omission_$name" in withErrs)) {
         this.append(tab); tab = "\t|\t"
         this.append("when (!($cond)) ")
         this.append("end_$name -> omission_$name -> VAR$variables\n")
