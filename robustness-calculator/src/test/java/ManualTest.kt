@@ -28,23 +28,6 @@ class ManualTest {
   }
 
   @Test
-  fun testErrorTrace1() {
-    val s = ClassLoader.getSystemResource("specs/coffee_eofm/test_error_trace.lts").readText()
-    val ltsaCall = LTSACall()
-    val composite = ltsaCall.doCompile(s, "T").doCompose()
-    val sm = StateMachine(composite.composition)
-
-    val paths = sm.pathToInit()
-//    val traces = mutableListOf<String>()
-    val transToErr = sm.transitions.inTrans()[-1] ?: emptyList()
-    for (t in transToErr) {
-      val trace = (paths[t.first] ?: error(t.first)) + sm.alphabet[t.second]
-      println("Length: ${trace.size}")
-      println("TRACE = (\n${trace.joinToString(" -> \n")} -> END).\n")
-    }
-  }
-
-  @Test
   fun testCoffee() {
     val p = ClassLoader.getSystemResource("specs/coffee_eofm/p.lts").readText()
     val sys = ClassLoader.getSystemResource("specs/coffee_eofm/machine.lts").readText()

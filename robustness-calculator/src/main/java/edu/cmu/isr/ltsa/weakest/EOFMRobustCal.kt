@@ -97,20 +97,27 @@ class EOFMRobustCal(
    *
    */
   fun errsNotRobustAgainst(vararg errType: String) {
-    println("Searching the shortest trace that contains errors '${errType.joinToString(", ")}'...")
+    println("Searching an trace that contains errors '${errType.joinToString(", ")}'...")
     // Build constraint process
     val humanErrModel = genHumanErrModel(translator, errType.asList())
     val spec = combineSpecs(humanErrModel, waSinked, "property ||PWE = (WE).", "||T = (ENV || PWE).")
     val composite = LTSACall().doCompile(spec, "T").doCompose()
     val sm = StateMachine(composite.composition)
+    if (!sm.hasError()) {
+      println("System is robust against errors '${errType.joinToString(", ")}'")
+      return
+    }
 
     fun bfs(): List<String>? {
       val q: Queue<Node> = LinkedList()
+      val visited = mutableSetOf<Int>()
       val outTrans = sm.transitions.outTrans()
 
       q.offer(Node(0, "", null))
       while (q.isNotEmpty()) {
         val n = q.poll()
+        if (n.s in visited)
+          continue
         if (n.s == -1) {
           val errs = errType.map { it to false }.toMap().toMutableMap()
           val p = mutableListOf<String>()
@@ -125,12 +132,7 @@ class EOFMRobustCal(
           if (errs.values.reduce { acc, b -> acc && b })
             return p
         } else {
-          val visited = mutableSetOf<Int>()
-          var nn: Node? = n
-          while (nn != null) {
-            visited.add(nn.s)
-            nn = nn.pren
-          }
+          visited.add(n.s)
           for (t in outTrans[n.s] ?: emptyList()) {
             if (t.third !in visited)
               q.offer(Node(t.third, sm.alphabet[t.second], n))
@@ -141,20 +143,33 @@ class EOFMRobustCal(
     }
 
     val t = bfs()
-    val ft = t?.filter { isAction(it) || isHumanError(it) }
-    if (ft != null) {
+
+//    val traces = mutableListOf<List<String>>()
+//    val transToErr = sm.transitions.inTrans()[-1] ?: emptyList()
+//    val paths = sm.pathFromInit(transToErr.map { it.first }.toSet())
+//    for (t in transToErr) {
+//      traces.add((paths[t.first] ?: error(t.first)) + sm.alphabet[t.second])
+//    }
+//    val t = traces.filter { it.containsAll(errType.asList()) }.minBy { it.size }
+
+    if (t != null) {
+      val ft = t.filter { isAction(it) || isHumanError(it) }
       println("Found a trace to property violation with '${errType.joinToString(", ")}':")
       println("\t${ft.joinToString("\n\t")}\n")
     } else
-      println("No trace found. System is robust or Try adding errors of its parent activity.\n")
+      println("ERROR: Cannot find an error trace.\n")
   }
 
   /**
    *
    */
   fun errsRobustAgainst() {
-    val traces = cal.shortestErrTraces(wa)
     println("Generating the shorted paths to error state...")
+    val traces = cal.shortestErrTraces(wa)
+    if (traces.isEmpty()) {
+      println("No error found. The weakest assumption to satisfy p has less behavior than the env.")
+      return
+    }
     for (t in traces) {
       println(t)
     }

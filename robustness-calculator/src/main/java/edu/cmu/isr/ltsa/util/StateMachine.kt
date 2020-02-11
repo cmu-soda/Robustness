@@ -198,16 +198,15 @@ class StateMachine {
     return Pair(StateMachine(SimpleTransitions(dfaTrans), alphabet), dfaStates)
   }
 
-  fun pathToInit(): Map<Int, List<String>> {
-    return pathToInitHelper { true }
+  fun pathFromInit(): Map<Int, List<String>> {
+    return pathFromInitHelper { true }
   }
 
-  fun pathToInit(stop: Int): List<String>? {
-    val traces = pathToInitHelper { stop !in it }
-    return traces[stop]
+  fun pathFromInit(stop: Set<Int>): Map<Int, List<String>> {
+    return pathFromInitHelper { !it.keys.containsAll(stop) }
   }
 
-  private fun pathToInitHelper(stop: (Map<Int, List<String>>) -> Boolean): Map<Int, List<String>> {
+  private fun pathFromInitHelper(stop: (Map<Int, List<String>>) -> Boolean): Map<Int, List<String>> {
     val traces = mutableMapOf<Int, List<String>>(0 to emptyList())
     val visited = mutableListOf<Int>()
 
