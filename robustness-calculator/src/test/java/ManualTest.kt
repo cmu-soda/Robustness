@@ -85,4 +85,15 @@ class ManualTest {
     cal.errsRobustAgainst()
   }
 
+  @Test
+  fun testTheracR() {
+    val p = ClassLoader.getSystemResource("specs/therac25/p.lts").readText()
+    val sys = ClassLoader.getSystemResource("specs/therac25/sys_r.lts").readText()
+    val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25.xml"))
+    val config = TheracConfig()
+    val cal = EOFMRobustCal(sys, p, therac, config.initialValues, config.world, config.relabels)
+
+    cal.errsRobustAgainst()
+  }
+
 }

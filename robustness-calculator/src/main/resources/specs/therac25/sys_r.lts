@@ -1,0 +1,44 @@
+const S_Unknown = 0
+const S_InPlace = 1
+const S_OutPlace = 2
+range S_TSpreader = S_Unknown..S_OutPlace
+
+const S_NotSet = 0
+const S_XrayPower = 1
+const S_EBeamPower = 2
+range S_TPower = S_NotSet..S_EBeamPower
+
+INTERFACE = EDIT[S_Unknown][S_NotSet],
+EDIT[iSpreader:S_TSpreader][iPower:S_TPower] = (
+      hPressX -> CONFIRM[iSpreader][iPower] | hPressE -> CONFIRM[iSpreader][iPower]
+    | mInPlace -> EDIT[S_InPlace][iPower] | mOutPlace -> EDIT[S_OutPlace][iPower]
+    | mXrayLvl -> EDIT[iSpreader][S_XrayPower] | mEBeamLvl -> EDIT[iSpreader][S_EBeamPower]
+),
+CONFIRM[iSpreader:S_TSpreader][iPower:S_TPower] = (
+      hPressUp -> EDIT[iSpreader][iPower]  | hPressEnter -> PREP[iSpreader][iPower]
+    | mInPlace -> CONFIRM[S_InPlace][iPower] | mOutPlace -> CONFIRM[S_OutPlace][iPower]
+    | mXrayLvl -> CONFIRM[iSpreader][S_XrayPower] | mEBeamLvl -> CONFIRM[iSpreader][S_EBeamPower]
+),
+PREP[iSpreader:S_TSpreader][iPower:S_TPower] = (
+      when (iSpreader == S_InPlace && iPower == S_XrayPower) hPressB -> FIRE
+    | when (iSpreader == S_OutPlace && iPower == S_EBeamPower) hPressB -> FIRE
+    | when (!(iSpreader == S_InPlace && iPower == S_XrayPower) && !(iSpreader == S_OutPlace && iPower == S_EBeamPower)) hPressB -> PREP[iSpreader][iPower]
+    | hPressUp1 -> CONFIRM[iSpreader][iPower]
+    | mInPlace -> PREP[S_InPlace][iPower] | mOutPlace -> PREP[S_OutPlace][iPower]
+    | mXrayLvl -> PREP[iSpreader][S_XrayPower] | mEBeamLvl -> PREP[iSpreader][S_EBeamPower]
+),
+FIRE = (mFire -> FIRE).
+
+SPREADER = (hPressX -> TOINPLACE | hPressE -> TOOUTPLACE),
+TOINPLACE = (hPressX -> TOINPLACE | mInPlace -> INPLACE | hPressE -> TOOUTPLACE),
+INPLACE = (hPressX -> INPLACE | hPressE -> TOOUTPLACE),
+TOOUTPLACE = (hPressX -> TOINPLACE | mOutPlace -> OUTPLACE | hPressE -> TOOUTPLACE),
+OUTPLACE = (hPressX -> TOINPLACE | hPressE -> OUTPLACE).
+
+POWER = (hPressX -> TOXRAY | hPressE -> TOEBEAM),
+TOXRAY = (hPressX -> TOXRAY | hPressE -> TOEBEAM | mXrayLvl -> XRAY),
+TOEBEAM = (hPressX -> TOXRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),
+XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),
+EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY).
+
+||SYS = (INTERFACE || SPREADER || POWER).
