@@ -3,12 +3,12 @@ package edu.cmu.isr.ltsa.weakest
 import edu.cmu.isr.ltsa.LTSACall
 import edu.cmu.isr.ltsa.combineSpecs
 import edu.cmu.isr.ltsa.doCompose
+import edu.cmu.isr.ltsa.eofm.Action
+import edu.cmu.isr.ltsa.eofm.Activity
 import edu.cmu.isr.ltsa.eofm.EOFMS
 import edu.cmu.isr.ltsa.eofm.EOFMTranslator2
 import edu.cmu.isr.ltsa.propertyCheck
-import edu.cmu.isr.ltsa.util.SimpleTransitions
 import edu.cmu.isr.ltsa.util.StateMachine
-import edu.cmu.isr.ltsa.util.Transition
 import java.util.*
 
 class EOFMRobustCal(
@@ -177,39 +177,60 @@ class EOFMRobustCal(
     for (t in traces) {
       println(t)
     }
+    println()
 
     // Match each deviation trace back to the human model with error
+    println("Matching the error trace to the erroneous human behavior model...")
     for (t in traces) {
-      println("Matching the error trace '$t' to erroneous human behavior model...")
+      // Match the normative prefix with the human model to get activity states
+      val normPrefix = t.subList(0, t.size - 1)
+      val activityStates = matchNormTrace(normPrefix).filter { !isAction(it) }
+      val path = translator.pathToAction(t.last())
+      val errs = matchErros(path.reversed(), activityStates)
+      println("Finding shortest human error trace to represent $t:")
+      println("Potential errors: $errs")
 
-      val tSpec = "TRACE = (${t.subList(0, t.size-1).joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
-      val spec = combineSpecs(rawHumanModel, machine, tSpec, "||T = (SYS || ENV || TRACE).")
+      val humanErrModel = genHumanErrModel(errs.toList())
+      val tSpec = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
+      val spec = combineSpecs(humanErrModel, machine, tSpec, "||T = (SYS || ENV || TRACE).")
       val composite = LTSACall().doCompile(spec, "T").doCompose()
       val sm = StateMachine(composite.composition)
-      println(sm.pathFromInit(-1))
-      println()
+      shortestErrTrace(sm, t)
     }
   }
 
-  /*private fun shortestErrTrace(sm: StateMachine, trace: List<String>) {
-    fun bfs(): List<String>? {
-      val q: Queue<Triple<Int, List<String>, Set<Int>>> = LinkedList()
-      val outTrans = sm.transitions.outTrans()
-      q.offer(Triple(0, emptyList(), emptySet()))
-      while (q.isNotEmpty()) {
-        val (s, p, visited) = q.poll()
-        if (s == -1)
-          return p
+  private fun shortestErrTrace(sm: StateMachine, trace: List<String>) {
 
-        val prefixMatched = p.filter { it in cal.getAlphabet() } == trace.subList(0, trace.size - 1)
-        for (t in outTrans[s] ?: emptyList()) {
-          if (t.third in visited)
-            continue
-          if (prefixMatched) {
-            q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
-          }
-          else if (!isHumanError(sm.alphabet[t.second])) {
-            q.offer(Triple(t.third, p + sm.alphabet[t.second], visited + s))
+    fun bfs(): List<String>? {
+      val q: Queue<Node> = LinkedList()
+      val visited = mutableSetOf<Int>()
+      val outTrans = sm.transitions.outTrans()
+      var matched = false
+
+      q.offer(Node(0, "", null))
+      while (q.isNotEmpty()) {
+        val n = q.poll()
+        if (n.s in visited)
+          continue
+        val p = mutableListOf<String>()
+        var nn: Node? = n
+        while (nn != null) {
+          if (nn.pren != null && (isAction(nn.t) || isHumanError(nn.t)))
+            p.add(0, nn.t)
+          nn = nn.pren
+        }
+        if (n.s == -1) {
+          return p
+        } else {
+          visited.add(n.s)
+          matched = matched || p.filter { it in cal.getAlphabet() } == trace.subList(0, trace.size - 1)
+          for (t in outTrans[n.s] ?: emptyList()) {
+            if (t.third in visited)
+              continue
+            if (matched)
+              q.offer(Node(t.third, sm.alphabet[t.second], n))
+            else if (!isHumanError(sm.alphabet[t.second]))
+              q.offer(Node(t.third, sm.alphabet[t.second], n))
           }
         }
       }
@@ -217,15 +238,117 @@ class EOFMRobustCal(
     }
 
     val t = bfs()
-    val ft = t?.filter { isAction(it) || isHumanError(it) }
-    if (ft != null) {
-      println("Found shortest human error trace to represent $trace:")
-      println("\t${ft.joinToString("\n\t")}\n")
+    if (t != null) {
+      println("\t${t.joinToString("\n\t")}\n")
     } else {
-      println("No trace found for $trace. Potentially deadlock.\n")
+      println("ERROR: No trace found for $trace.\n")
     }
   }
 
+  private fun matchNormTrace(t: List<String>): List<String> {
+    val tSpec = "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${cal.getAlphabet().joinToString(",")}}."
+    val spec = combineSpecs(rawHumanModel, machine, tSpec, "||T = (SYS || ENV || TRACE).")
+    val composite = LTSACall().doCompile(spec, "T").doCompose()
+    val sm = StateMachine(composite.composition)
+    return sm.pathFromInit(-1)
+  }
+
+  /**
+   * @ensures path is from the last activity directly connected to the action to the root activity.
+   */
+  private fun matchErros(path: List<Activity>, states: List<String>): Set<String> {
+    val errs = mutableSetOf<String>()
+    var i = 0
+    var substates = states
+    while (i < path.size) {
+      val a = path[i]
+      val s = lastStateOfActivity(substates, a)
+      if (s == null || s.startsWith("end_")) { // the activity has not started or ended
+        errs.add("commission_${translator.translatedName(a)}")
+      } else { // the activity has started or repeated
+        errs.add("repetition_${translator.translatedName(a)}")
+        break
+      }
+      i++
+    }
+    i = if (i == path.size) i - 1 else i
+    while (i > 0) {
+      val a = path[i]
+      val idx = lastStateIndexOfActivity(substates, a)
+      substates = substates.subList(if (idx == -1) 0 else idx, substates.size)
+
+      val op = a.decomposition.operator
+      val subs = a.decomposition.subActivities
+      // If op is 'ord', then all the siblings before this activity should have already ended or have omission error.
+      if (op == "ord") {
+        var j = 0
+        while (j < subs.size) {
+          val s = lastStateOfActivity(substates, subs[j] as Activity)
+          if (s != null && (s.startsWith("start_") || s.startsWith("repeat_")))
+            break
+          j++
+        }
+        var k = subs.indexOf(path[i-1])
+        k = if (j > k) k + subs.size else k
+        while (j < k) {
+          val sub = subs[j % subs.size] as Activity
+          val s = lastStateOfActivity(substates, sub)
+          errs.add("omission_${translator.translatedName(sub)}")
+          if (s != null && (s.startsWith("start_") || s.startsWith("repeat_"))) {
+            errs.addAll(matchOmissions(sub, substates.subList(substates.indexOf(s), substates.size)))
+          }
+          j++
+        }
+      } else {
+        for (sub in subs) {
+          val s = lastStateOfActivity(substates, sub as Activity)
+          if (s != null && (s.startsWith("start_") || s.startsWith("repeat_"))) {
+            errs.add("omission_${translator.translatedName(sub)}")
+            errs.addAll(matchOmissions(sub, substates.subList(substates.indexOf(s), substates.size)))
+          }
+        }
+      }
+      i--
+    }
+
+    return errs
+  }
+
+  /**
+   * @ensures activity should already started
+   */
+  private fun matchOmissions(activity: Activity, states: List<String>): Set<String> {
+    val errs = mutableSetOf<String>()
+    val op = activity.decomposition.operator
+    val subs = activity.decomposition.subActivities
+    if (op == "ord" && subs.first() is Action)
+      return errs
+    // if the decomposition operator for the current node is 'and' or 'ord', then all its children should either
+    // already ended or have omission error.
+    if (op.startsWith("and") || op == "ord") {
+      for (sub in subs) {
+        val s = lastStateOfActivity(states, sub as Activity)
+        if (s == null)  // the sub-activity has not started
+          errs.add("omission_${translator.translatedName(sub)}")
+        else if (s.startsWith("start_") || s.startsWith("repeat_")) { // has started but not ended
+          errs.add("omission_${translator.translatedName(sub)}")
+          errs.addAll(matchOmissions(sub, states.subList(states.indexOf(s), states.size)))
+        }
+      }
+    }
+
+    return errs
+  }
+
+  private fun lastStateOfActivity(states: List<String>, activity: Activity): String? {
+    return states.findLast { it.endsWith(translator.translatedName(activity)) }
+  }
+
+  private fun lastStateIndexOfActivity(states: List<String>, activity: Activity): Int {
+    return states.indexOfLast { it.endsWith(translator.translatedName(activity)) }
+  }
+
+  /*
   private fun buildErrorSM(sm: StateMachine, t: List<String>): StateMachine {
     val errorSM = searchErrors(sm, if (t.size > 1) t[t.size - 2] else "")
     return removeRedundant(errorSM)

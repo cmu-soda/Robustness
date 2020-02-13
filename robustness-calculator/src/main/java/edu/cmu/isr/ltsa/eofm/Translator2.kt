@@ -56,12 +56,12 @@ class EOFMTranslator2(
    * The list of activities that are translated when translating a top-level activity. When translating with error,
    * we need these names to append the priority of '<error>_<activity>' events.
    */
-  private val translatedActivities: MutableList<String> = mutableListOf()
+  private val translatedActivities: MutableMap<Activity, String> = mutableMapOf()
 
   /**
    *
    */
-  private val translatedActions: MutableList<String> = mutableListOf()
+  private val translatedActions: MutableMap<Action, String> = mutableMapOf()
 
   /**
    * The flag indicating whether injecting errors (omission, commission, repetition) to the translation.
@@ -107,6 +107,62 @@ class EOFMTranslator2(
     return actions.map { relabels[it.name] ?: it.name }
   }
 
+  /**
+   *
+   */
+  fun pathBetweenActions(x: String, y: String): Triple<Activity, List<Activity>, List<Activity>> {
+    val pathX = pathToAction(x)
+    val pathY = pathToAction(y)
+    var i = 0
+    while (i < pathX.size && i < pathY.size) {
+      if (pathX[i] !== pathY[i])
+        break
+      i++
+    }
+    val root = if (i > 0)
+      pathX[i-1] as Activity
+    else Activity(
+        name = "VROOT",
+        decomposition = Decomposition(operator = "optor_par", subActivities = listOf(pathX[0], pathY[0]))
+    )
+    return Triple(root, pathX.subList(i, pathX.size), pathY.subList(i, pathY.size))
+  }
+
+  /**
+   *
+   */
+  fun pathToAction(x: String): List<Activity> {
+    fun dfs(a: Any, p: List<Any>): List<Activity>? {
+      when (a) {
+        is Action -> return if (a.humanAction == x || relabels[a.humanAction] == x) p as List<Activity> else null
+        is Activity -> {
+          for (sub in a.decomposition.subActivities) {
+            val r = dfs(sub, p + a)
+            if (r != null)
+              return r
+          }
+          return null
+        }
+        else -> error("Unknown EOFM node '$a'")
+      }
+    }
+
+    for (top in topLevelActivities) {
+      val r = dfs(top, emptyList())
+      if (r != null)
+        return r
+    }
+    error("Cannot find such action '$x' in the EOFM model")
+  }
+
+  fun translatedName(a: Activity): String {
+    return translatedActivities[a]?: error("No such activity: ${a.name}")
+  }
+
+  fun translatedName(a: Action): String {
+    return translatedActions[a]?: error("No such action: ${a.humanAction}")
+  }
+
   fun translate(builder: StringBuilder, withError: Boolean = false) {
     translate(builder, withError, emptyList())
   }
@@ -138,7 +194,7 @@ class EOFMTranslator2(
     builder.append("||ENV = (${topLevelNames.joinToString(" || ")})")
     if (withError) {
       if (errs.isEmpty()) {
-        val errors = translatedActivities.map { "commission_$it, repetition_$it, omission_$it" }
+        val errors = translatedActivities.values.map { "commission_$it, repetition_$it, omission_$it" }
         builder.append("<<{${errors.joinToString(",\n")}\n}.\n")
       } else {
         builder.append("<<{${errs.joinToString(", ")}}.\n")
@@ -149,15 +205,13 @@ class EOFMTranslator2(
   }
 
   private fun genActivityProcessName(activity: Activity): String {
+    val i = translatedActivities.keys.count { it.name == activity.name }
     val name = activity.name.capitalize()
-    val i = translatedActivities.count { it == name }
     return if (i == 0) name else "$name$i"
   }
 
   private fun genActionProcessName(action: Action): String {
-    val name = action.humanAction!!.capitalize()
-    val i = translatedActions.count { it == name }
-    return if (i == 0) name else "$name$i"
+    return action.humanAction!!.capitalize()
   }
 
   /**
@@ -186,7 +240,7 @@ class EOFMTranslator2(
   private fun StringBuilder.appendActivity(activity: Activity, ancestors: List<String> = emptyList()): String {
     // Name of the translated process (should be capitalized)
     val name = genActivityProcessName(activity)
-    translatedActivities.add(name)
+    translatedActivities[activity] = name
     // The list of ancestors passed to children activities/actions
     val nextAncestors = ancestors + name
     // The list of all the sub-activities/actions
@@ -233,7 +287,7 @@ class EOFMTranslator2(
 
     // Process name of this action (should be capitalized).
     val actName = genActionProcessName(action)
-    translatedActions.add(actName)
+    translatedActions[action] = actName
 
     /*
      * A helper function to append the action process. For an action A in the following hierarchy, P1 -> P2 -> A
