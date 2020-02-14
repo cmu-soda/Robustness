@@ -1,5 +1,0 @@
-COFFEE = (hLiftHandle -> COFFEE_4 | hPlaceMug -> COFFEE_1),
-COFFEE_1 = (hLiftHandle -> COFFEE_3 | hPressBrew -> COFFEE_2 | hTakeMug -> COFFEE),
-COFFEE_2 = (mBrewDone -> COFFEE_1),
-COFFEE_3 = (hLowerHandle -> COFFEE_1 | hPressBrew -> COFFEE_3 | hTakeMug -> COFFEE_4),
-COFFEE_4 = (hPlaceMug -> COFFEE_3 | hLowerHandle -> COFFEE | hPressBrew -> COFFEE_4).

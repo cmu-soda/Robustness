@@ -1,4 +1,4 @@
-package edu.cmu.isr.ltsa.eofm
+package edu.cmu.isr.robust.eofm
 
 import com.fasterxml.jackson.annotation.*
 import com.fasterxml.jackson.dataformat.xml.JacksonXmlModule

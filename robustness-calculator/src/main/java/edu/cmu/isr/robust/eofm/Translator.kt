@@ -1,4 +1,4 @@
-package edu.cmu.isr.ltsa.eofm
+package edu.cmu.isr.robust.eofm
 
 class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
 

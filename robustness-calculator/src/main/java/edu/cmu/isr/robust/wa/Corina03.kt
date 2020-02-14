@@ -1,24 +1,15 @@
-package edu.cmu.isr.ltsa.lstar
+package edu.cmu.isr.robust.wa
 
-import edu.cmu.isr.ltsa.LTSACall
-import edu.cmu.isr.ltsa.getAllAlphabet
-import edu.cmu.isr.ltsa.getCompositeName
-import edu.cmu.isr.ltsa.propertyCheck
+import edu.cmu.isr.robust.ltsa.LTSACall
+import edu.cmu.isr.robust.ltsa.getAllAlphabet
+import edu.cmu.isr.robust.ltsa.getCompositeName
+import edu.cmu.isr.robust.ltsa.propertyCheck
 
-fun main(args: Array<String>) {
-  val P = "property P = (input -> output -> P)."
-  val M1 = ClassLoader.getSystemResource("SENDER = (input -> SENDING), SENDING = (send -> (getack -> SENDER | timeout -> SENDING)).\nRECEIVER = (rec -> output -> ack -> RECEIVER).\n||SYS = (SENDER || RECEIVER).").readText()
-  val M2 = ClassLoader.getSystemResource("ENV = (send -> rec -> ack -> getack -> ENV).").readText()
-
-  val lStar = CorinaLStar(M1, M2, P)
-  lStar.run()
-}
-
-private class CorinaLStar(val M1: String, val M2: String, val P: String) {
+class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(M1, M2, p) {
   private val Σ: Set<String>
-  private val S = mutableSetOf<String>("")
-  private val E = mutableSetOf<String>("")
-  private val T = mutableMapOf<String, Boolean>("" to true)
+  private val S = mutableSetOf("")
+  private val E = mutableSetOf("")
+  private val T = mutableMapOf("" to true)
   private val nameM1: String
   private val nameM2: String
   private val nameP: String
@@ -34,7 +25,7 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
     val αM2 = sm.getAllAlphabet()
     nameM2 = sm.getCompositeName()
 
-    sm = ltsaCall.doCompile(P)
+    sm = ltsaCall.doCompile(p)
     val αP = sm.getAllAlphabet()
     nameP = sm.getCompositeName()
 
@@ -44,15 +35,19 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
     println("Σ of the language: $Σ")
   }
 
-  fun run(): String {
+  override fun alphabetOfWA(): Iterable<String> {
+    return Σ
+  }
+
+  override fun weakestAssumption(name: String): String {
     val ltsaCall = LTSACall()
     while (true) {
       println("========== Find assumption for M1 ==========")
       val A = lstar()
-      val A_fsp = conjectureToFSP(A)
+      val A_fsp = conjectureToFSP(A, name)
       println("========== Validate conjecture assumption with the environment M2 ==========")
       val counterExample = ltsaCall.doCompile(
-        "$M2\nproperty $A_fsp\n||Composite = ($nameM2 || C).", "Composite"
+        "$M2\nproperty $A_fsp\n||Composite = ($nameM2 || $name).", "Composite"
       ).propertyCheck()
       if (counterExample == null) {
         println("========== Find the weakest assumption for M1 ==========\n$A_fsp")
@@ -62,19 +57,22 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
         val projected = counterExample.filter { it in Σ }
         val A_c = "AC = (${projected.joinToString(" -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
         val check = ltsaCall.doCompile(
-          "$A_c\n$M1\n$P\n||Composite = (AC || $nameM1 || $nameP).", "Composite"
+          "$A_c\n$M1\n$p\n||Composite = (AC || $nameM1 || $nameP).", "Composite"
         ).propertyCheck()
         if (check == null) {
           println("========== Weaken the assumption for M1 ==========")
           witnessOfCounterExample(A, projected)
         } else {
-          throw Error("P is violated in M1 || M2.")
+          error("P is violated in M1 || M2.")
         }
       }
     }
   }
 
-  fun lstar(): Set<Triple<String, String, String>> {
+  /**
+   *
+   */
+  private fun lstar(): Set<Triple<String, String, String>> {
     while (true) {
       updateTwithQueries()
       while (true) {
@@ -125,7 +123,7 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
     val ltsaCall = LTSACall()
     val fsp = conjectureToFSP(C)
     return ltsaCall.doCompile(
-      "$fsp\n$M1\n$P\n||Composite = (C || $nameM1 || $nameP).", "Composite"
+      "$fsp\n$M1\n$p\n||Composite = (C || $nameM1 || $nameP).", "Composite"
     ).propertyCheck()
   }
 
@@ -147,12 +145,12 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
     return δ
   }
 
-  private fun conjectureToFSP(δ: Set<Triple<String, String, String>>): String {
+  private fun conjectureToFSP(δ: Set<Triple<String, String, String>>, name: String = "C"): String {
     // Final states of the conjecture automaton
     val F = δ.map { it.first }.toSet()
     // Since F \subseteq S where S \subseteq Σ*, thus map F to other names to generate the FSP spec.
     val F_map = F.foldIndexed(mutableMapOf<String, String>()) { i, m, s ->
-      m[s] = if (s == "") "C" else "C$i"
+      m[s] = if (s == "") name else "$name$i"
       m
     }
     // Divide the FSP spec into several sub processes, like A = (a -> B), B = (b -> A).
@@ -164,11 +162,11 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
       sm[F_map[t.first]]!!.add("${t.second} -> ${F_map[t.third]}")
     }
     // Build the FSP spec, C is the main process which must exist.
-    val C = StringBuilder("C = (")
-    C.append(sm["C"]!!.joinToString(" | "))
+    val C = StringBuilder("$name = (")
+    C.append(sm[name]!!.joinToString(" | "))
     C.append(')')
     // Other sub-process
-    val C_tmp = sm.filter { it.key != "C" }
+    val C_tmp = sm.filter { it.key != name }
     if (C_tmp.isNotEmpty()) {
       C.append(",\n")
       val subs = C_tmp.map { "${it.key} = (${it.value.joinToString(" | ")})" }
@@ -231,7 +229,7 @@ private class CorinaLStar(val M1: String, val M2: String, val P: String) {
     val ltsaCall = LTSACall()
     val fsp = "A = (${σ.replace(",", " -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
     return ltsaCall.doCompile(
-      "$fsp\n$M1\n$P\n||Composite = (A || $nameM1 || $nameP).", "Composite"
+      "$fsp\n$M1\n$p\n||Composite = (A || $nameM1 || $nameP).", "Composite"
     ).propertyCheck() == null
   }
 

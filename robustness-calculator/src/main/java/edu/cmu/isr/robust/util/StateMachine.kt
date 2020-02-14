@@ -1,8 +1,9 @@
-package edu.cmu.isr.ltsa.util
+package edu.cmu.isr.robust.util
 
-import edu.cmu.isr.ltsa.LTSACall
-import edu.cmu.isr.ltsa.doCompose
-import edu.cmu.isr.ltsa.minimise
+import edu.cmu.isr.robust.ltsa.LTSACall
+import edu.cmu.isr.robust.ltsa.doCompose
+import edu.cmu.isr.robust.ltsa.escapeEvent
+import edu.cmu.isr.robust.ltsa.minimise
 import lts.CompactState
 import java.util.*
 
@@ -75,22 +76,6 @@ class StateMachine {
     val ltsaCall = LTSACall()
     val composite = ltsaCall.doCompile(fsp).doCompose().minimise()
     return StateMachine(composite.composition)
-  }
-
-  /**
-   * Rename the events:
-   * if e == "tau" then e' = "_tau_"
-   * if e match abc.123 then e' = abc[123]
-   */
-  private fun escapeEvent(e: String): String {
-    if (e == "tau")
-      return "_tau_"
-    val idx = e.lastIndexOf('.')
-    val suffix = e.substring(idx + 1)
-    if (suffix.toIntOrNull() != null) {
-      return "${e.substring(0, idx)}[$suffix]"
-    }
-    return e
   }
 
   /**

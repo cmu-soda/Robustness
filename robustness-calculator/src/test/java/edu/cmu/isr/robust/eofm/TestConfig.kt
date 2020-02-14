@@ -1,3 +1,5 @@
+package edu.cmu.isr.robust.eofm
+
 interface TestConfig {
   val initialValues: Map<String, String>
   val world: List<String>

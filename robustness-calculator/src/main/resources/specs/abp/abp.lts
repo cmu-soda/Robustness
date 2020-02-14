@@ -1,17 +1,13 @@
-range BIT = 0 .. 1
+range B= 0..1
 
-TRANSMITTER = ACCEPT[0],
-ACCEPT[b:BIT] = (input -> SEND[b]),
-SEND[b:BIT] = (send[b] -> SENDING[b]),
-SENDING[b:BIT] = (txto -> SEND[b]
-                | getack[b] -> ACCEPT[!b]
-                | getack[!b] -> SENDING[b]).
+INPUT = (input -> SENDING[0]),
+SENDING[b:B] = (send[b] -> SENDING[b]
+              | getack[b] -> input -> SENDING[!b]
+              | getack[!b] -> SENDING[b]).
 
-RECEIVER = REPLY[1],
-DELIVER[b:BIT] = (output -> REPLY[b]),
-REPLY[b:BIT] = (ack[b] -> REPLYING[b]),
-REPLYING[b:BIT] = (rxto -> REPLY[b]
-                 | rec[!b] -> DELIVER[!b]
-                 | rec[b] -> REPLYING[b]).
+OUTPUT = (rec[0] -> output -> ACKING[0]),
+ACKING[b:B] = (ack[b] -> ACKING[b]
+             | rec[b] -> ACKING[b]
+             | rec[!b] -> output -> ACKING[!b]).
 
-||SYS = (TRANSMITTER || RECEIVER)\{txto, rxto}.
+||SYS = (INPUT || OUTPUT).

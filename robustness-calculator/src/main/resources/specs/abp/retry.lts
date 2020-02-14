@@ -1,3 +1,0 @@
-SENDER = (input -> SENDING), SENDING = (send -> (getack -> SENDER | timeout -> SENDING)).
-RECEIVER = (rec -> output -> ack -> RECEIVER).
-||SYS = (SENDER || RECEIVER).

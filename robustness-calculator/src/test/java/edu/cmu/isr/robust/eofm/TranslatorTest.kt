@@ -1,15 +1,13 @@
-import edu.cmu.isr.ltsa.eofm.EOFMS
-import edu.cmu.isr.ltsa.eofm.EOFMTranslator2
-import edu.cmu.isr.ltsa.eofm.parseEOFMS
-import edu.cmu.isr.ltsa.weakest.EOFMRobustCal
+package edu.cmu.isr.robust.eofm
+
 import org.junit.jupiter.api.Test
 
 class TranslatorTest {
   @Test
   fun testCoffeeEOFM() {
-    val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+    val coffee: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
     val config = CoffeeConfig()
-    val translator = EOFMTranslator2(pca, config.initialValues, config.world, config.relabels)
+    val translator = EOFMTranslator2(coffee, config.initialValues, config.world, config.relabels)
     val builder = StringBuilder()
 
     translator.translate(builder)
@@ -18,9 +16,9 @@ class TranslatorTest {
 
   @Test
   fun testCoffeeEOFMError() {
-    val pca: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+    val coffee: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
     val config = CoffeeConfig()
-    val translator = EOFMTranslator2(pca, config.initialValues, config.world, config.relabels)
+    val translator = EOFMTranslator2(coffee, config.initialValues, config.world, config.relabels)
     val builder = StringBuilder()
 
     translator.translate(builder, withError = true)
@@ -29,9 +27,9 @@ class TranslatorTest {
 
   @Test
   fun testTiny() {
-    val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/tiny.xml"))
+    val tiny: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/tiny.xml"))
     val translator = EOFMTranslator2(
-        reset,
+        tiny,
         mapOf("iX" to "False"),
         listOf(
             "when (iX == False) hA -> hB -> VAR[True]",
@@ -47,8 +45,8 @@ class TranslatorTest {
 
   @Test
   fun testOperators() {
-    val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/operators.xml"))
-    val translator = EOFMTranslator2(reset, emptyMap(), emptyList())
+    val operators: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/operators.xml"))
+    val translator = EOFMTranslator2(operators, emptyMap(), emptyList())
 
     val builder = StringBuilder()
     translator.translate(builder)
@@ -57,9 +55,9 @@ class TranslatorTest {
 
   @Test
   fun testOmission1() {
-    val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/omission1.xml"))
+    val omissions: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/omission1.xml"))
     val translator = EOFMTranslator2(
-        reset,
+        omissions,
         mapOf("iX" to "False"),
         listOf(
             "when (iX == False) hA -> hB -> VAR[True]",
@@ -75,8 +73,8 @@ class TranslatorTest {
 
   @Test
   fun testBenchmark() {
-    val reset: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/benchmark.xml"))
-    val translator = EOFMTranslator2(reset, emptyMap(), emptyList())
+    val test: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/benchmark.xml"))
+    val translator = EOFMTranslator2(test, emptyMap(), emptyList())
 
     val builder = StringBuilder()
     translator.translate(builder)

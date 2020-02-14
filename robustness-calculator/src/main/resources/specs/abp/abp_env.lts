@@ -1,0 +1,6 @@
+range E_B = 0 .. 1
+
+CHANNEL = (in[b:E_B] -> out[b] -> CHANNEL).
+
+||ENV = (trans:CHANNEL || ack:CHANNEL)
+      / {send/trans.in, rec/trans.out, ack/ack.in, getack/ack.out}.

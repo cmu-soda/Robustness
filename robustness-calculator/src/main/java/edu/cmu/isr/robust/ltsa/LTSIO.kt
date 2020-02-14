@@ -1,4 +1,4 @@
-package edu.cmu.isr.ltsa
+package edu.cmu.isr.robust.ltsa
 
 class StringLTSInput(private val source: String) : lts.LTSInput {
   private var pos: Int = -1

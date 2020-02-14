@@ -1,4 +1,4 @@
-package edu.cmu.isr.ltsa.util
+package edu.cmu.isr.robust.util
 
 import lts.CompactState
 import lts.EventState

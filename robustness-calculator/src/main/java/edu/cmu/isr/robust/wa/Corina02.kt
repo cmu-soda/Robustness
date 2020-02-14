@@ -1,10 +1,13 @@
-package edu.cmu.isr.ltsa.weakest
+package edu.cmu.isr.robust.wa
 
-import edu.cmu.isr.ltsa.*
-import edu.cmu.isr.ltsa.util.SimpleTransitions
-import edu.cmu.isr.ltsa.util.StateMachine
+import edu.cmu.isr.robust.ltsa.*
+import edu.cmu.isr.robust.util.SimpleTransitions
+import edu.cmu.isr.robust.util.StateMachine
 
-class RobustCal(val p: String, val env: String, val sys: String) {
+class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, env, p) {
+  /**
+   *
+   */
   private val alphabetR: Set<String>
 
   init {
@@ -16,50 +19,30 @@ class RobustCal(val p: String, val env: String, val sys: String) {
     val alphabetP = ltsaCall.doCompile(p, "P").getAllAlphabet()
     val alphabetC = alphabetSYS intersect alphabetENV
     val alphabetI = alphabetSYS - alphabetC
-    alphabetR = (alphabetC + (alphabetP - alphabetI)).map { it.replace("""\.\d+""".toRegex(), "") }.toSet()
-    println("Alphabet for comparing the robustness: $alphabetR")
+    alphabetR = (alphabetC + (alphabetP - alphabetI)).map(::escapeEvent).toSet()
   }
 
   /**
    * Return the alphabet of the weakest assumption
    */
-  fun getAlphabet(): Set<String> {
+  override fun alphabetOfWA(): Iterable<String> {
     return alphabetR
+  }
+
+  override fun weakestAssumption(name: String): String {
+    return weakestAssumption(name, false)
   }
 
   /**
    * Return the LTSA spec representing the weakest assumption of the env.
    */
-  fun weakestAssumption(name: String = "WE", sink: Boolean = false): String {
+  fun weakestAssumption(name: String, sink: Boolean): String {
     return composeSysP().pruneError().determinate(sink).minimize().buildFSP(name)
   }
 
-  fun shortestErrTraces(wa: String, name: String = "WE"): List<List<String>> {
-    val pEnv = projectedEnv()
-    val deltaSpec = combineSpecs(pEnv, "property ||PENV = (ENV).", wa, "||D_$name = (PENV || $name).")
-    val composite = LTSACall().doCompile(deltaSpec, "D_$name").doCompose()
-    val sm = StateMachine(composite.composition)
-    if (!sm.hasError()) {
-      return emptyList()
-    }
-
-    val traces = mutableListOf<List<String>>()
-    val transToErr = sm.transitions.inTrans()[-1] ?: emptyList()
-    val paths = sm.pathFromInit(transToErr.map { it.first }.toSet())
-    for (t in transToErr) {
-      traces.add((paths[t.first] ?: error(t.first)) + sm.alphabet[t.second])
-    }
-    return traces
-  }
-
-  private fun projectedEnv(): String {
-    // For the environment, expose only the alphabets in the weakest assumption, and do tau elimination
-    val pEnv = combineSpecs(env, "||E = (ENV)@{${alphabetR.joinToString(", ")}}.")
-    val composite = LTSACall().doCompile(pEnv, "E").doCompose()
-    val envSM = StateMachine(composite.composition).tauElmAndSubsetConstr().first
-    return envSM.buildFSP("ENV")
-  }
-
+  /**
+   *
+   */
   private fun composeSysP(): StateMachine {
     val ltsaCall = LTSACall()
     val spec = combineSpecs(sys, p, "||C = (SYS || P)@{${alphabetR.joinToString(",")}}.")
@@ -74,6 +57,9 @@ class RobustCal(val p: String, val env: String, val sys: String) {
     return StateMachine(composite.composition)
   }
 
+  /**
+   *
+   */
   private fun StateMachine.pruneError(): StateMachine {
     var trans = this.transitions
     // Prune the states where the environment cannot prevent the error state from being entered
@@ -95,6 +81,9 @@ class RobustCal(val p: String, val env: String, val sys: String) {
     return StateMachine(trans, this.alphabet)
   }
 
+  /**
+   *
+   */
   private fun StateMachine.determinate(sink: Boolean): StateMachine {
     // tau elimination ans subset construction
     val (dfa, dfaStates) = this.tauElmAndSubsetConstr()
@@ -104,6 +93,9 @@ class RobustCal(val p: String, val env: String, val sys: String) {
     return dfaSink.deleteErrors(dfaStates)
   }
 
+  /**
+   *
+   */
   private fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>): StateMachine {
     val newTrans = this.transitions.allTrans().toMutableSet()
     val alphabetIdx = this.alphabet.indices.filter { it != this.tau }
@@ -121,6 +113,9 @@ class RobustCal(val p: String, val env: String, val sys: String) {
     return StateMachine(SimpleTransitions(newTrans), this.alphabet)
   }
 
+  /**
+   *
+   */
   private fun StateMachine.deleteErrors(dfaStates: List<Set<Int>>): StateMachine {
     val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
     val trans = this.transitions.allTrans().filter { it.first !in errStates && it.third !in errStates }

@@ -1,28 +1,14 @@
 range B= 0..1
 
-// Wrong way
-//INPUT = (input -> SENDING[0]),
-//SENDING[b:B] = (send[b] -> SENDING[b]
-//              | getack[b] -> input -> SENDING[!b]
-//              | getack[!b] -> SENDING[b]).
-
-//OUTPUT = (rec[0] -> output -> ACKING[0]),
-//ACKING[b:B] = (ack[b] -> ACKING[b]
-//             | rec[b] -> ACKING[b]
-//             | rec[!b] -> output -> ACKING[!b]).
-
-// Better way
-INPUT = (input -> SEND[0]),
-SEND[b:B] = (send[b] -> SENDING[b]),
+INPUT = (input -> SENDING[0]),
 SENDING[b:B] = (send[b] -> SENDING[b]
-              | getack[b] -> input -> SEND[!b]
+              | getack[b] -> input -> SENDING[!b]
               | getack[!b] -> SENDING[b]).
 
-OUTPUT = (rec[0] -> output -> ACK[0]),
-ACK[b:B] = (ack[b] -> ACKING[b]),
+OUTPUT = (rec[0] -> output -> ACKING[0]),
 ACKING[b:B] = (ack[b] -> ACKING[b]
              | rec[b] -> ACKING[b]
-             | rec[!b] -> output -> ACK[!b]).
+             | rec[!b] -> output -> ACKING[!b]).
 
 ||SYS = (INPUT || OUTPUT).
 

@@ -1,4 +1,4 @@
-package edu.cmu.isr.ltsa
+package edu.cmu.isr.robust.ltsa
 
 import lts.*
 
@@ -108,9 +108,33 @@ private fun renameConsts(spec: String, prefix: String): String {
   return re
 }
 
+/**
+ *
+ */
 fun combineSpecs(vararg specs: String): String {
   return specs.joinToString("\n")
-//  assert(specs.size <= 26)
-//  val a = 'A'
-//  return specs.mapIndexed { idx, s -> renameConsts(s, (a + idx).toString()) }.joinToString("\n")
+}
+
+/**
+ * Rename the events:
+ * if e == "tau" then e' = "_tau_"
+ * if e match abc.123 then e' = abc[123]
+ */
+fun escapeEvent(e: String): String {
+  if (e == "tau")
+    return "_tau_"
+  val idx = e.lastIndexOf('.')
+  val suffix = e.substring(idx + 1)
+  if (suffix.toIntOrNull() != null) {
+    return "${e.substring(0, idx)}[$suffix]"
+  }
+  return e
+}
+
+/**
+ *
+ */
+fun buildTrace(t: List<String>, alphabet: Iterable<String>): String {
+  return "TRACE = (${t.joinToString(" -> ", transform = ::escapeEvent)} -> ERROR)" +
+      "+{${alphabet.joinToString(",", transform = ::escapeEvent)}}."
 }
