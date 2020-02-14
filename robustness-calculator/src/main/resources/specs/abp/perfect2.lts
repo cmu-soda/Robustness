@@ -1,0 +1,5 @@
+range B= 0..1
+
+SENDER = (input -> send[B] -> getack[B] -> SENDER).
+RECEIVER = (rec[B] -> output -> ack[B] -> RECEIVER).
+||SYS = (SENDER || RECEIVER).

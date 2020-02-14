@@ -23,6 +23,29 @@ class Corina02Test {
   }
 
   @Test
+  fun testPerfectChannel2() {
+    val p = "property P = (input -> output -> P)."
+    val env = ClassLoader.getSystemResource("specs/abp/abp_env.lts").readText()
+    val sys = ClassLoader.getSystemResource("specs/abp/perfect2.lts").readText()
+
+    val cal = Corina02(p, env, sys)
+    val wa = cal.weakestAssumption()
+    println(wa)
+    assertEquals("WA = (send[0] -> WA_1 | send[1] -> WA_1),\n" +
+        "WA_1 = (rec[0] -> WA_2 | rec[1] -> WA_2),\n" +
+        "WA_2 = (ack[0] -> WA_3 | ack[1] -> WA_3),\n" +
+        "WA_3 = (getack[0] -> WA | getack[1] -> WA).\n", wa)
+    val traces = cal.shortestErrTraces(wa)
+    println(traces)
+    assertEquals(listOf(
+        listOf("send[1]", "rec[0]"),
+        listOf("send[1]", "rec[1]", "ack[1]", "getack[0]"),
+        listOf("send[1]", "rec[1]", "ack[0]", "getack[1]"),
+        listOf("send[0]", "rec[1]")
+    ), traces)
+  }
+
+  @Test
   fun testABP() {
     val p = "property P = (input -> output -> P)."
     val env = ClassLoader.getSystemResource("specs/abp/abp_env.lts").readText()
