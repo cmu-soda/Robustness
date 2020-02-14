@@ -52,9 +52,9 @@ fun CompositeState.propertyCheck(): List<String>? {
 }
 
 /**
- *
+ * @return The alphabet of all the processes without tau.
  */
-fun CompositeState.getAllAlphabet(): Set<String> {
+fun CompositeState.alphabetSet(): Set<String> {
   val alphabet = this.machines
       .flatMap { (it as CompactState).alphabet.toList() }
       .fold(mutableSetOf<String>()) { s, a ->
@@ -62,7 +62,14 @@ fun CompositeState.getAllAlphabet(): Set<String> {
         s
       }
   alphabet.remove("tau")
-  return alphabet
+  return alphabet.map(::escapeEvent).toSet()
+}
+
+/**
+ * @return The alphabet list of the composed state machine including tau
+ */
+fun CompositeState.compositionAlphabet(): List<String> {
+  return this.composition.alphabet.map(::escapeEvent)
 }
 
 /**
@@ -120,7 +127,7 @@ fun combineSpecs(vararg specs: String): String {
  * if e == "tau" then e' = "_tau_"
  * if e match abc.123 then e' = abc[123]
  */
-fun escapeEvent(e: String): String {
+private fun escapeEvent(e: String): String {
   if (e == "tau")
     return "_tau_"
   val idx = e.lastIndexOf('.')
@@ -135,6 +142,5 @@ fun escapeEvent(e: String): String {
  *
  */
 fun buildTrace(t: List<String>, alphabet: Iterable<String>): String {
-  return "TRACE = (${t.joinToString(" -> ", transform = ::escapeEvent)} -> ERROR)" +
-      "+{${alphabet.joinToString(",", transform = ::escapeEvent)}}."
+  return "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${alphabet.joinToString(",")}}."
 }

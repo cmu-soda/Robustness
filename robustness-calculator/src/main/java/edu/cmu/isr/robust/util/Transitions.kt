@@ -1,6 +1,7 @@
 package edu.cmu.isr.robust.util
 
 import lts.CompactState
+import lts.CompositeState
 import lts.EventState
 
 typealias Transition = Triple<Int, Int, Int>
@@ -71,7 +72,8 @@ class SimpleTransitions : Transitions {
   private var outMap: Map<Int, Iterable<Transition>>? = null
   private var inMap: Map<Int, Iterable<Transition>>? = null
 
-  constructor(m: CompactState) {
+  constructor(comp: CompositeState) {
+    val m = comp.composition
     val ts = mutableSetOf<Transition>()
     for (s in m.states.indices) {
       for (a in m.alphabet.indices) {

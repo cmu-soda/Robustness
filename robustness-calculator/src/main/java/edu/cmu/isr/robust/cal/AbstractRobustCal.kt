@@ -45,7 +45,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
       val tSpec = buildTrace(t, waGenerator.alphabetOfWA())
       val spec = combineSpecs(sys, errEnv, tSpec, "||T = (SYS || ENV || TRACE).")
       val composite = LTSACall().doCompile(spec, "T").doCompose()
-      val sm = StateMachine(composite.composition)
+      val sm = StateMachine(composite)
       shortestErrTrace(sm, t)
     }
   }
@@ -96,7 +96,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
         return p
       } else {
         visited.add(n.s)
-        matched = matched || p.filter { escapeEvent(it) in waGenerator.alphabetOfWA() } == trace.subList(0, trace.size - 1)
+        matched = matched || p.filter { it in waGenerator.alphabetOfWA() } == trace.subList(0, trace.size - 1)
         for (t in outTrans[n.s] ?: emptyList()) {
           if (t.third in visited)
             continue

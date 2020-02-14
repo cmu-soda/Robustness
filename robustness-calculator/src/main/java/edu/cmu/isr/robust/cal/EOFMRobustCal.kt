@@ -49,7 +49,7 @@ class EOFMRobustCal private constructor(
       val actions = translator.getActions()
       val spec = combineSpecs(rawModel, sys, "||G = (SYS || ENV)@{${actions.joinToString(", ")}}.")
       val composite = LTSACall().doCompile(spec, "G").doCompose()
-      val conciseHuman = StateMachine(composite.composition).tauElmAndSubsetConstr().first
+      val conciseHuman = StateMachine(composite).tauElmAndSubsetConstr().first
       return conciseHuman.minimize().buildFSP("ENV")
     }
 
@@ -164,7 +164,7 @@ class EOFMRobustCal private constructor(
     val tSpec = buildTrace(t, waGenerator.alphabetOfWA())
     val spec = combineSpecs(rawHumanModel, sys, tSpec, "||T = (SYS || ENV || TRACE).")
     val composite = LTSACall().doCompile(spec, "T").doCompose()
-    val sm = StateMachine(composite.composition)
+    val sm = StateMachine(composite)
     return sm.pathFromInit(-1)
   }
 

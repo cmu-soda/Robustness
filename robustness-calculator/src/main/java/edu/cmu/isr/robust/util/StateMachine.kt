@@ -1,10 +1,7 @@
 package edu.cmu.isr.robust.util
 
-import edu.cmu.isr.robust.ltsa.LTSACall
-import edu.cmu.isr.robust.ltsa.doCompose
-import edu.cmu.isr.robust.ltsa.escapeEvent
-import edu.cmu.isr.robust.ltsa.minimise
-import lts.CompactState
+import edu.cmu.isr.robust.ltsa.*
+import lts.CompositeState
 import java.util.*
 
 class StateMachine {
@@ -16,23 +13,23 @@ class StateMachine {
   /**
    * The array of alphabets which contains tau event.
    */
-  val alphabet: Array<String>
+  val alphabet: List<String>
 
   /**
    * The index number which represents the tau event.
    */
   val tau: Int
 
-  constructor(m: CompactState) {
-    transitions = SimpleTransitions(m)
-    alphabet = m.alphabet
-    tau = alphabet.indexOf("tau")
+  constructor(comp: CompositeState) {
+    transitions = SimpleTransitions(comp)
+    alphabet = comp.compositionAlphabet()
+    tau = alphabet.indexOf("_tau_")
   }
 
-  constructor(transitions: Transitions, alphabet: Array<String>) {
+  constructor(transitions: Transitions, alphabet: List<String>) {
     this.transitions = transitions
     this.alphabet = alphabet
-    this.tau = this.alphabet.indexOf("tau")
+    this.tau = alphabet.indexOf("_tau_") // will be escaped to _tau_
   }
 
   fun hasError(): Boolean {
@@ -45,7 +42,6 @@ class StateMachine {
     }
 
     // Escaped event names
-    val escaped = alphabet.map(::escapeEvent)
     val groups = transitions.outTrans()
     val used = transitions.allEvents()
     // The alphabets that are not used in the actual transitions
@@ -57,11 +53,11 @@ class StateMachine {
     }
 
     var fsp = groups.map { entry ->
-      val processes = entry.value.joinToString(" | ") { "${escaped[it.second]} -> ${processName(it.third)}" }
+      val processes = entry.value.joinToString(" | ") { "${alphabet[it.second]} -> ${processName(it.third)}" }
       "${processName(entry.key)} = ($processes)"
     }.joinToString(",\n")
 
-    val add = extra.filter { it != tau }.map { escaped[it] }
+    val add = extra.filter { it != tau }.map { alphabet[it] }
     if (add.isNotEmpty() && unused) {
       fsp = "$fsp+{${add.joinToString(", ")}}"
     }
@@ -75,7 +71,7 @@ class StateMachine {
     val fsp = this.buildFSP()
     val ltsaCall = LTSACall()
     val composite = ltsaCall.doCompile(fsp).doCompose().minimise()
-    return StateMachine(composite.composition)
+    return StateMachine(composite)
   }
 
   /**

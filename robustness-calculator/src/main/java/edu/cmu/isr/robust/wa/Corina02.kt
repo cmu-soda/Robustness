@@ -13,13 +13,13 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
   init {
     // Generate alphabets
     val ltsaCall = LTSACall()
-    val alphabetENV = ltsaCall.doCompile(env, "ENV").getAllAlphabet()
-    val alphabetSYS = ltsaCall.doCompile(sys, "SYS").getAllAlphabet()
+    val alphabetENV = ltsaCall.doCompile(env, "ENV").alphabetSet()
+    val alphabetSYS = ltsaCall.doCompile(sys, "SYS").alphabetSet()
 
-    val alphabetP = ltsaCall.doCompile(p, "P").getAllAlphabet()
+    val alphabetP = ltsaCall.doCompile(p, "P").alphabetSet()
     val alphabetC = alphabetSYS intersect alphabetENV
     val alphabetI = alphabetSYS - alphabetC
-    alphabetR = (alphabetC + (alphabetP - alphabetI)).map(::escapeEvent).toSet()
+    alphabetR = (alphabetC + (alphabetP - alphabetI))
   }
 
   /**
@@ -54,7 +54,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
       throw Error("The error state is not reachable. The property is true under any environment.")
 
     // Get the composed state machine
-    return StateMachine(composite.composition)
+    return StateMachine(composite)
   }
 
   /**
@@ -64,9 +64,8 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
     var trans = this.transitions
     // Prune the states where the environment cannot prevent the error state from being entered
     // via one or more tau steps.
-    val tau = this.alphabet.indexOf("tau")
     while (true) {
-      val s = trans.inTrans()[-1]?.find { it.second == tau } ?: break
+      val s = trans.inTrans()[-1]?.find { it.second == this.tau } ?: break
       if (s.first == 0) {
         throw Error("Initial state becomes the error state, no environment can prevent the system from reaching error state")
       }

@@ -20,7 +20,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
     val pEnv = projectedEnv()
     val deltaSpec = combineSpecs(pEnv, "property ||PENV = (ENV).", wa, "||D_$name = (PENV || $name).")
     val composite = LTSACall().doCompile(deltaSpec, "D_$name").doCompose()
-    val sm = StateMachine(composite.composition)
+    val sm = StateMachine(composite)
     if (!sm.hasError()) {
       return emptyList()
     }
@@ -41,7 +41,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
     // For the environment, expose only the alphabets in the weakest assumption, and do tau elimination
     val pEnv = combineSpecs(env, "||E = (ENV)@{${alphabetOfWA().joinToString(", ")}}.")
     val composite = LTSACall().doCompile(pEnv, "E").doCompose()
-    val envSM = StateMachine(composite.composition).tauElmAndSubsetConstr().first
+    val envSM = StateMachine(composite).tauElmAndSubsetConstr().first
     return envSM.buildFSP("ENV")
   }
 }
