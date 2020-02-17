@@ -8,10 +8,10 @@ class ABPRobustCal(sys: String, env: String, p: String) : AbstractRobustCal(sys,
   }
 
   override fun isEnvEvent(a: String): Boolean {
-    return !a.endsWith("lose")
+    return !a.endsWith("lose") && !a.endsWith("duplicate")
   }
 
   override fun isErrEvent(a: String): Boolean {
-    return a.endsWith("lose")
+    return a.endsWith("lose") || a.endsWith("duplicate")
   }
 }
