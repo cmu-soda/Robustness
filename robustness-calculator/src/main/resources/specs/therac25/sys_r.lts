@@ -1,4 +1,3 @@
-const S_Unknown = 0
 const S_InPlace = 1
 const S_OutPlace = 2
 range S_TSpreader = S_Unknown..S_OutPlace
@@ -8,7 +7,7 @@ const S_XrayPower = 1
 const S_EBeamPower = 2
 range S_TPower = S_NotSet..S_EBeamPower
 
-INTERFACE = EDIT[S_Unknown][S_NotSet],
+INTERFACE = EDIT[S_OutPlace][S_NotSet],
 EDIT[iSpreader:S_TSpreader][iPower:S_TPower] = (
       hPressX -> CONFIRM[iSpreader][iPower] | hPressE -> CONFIRM[iSpreader][iPower]
     | mInPlace -> EDIT[S_InPlace][iPower] | mOutPlace -> EDIT[S_OutPlace][iPower]

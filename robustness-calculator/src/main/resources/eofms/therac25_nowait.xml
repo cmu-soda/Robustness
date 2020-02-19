@@ -1,6 +1,6 @@
 <eofms>
     <userdefinedtype name="TInterfaceState">{Edit, ConfirmXray, ConfirmEBeam, PrepXray, PrepEBeam, Administered}</userdefinedtype>
-    <userdefinedtype name="TSpreader">{Unknown, OutPlace, InPlace}</userdefinedtype>
+    <userdefinedtype name="TSpreader">{OutPlace, InPlace}</userdefinedtype>
     <userdefinedtype name="TPowerLevel">{NotSet, XrayLevel, EBeamLevel}</userdefinedtype>
 
     <humanoperator name="User">

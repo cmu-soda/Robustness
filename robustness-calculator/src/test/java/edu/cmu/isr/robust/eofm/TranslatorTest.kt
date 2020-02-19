@@ -84,7 +84,7 @@ class TranslatorTest {
   @Test
   fun testTherac() {
     val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25.xml"))
-    val config = TheracConfig()
+    val config = TheracWaitConfig()
     val translator = EOFMTranslator2(therac, config.initialValues, config.world, config.relabels)
     val builder = StringBuilder()
 

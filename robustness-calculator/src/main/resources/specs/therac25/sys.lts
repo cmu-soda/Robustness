@@ -1,18 +1,13 @@
-INTERFACE = (hPressX -> CONFIRM | hPressE -> CONFIRM),
-CONFIRM = (hPressUp -> INTERFACE | hPressEnter -> PREP),
+INTERFACE = (hPressX -> mInitXray -> CONFIRM | hPressE -> mInitEBeam -> CONFIRM),
+EDIT = (hPressX -> CONFIRM | hPressE -> CONFIRM),
+CONFIRM = (hPressUp -> EDIT | hPressEnter -> PREP),
 PREP = (hPressB -> FIRE | hPressUp1 -> CONFIRM),
 FIRE = (mFire -> FIRE).
 
-SPREADER = (hPressX -> TOINPLACE | hPressE -> TOOUTPLACE),
-TOINPLACE = (hPressX -> TOINPLACE | mInPlace -> INPLACE | hPressE -> TOOUTPLACE),
-INPLACE = (hPressX -> INPLACE | hPressE -> TOOUTPLACE),
-TOOUTPLACE = (hPressX -> TOINPLACE | mOutPlace -> OUTPLACE | hPressE -> TOOUTPLACE),
-OUTPLACE = (hPressX -> TOINPLACE | hPressE -> OUTPLACE).
-
-POWER = (hPressX -> TOXRAY | hPressE -> TOEBEAM),
-TOXRAY = (hPressX -> TOXRAY | hPressE -> TOEBEAM | mXrayLvl -> XRAY),
-TOEBEAM = (hPressX -> TOXRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),
+POWER = (hPressX -> mInitXray -> XRAY | hPressE -> mInitEBeam -> EBEAM),
+TOXRAY = (hPressX -> TOXRAY | hPressE -> EBEAM | mXrayLvl -> XRAY),
+TOEBEAM = (hPressX -> XRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),
 XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),
 EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY).
 
-||SYS = (INTERFACE || SPREADER || POWER).
+||SYS = (INTERFACE || POWER).

@@ -18,7 +18,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     var spec = combineSpecs(sys, env, p, "||T = (SYS || ENV || P).")
     val errs = LTSACall().doCompile(spec, "T").doCompose().propertyCheck()
     if (errs != null) {
-      error("SYS || ENV |= P does not hold, property violation or deadlock:\n\t${errs.joinToString("\n\t")}")
+      println("ERROR: SYS || ENV |= P does not hold, property violation or deadlock:\n\t${errs.joinToString("\n\t")}\n")
     }
 
     waGenerator = Corina02(sys, env, p)

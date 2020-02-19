@@ -1,14 +1,10 @@
 <eofms>
     <userdefinedtype name="TInterfaceState">{Edit, ConfirmXray, ConfirmEBeam, PrepXray, PrepEBeam, Administered}</userdefinedtype>
-    <!--    <userdefinedtype name="TDisplayData">{XrayData, EBeamData}</userdefinedtype>-->
-<!--    <userdefinedtype name="TBeamState">{NotReady, Ready}</userdefinedtype>-->
-    <userdefinedtype name="TSpreader">{Unknown, OutPlace, InPlace}</userdefinedtype>
+    <userdefinedtype name="TSpreader">{OutPlace, InPlace}</userdefinedtype>
     <userdefinedtype name="TPowerLevel">{NotSet, XrayLevel, EBeamLevel}</userdefinedtype>
 
     <humanoperator name="User">
         <inputvariable name="iInterface" userdefinedtype="TInterfaceState"/>
-        <!--        <inputvariable name="iDisplay" userdefinedtype="TDisplayData"/>-->
-<!--        <inputvariable name="iBeamState" userdefinedtype="TBeamState"/>-->
         <inputvariable name="iSpreader" userdefinedtype="TSpreader"/>
         <inputvariable name="iPowerLevel" userdefinedtype="TPowerLevel"/>
 
@@ -18,9 +14,7 @@
         <humanaction name="hPressUp1" behavior="autoreset"/>
         <humanaction name="hPressEnter" behavior="autoreset"/>
         <humanaction name="hPressB" behavior="autoreset"/>
-<!--        <humanaction name="hWaitBeam" behavior="autoreset"/>-->
-        <humanaction name="hWaitInPlace" behavior="autoreset"/>
-        <humanaction name="hWaitOutPlace" behavior="autoreset"/>
+<!--        TODO: How to wait on the power level-->
         <humanaction name="hWaitXrayPower" behavior="autoreset"/>
         <humanaction name="hWaitEBeamPower" behavior="autoreset"/>
 
@@ -75,18 +69,11 @@
                         <completioncondition>iInterface == Administered</completioncondition>
                         <decomposition operator="ord">
                             <activity name="aWaitReady">
-<!--                                <completioncondition>iBeamState == Ready</completioncondition>-->
                                 <completioncondition>(iInterface != PrepXray || iSpreader == InPlace)</completioncondition>
                                 <completioncondition>(iInterface != PrepEBeam || iSpreader == OutPlace)</completioncondition>
                                 <completioncondition>(iInterface != PrepXray || iPowerLevel == XrayLevel)</completioncondition>
                                 <completioncondition>(iInterface != PrepEBeam || iPowerLevel == EBeamLevel)</completioncondition>
                                 <decomposition operator="and_par">
-<!--                                    <activity name="aWaitBeam">-->
-<!--                                        <completioncondition>iBeamState == Ready</completioncondition>-->
-<!--                                        <decomposition operator="ord">-->
-<!--                                            <action humanaction="hWaitBeam"/>-->
-<!--                                        </decomposition>-->
-<!--                                    </activity>-->
                                     <activity name="aWaitSpreader">
                                         <decomposition operator="xor">
                                             <activity name="aWaitInPlace">
