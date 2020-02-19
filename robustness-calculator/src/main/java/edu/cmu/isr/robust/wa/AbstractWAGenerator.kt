@@ -13,14 +13,23 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
 
   abstract fun alphabetOfWA(): Iterable<String>
 
-  /**
-   *
-   */
-  fun shortestErrTraces(wa: String, name: String = "WA"): List<List<String>> {
+  fun deltaTraces(wa: String, name: String = "WA"): StateMachine {
     val pEnv = projectedEnv()
     val deltaSpec = combineSpecs(pEnv, "property ||PENV = (ENV).", wa, "||D_$name = (PENV || $name).")
     val composite = LTSACall().doCompile(deltaSpec, "D_$name").doCompose()
-    val sm = StateMachine(composite)
+    return StateMachine(composite)
+  }
+
+  fun deltaTracesInRegex(wa: String, name: String = "WA"): String {
+    val sm = deltaTraces(wa, name)
+    TODO()
+  }
+
+  /**
+   *
+   */
+  fun shortestDeltaTraces(wa: String, name: String = "WA"): List<List<String>> {
+    val sm = deltaTraces(wa, name)
     if (!sm.hasError()) {
       return emptyList()
     }

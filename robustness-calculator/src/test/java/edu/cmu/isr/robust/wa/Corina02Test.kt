@@ -17,7 +17,7 @@ class Corina02Test {
         "WA_1 = (rec -> WA_2),\n" +
         "WA_2 = (ack -> WA_3),\n" +
         "WA_3 = (getack -> WA).\n", wa)
-    val traces = cal.shortestErrTraces(wa)
+    val traces = cal.shortestDeltaTraces(wa)
     println(traces)
     assertEquals(emptyList<List<String>>(), traces)
   }
@@ -35,7 +35,7 @@ class Corina02Test {
         "WA_1 = (rec[0] -> WA_2 | rec[1] -> WA_2),\n" +
         "WA_2 = (ack[0] -> WA_3 | ack[1] -> WA_3),\n" +
         "WA_3 = (getack[0] -> WA | getack[1] -> WA).\n", wa)
-    val traces = cal.shortestErrTraces(wa)
+    val traces = cal.shortestDeltaTraces(wa)
     println(traces)
     assertEquals(listOf(
         listOf("send[1]", "rec[0]"),
@@ -64,7 +64,7 @@ class Corina02Test {
         "WA_7 = (getack[1] -> WA_8 | getack[0] -> WA_7 | send[1] -> WA_7 | rec[1] -> WA_7 | ack[1] -> WA_7),\n" +
         "WA_8 = (send[0] -> WA_9 | getack[1] -> WA_9 | rec[1] -> WA_8 | ack[1] -> WA_8),\n" +
         "WA_9 = (send[0] -> WA_9 | getack[1] -> WA_9 | rec[0] -> WA_2 | rec[1] -> WA_9 | ack[1] -> WA_9).\n", wa)
-    val traces = cal.shortestErrTraces(wa)
+    val traces = cal.shortestDeltaTraces(wa)
     println(traces)
   }
 
@@ -119,7 +119,7 @@ class Corina02Test {
         "COFFEE_3 = (hLowerHandle -> COFFEE_1 | hPressBrew -> COFFEE_3 | hTakeMug -> COFFEE_4),\n" +
         "COFFEE_4 = (hPlaceMug -> COFFEE_3 | hLowerHandle -> COFFEE | hPressBrew -> COFFEE_4).\n", wa)
 
-    val traces = cal.shortestErrTraces(wa, "COFFEE")
+    val traces = cal.shortestDeltaTraces(wa, "COFFEE")
     for (t in traces)
       println(t)
     assertEquals(listOf(

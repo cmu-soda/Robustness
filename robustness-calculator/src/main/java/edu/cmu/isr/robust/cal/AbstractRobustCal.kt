@@ -28,26 +28,19 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     println(wa)
   }
 
-  fun errsRobustAgainst() {
+  fun errsRobustAgainst(): List<Pair<List<String>, List<String>?>> {
     println("Generating the representative delta traces that in the system weakest assumption but not in environment...")
-    val traces = waGenerator.shortestErrTraces(wa)
+    val traces = waGenerator.shortestDeltaTraces(wa)
     if (traces.isEmpty()) {
       println("No error found. The weakest assumption has equal or less behavior than the environment.")
-      return
+      return emptyList()
     }
-    for (t in traces) println(t)
+    for (t in traces)
+      println(t)
     println()
 
     // Match each deviation trace back to the human model with error
-    for (t in traces) {
-      println("Matching the representative trace '$t' to the erroneous environment model...")
-      val errEnv = genErrEnvironment(t)
-      val tSpec = buildTrace(t, waGenerator.alphabetOfWA())
-      val spec = combineSpecs(sys, errEnv, tSpec, "||T = (SYS || ENV || TRACE).")
-      val composite = LTSACall().doCompile(spec, "T").doCompose()
-      val sm = StateMachine(composite)
-      shortestErrTrace(sm, t)
-    }
+    return traces.map { Pair(it, matchMinimalErr(it)) }
   }
 
   /**
@@ -65,13 +58,21 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
    */
   abstract fun isErrEvent(a: String): Boolean
 
-  private fun shortestErrTrace(sm: StateMachine, trace: List<String>) {
+  private fun matchMinimalErr(trace: List<String>): List<String>? {
+    println("Matching the representative trace '$trace' to the erroneous environment model...")
+    val errEnv = genErrEnvironment(trace)
+    val tSpec = buildTrace(trace, waGenerator.alphabetOfWA())
+    val spec = combineSpecs(sys, errEnv, tSpec, "||T = (SYS || ENV || TRACE).")
+    val composite = LTSACall().doCompile(spec, "T").doCompose()
+    val sm = StateMachine(composite)
+
     val t = bfs(sm, trace)
     if (t != null) {
       println("\t${t.joinToString("\n\t")}\n")
     } else {
       println("ERROR: No trace found for $trace.\n")
     }
+    return t
   }
 
   private fun bfs(sm: StateMachine, trace: List<String>): List<String>? {
