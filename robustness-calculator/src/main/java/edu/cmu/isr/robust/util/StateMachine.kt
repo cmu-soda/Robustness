@@ -32,10 +32,16 @@ class StateMachine {
     this.tau = alphabet.indexOf("_tau_") // will be escaped to _tau_
   }
 
+  /**
+   * Return true if the state machine has the error state.
+   */
   fun hasError(): Boolean {
     return -1 in transitions.inTrans()
   }
 
+  /**
+   * Convert the state machine into a FSP spec
+   */
   fun buildFSP(name: String = "A", unused: Boolean = true): String {
     if (transitions.isEmpty()) {
       return "$name = END."
@@ -67,6 +73,9 @@ class StateMachine {
     return "$fsp.\n"
   }
 
+  /**
+   * Convert the state machine to a FSP spec and use the built-in minimization function in LTSA.
+   */
   fun minimize(): StateMachine {
     val fsp = this.buildFSP()
     val ltsaCall = LTSACall()
@@ -87,6 +96,9 @@ class StateMachine {
     }
   }
 
+  /**
+   * Perform tau elimination and subset construction.
+   */
   fun tauElmAndSubsetConstr(): Pair<StateMachine, List<Set<Int>>> {
     var hasTau = false
     val reachTable = Array(maxIndexOfState() + 1) { s ->
@@ -149,10 +161,16 @@ class StateMachine {
     return Pair(StateMachine(SimpleTransitions(dfaTrans), alphabet), dfaStates)
   }
 
-  private fun maxIndexOfState(): Int {
+  /**
+   * Return the max index of the states of this state machine.
+   */
+  fun maxIndexOfState(): Int {
     return transitions.allStates().max() ?: error("Cannot find the state with the max index number")
   }
 
+  /**
+   * Perform subset construction to convert NFA to DFA
+   */
   fun subsetConstruct(): Pair<StateMachine, List<Set<Int>>> {
     val dfaStates = mutableListOf(setOf(0))  // initial state of the DFA is {0}
     val dfaTrans = mutableSetOf<Transition>()
@@ -179,6 +197,9 @@ class StateMachine {
     return Pair(StateMachine(SimpleTransitions(dfaTrans), alphabet), dfaStates)
   }
 
+  /**
+   * Return a map where the key is the state, and the value is the shortest path from the initial state to the state.
+   */
   fun pathFromInit(): Map<Int, List<String>> {
     return pathFromInitHelper { false }
   }
@@ -191,6 +212,9 @@ class StateMachine {
     return (pathFromInitHelper { stop in it })[stop]!!
   }
 
+  /**
+   * The helper function for pathFromInit, the search stops when the stop function evaluates to true.
+   */
   private fun pathFromInitHelper(stop: (Map<Int, List<String>>) -> Boolean): Map<Int, List<String>> {
     val traces = mutableMapOf<Int, List<String>>(0 to emptyList())
     val visited = mutableListOf<Int>()

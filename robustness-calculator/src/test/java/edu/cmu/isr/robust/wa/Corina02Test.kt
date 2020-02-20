@@ -43,6 +43,7 @@ class Corina02Test {
         listOf("send[1]", "rec[1]", "ack[0]", "getack[1]"),
         listOf("send[0]", "rec[1]")
     ), traces)
+    println(cal.deltaTracesInRegex(wa))
   }
 
   @Test
