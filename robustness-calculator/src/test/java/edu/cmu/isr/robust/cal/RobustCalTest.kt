@@ -19,5 +19,6 @@ class RobustCalTest {
     val p = "property P = (input -> output -> P)."
     val cal = ABPRobustCal(sys, env, p)
     cal.errsRobustAgainst()
+    cal.errsRobustAgainst(level = 0)
   }
 }

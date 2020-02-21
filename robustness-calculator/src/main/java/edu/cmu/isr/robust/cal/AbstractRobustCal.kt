@@ -28,9 +28,15 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     println(wa)
   }
 
-  fun errsRobustAgainst(): List<Pair<List<String>, List<String>?>> {
-    println("Generating the representative delta traces that in the system weakest assumption but not in environment...")
-    val traces = waGenerator.shortestDeltaTraces(wa)
+  fun errsRobustAgainst(level: Int = -1): List<Pair<List<String>, List<String>?>> {
+    val traces = if (level == -1) {
+      println("Generating the shortest delta traces...")
+      waGenerator.shortestDeltaTraces(wa)
+    } else {
+      println("Generating the level $level delta traces...")
+      waGenerator.deltaTraces(wa, level = level)
+    }
+
     if (traces.isEmpty()) {
       println("No error found. The weakest assumption has equal or less behavior than the environment.")
       return emptyList()
