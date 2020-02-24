@@ -191,7 +191,11 @@ class EOFMTranslator2(
     translatedActivities.clear()
     translatedActions.clear()
     val topLevelNames = topLevelActivities.map { builder.appendActivity(it) }
-    builder.append("||ENV = (${topLevelNames.joinToString(" || ")})")
+
+    // Compose all the activities into one ENV process.
+    val unusedActions = getActions().toSet() - translatedActions.keys.map { it.humanAction }.toSet()
+    builder.append("UNUSED = END+{${unusedActions.joinToString(",")}}.\n")
+    builder.append("||ENV = (UNUSED || ${topLevelNames.joinToString(" || ")})")
     if (withError) {
       if (errs.isEmpty()) {
         val errors = translatedActivities.values.map { "commission_$it, repetition_$it, omission_$it" }

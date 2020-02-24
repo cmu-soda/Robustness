@@ -10,8 +10,8 @@
 
         <humanaction name="hPressX" behavior="autoreset"/>
         <humanaction name="hPressE" behavior="autoreset"/>
-<!--        <humanaction name="hPressUp" behavior="autoreset"/>-->
-<!--        <humanaction name="hPressUp1" behavior="autoreset"/>-->
+        <humanaction name="hPressUp" behavior="autoreset"/>
+        <humanaction name="hPressUp1" behavior="autoreset"/>
         <humanaction name="hPressEnter" behavior="autoreset"/>
         <humanaction name="hPressB" behavior="autoreset"/>
 <!--        <humanaction name="hWaitReady" behavior="autoreset"/>-->
