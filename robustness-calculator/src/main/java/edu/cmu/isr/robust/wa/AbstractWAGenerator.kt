@@ -64,13 +64,14 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
         return
       }
       for (t in outTrans[n.s] ?: emptyList()) {
-        val newVisited = visited.toMutableMap()
         if (t.third in visited) {
           if (visited[t.third]!! <= level) {
+            val newVisited = visited.toMutableMap()
             newVisited[t.third] = visited[t.third]!! + 1
             dfs(Node(t.third, sm.alphabet[t.second], n), newVisited)
           }
         } else {
+          val newVisited = visited.toMutableMap()
           newVisited[t.third] = 1
           dfs(Node(t.third, sm.alphabet[t.second], n), newVisited)
         }
