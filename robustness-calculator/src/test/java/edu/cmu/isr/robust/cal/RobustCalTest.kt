@@ -9,7 +9,8 @@ class RobustCalTest {
     val env = ClassLoader.getSystemResource("specs/abp/abp_env.lts").readText()
     val p = "property P = (input -> output -> P)."
     val cal = ABPRobustCal(sys, env, p)
-    cal.errsRobustAgainst()
+    val r = cal.errsRobustAgainst()
+    println("Found ${r.size} traces, matched ${r.filter { it.second != null }.size}/${r.size}.")
   }
 
   @Test
@@ -19,6 +20,7 @@ class RobustCalTest {
     val p = "property P = (input -> output -> P)."
     val cal = ABPRobustCal(sys, env, p)
     cal.errsRobustAgainst()
-    cal.errsRobustAgainst(level = 0)
+    val r = cal.errsRobustAgainst()
+    println("Found ${r.size} traces, matched ${r.filter { it.second != null }.size}/${r.size}.")
   }
 }

@@ -10,11 +10,11 @@
 
         <humanaction name="hPressX" behavior="autoreset"/>
         <humanaction name="hPressE" behavior="autoreset"/>
-        <humanaction name="hPressUp" behavior="autoreset"/>
-        <humanaction name="hPressUp1" behavior="autoreset"/>
+<!--        <humanaction name="hPressUp" behavior="autoreset"/>-->
+<!--        <humanaction name="hPressUp1" behavior="autoreset"/>-->
         <humanaction name="hPressEnter" behavior="autoreset"/>
         <humanaction name="hPressB" behavior="autoreset"/>
-        <humanaction name="hWaitReady" behavior="autoreset"/>
+<!--        <humanaction name="hWaitReady" behavior="autoreset"/>-->
 
         <eofm>
             <activity name="aSelectXorE">
@@ -41,19 +41,8 @@
                 <precondition>(iInterface == ConfirmXray || iInterface == ConfirmEBeam)</precondition>
                 <completioncondition>iInterface != ConfirmXray</completioncondition>
                 <completioncondition>iInterface != ConfirmEBeam</completioncondition>
-                <decomposition operator="xor">
-                    <activity name="aConfirmData">
-                        <completioncondition>iInterface == PrepXray || iInterface == PrepEBeam</completioncondition>
-                        <decomposition operator="ord">
-                            <action humanaction="hPressEnter"/>
-                        </decomposition>
-                    </activity>
-                    <activity name="aGoBack">
-                        <completioncondition>iInterface == Edit</completioncondition>
-                        <decomposition operator="ord">
-                            <action humanaction="hPressUp"/>
-                        </decomposition>
-                    </activity>
+                <decomposition operator="ord">
+                    <action humanaction="hPressEnter"/>
                 </decomposition>
             </activity>
         </eofm>
@@ -62,33 +51,8 @@
                 <precondition>(iInterface == PrepXray || iInterface == PrepEBeam)</precondition>
                 <completioncondition>iInterface != PrepXray</completioncondition>
                 <completioncondition>iInterface != PrepEBeam</completioncondition>
-                <decomposition operator="xor">
-                    <activity name="aGoFire">
-                        <completioncondition>iInterface == Administered</completioncondition>
-                        <decomposition operator="ord">
-                            <activity name="aWaitReady">
-                                <completioncondition>(iInterface != PrepXray || iSpreader == InPlace)</completioncondition>
-                                <completioncondition>(iInterface != PrepEBeam || iSpreader == OutPlace)</completioncondition>
-                                <completioncondition>(iInterface != PrepXray || iPowerLevel == XrayLevel)</completioncondition>
-                                <completioncondition>(iInterface != PrepEBeam || iPowerLevel == EBeamLevel)</completioncondition>
-                                <decomposition operator="ord">
-                                    <action humanaction="hWaitReady"/>
-                                </decomposition>
-                            </activity>
-                            <activity name="aFire">
-                                <completioncondition>iInterface == Administered</completioncondition>
-                                <decomposition operator="ord">
-                                    <action humanaction="hPressB"/>
-                                </decomposition>
-                            </activity>
-                        </decomposition>
-                    </activity>
-                    <activity name="aGoBack">
-                        <completioncondition>iInterface == ConfirmXray || iInterface == ConfirmEBeam</completioncondition>
-                        <decomposition operator="ord">
-                            <action humanaction="hPressUp1"/>
-                        </decomposition>
-                    </activity>
+                <decomposition operator="ord">
+                    <action humanaction="hPressB"/>
                 </decomposition>
             </activity>
         </eofm>
