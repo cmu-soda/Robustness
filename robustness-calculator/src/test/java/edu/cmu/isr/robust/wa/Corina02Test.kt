@@ -26,12 +26,12 @@ class Corina02Test {
     val sys = ClassLoader.getSystemResource("specs/abp/perfect.lts").readText()
 
     val cal = Corina02(sys, env, p)
-    val wa = cal.weakestAssumption()
+    val wa = cal.weakestAssumption("WA")
     assertWA(wa, "WA = (send -> WA_1),\n" +
         "WA_1 = (rec -> WA_2),\n" +
         "WA_2 = (ack -> WA_3),\n" +
         "WA_3 = (getack -> WA).\n")
-    assertTraces(cal.shortestDeltaTraces(wa), "Shortest", emptyList())
+    assertTraces(cal.shortestDeltaTraces(wa, "WA"), "Shortest", emptyList())
   }
 
   @Test
@@ -41,18 +41,18 @@ class Corina02Test {
     val sys = ClassLoader.getSystemResource("specs/abp/perfect2.lts").readText()
 
     val cal = Corina02(sys, env, p)
-    val wa = cal.weakestAssumption()
+    val wa = cal.weakestAssumption("WA")
     assertWA(wa, "WA = (send[0] -> WA_1 | send[1] -> WA_1),\n" +
         "WA_1 = (rec[0] -> WA_2 | rec[1] -> WA_2),\n" +
         "WA_2 = (ack[0] -> WA_3 | ack[1] -> WA_3),\n" +
         "WA_3 = (getack[0] -> WA | getack[1] -> WA).\n")
-    assertTraces(cal.shortestDeltaTraces(wa), "Shortest", listOf(
+    assertTraces(cal.shortestDeltaTraces(wa, "WA"), "Shortest", listOf(
         "[send[1], rec[0]]",
         "[send[1], rec[1], ack[1], getack[0]]",
         "[send[1], rec[1], ack[0], getack[1]]",
         "[send[0], rec[1]]"
     ))
-    assertTraces(cal.deltaTraces(wa, level = 0), "Level 0", listOf(
+    assertTraces(cal.deltaTraces(wa, "WA", level = 0), "Level 0", listOf(
         "[send[0], rec[0], ack[0], getack[1]]",
         "[send[0], rec[0], ack[1], getack[0]]",
         "[send[0], rec[1]]",
@@ -60,7 +60,7 @@ class Corina02Test {
         "[send[1], rec[1], ack[0], getack[1]]",
         "[send[1], rec[1], ack[1], getack[0]]"
     ))
-    assertTraces(cal.deltaTraces(wa, level = 1), "Level 1", listOf(
+    assertTraces(cal.deltaTraces(wa, "WA", level = 1), "Level 1", listOf(
         "[send[0], rec[0], ack[0], getack[0], send[0], rec[0], ack[0], getack[1]]",
         "[send[0], rec[0], ack[0], getack[0], send[0], rec[0], ack[1], getack[0]]",
         "[send[0], rec[0], ack[0], getack[0], send[0], rec[1]]",
@@ -101,7 +101,7 @@ class Corina02Test {
     val sys = ClassLoader.getSystemResource("specs/abp/abp.lts").readText()
 
     val cal = Corina02(sys, env, p)
-    val wa = cal.weakestAssumption()
+    val wa = cal.weakestAssumption("WA")
     assertWA(wa, "WA = (send[0] -> WA_1 | getack[1] -> WA_1),\n" +
         "WA_1 = (send[0] -> WA_1 | getack[1] -> WA_1 | rec[0] -> WA_2),\n" +
         "WA_2 = (send[0] -> WA_2 | getack[1] -> WA_2 | rec[0] -> WA_3 | ack[0] -> WA_3),\n" +
@@ -112,7 +112,7 @@ class Corina02Test {
         "WA_7 = (getack[1] -> WA_8 | getack[0] -> WA_7 | send[1] -> WA_7 | rec[1] -> WA_7 | ack[1] -> WA_7),\n" +
         "WA_8 = (send[0] -> WA_9 | getack[1] -> WA_9 | rec[1] -> WA_8 | ack[1] -> WA_8),\n" +
         "WA_9 = (send[0] -> WA_9 | getack[1] -> WA_9 | rec[0] -> WA_2 | rec[1] -> WA_9 | ack[1] -> WA_9).\n")
-    assertTraces(cal.shortestDeltaTraces(wa), "Shortest", listOf(
+    assertTraces(cal.shortestDeltaTraces(wa, "WA"), "Shortest", listOf(
         "[getack[1]]",
         "[send[0], send[0]]",
         "[send[0], getack[1]]",
@@ -230,7 +230,7 @@ class Corina02Test {
     val sys = ClassLoader.getSystemResource("specs/coffee/coffee.lts").readText()
 
     val cal = Corina02(sys, env, p)
-    val wa = cal.weakestAssumption()
+    val wa = cal.weakestAssumption("WA")
 //    assertWA(wa, "WA = (hPressBrew -> WA | hLowerHandle -> WA_6 | hPlaceMug -> WA_1),\n" +
 //        "WA_1 = (hPressBrew -> WA_1 | hLowerHandle -> WA_2 | hTakeMug -> WA),\n" +
 //        "WA_2 = (hPressBrew -> WA_3 | hLiftHandle -> WA_1 | hTakeMug -> WA_6),\n" +
@@ -249,7 +249,7 @@ class Corina02Test {
     val sys = ClassLoader.getSystemResource("specs/coffee/coffee_r.lts").readText()
 
     val cal = Corina02(sys, env, p)
-    val wa = cal.weakestAssumption()
+    val wa = cal.weakestAssumption("WA")
 //    assertWA(wa, "WA = (hPressBrew -> WA | hPlaceMug -> WA_6 | hLowerHandle -> WA_1),\n" +
 //        "WA_1 = (hPressBrew -> WA_1 | hPlaceMug -> WA_2 | hLiftHandle -> WA),\n" +
 //        "WA_2 = (hPressBrew -> WA_3 | hTakeMug -> WA_1 | hLiftHandle -> WA_6),\n" +

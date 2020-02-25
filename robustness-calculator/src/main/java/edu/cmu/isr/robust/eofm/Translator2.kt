@@ -193,7 +193,7 @@ class EOFMTranslator2(
     val topLevelNames = topLevelActivities.map { builder.appendActivity(it) }
 
     // Compose all the activities into one ENV process.
-    val unusedActions = getActions().toSet() - translatedActions.keys.map { it.humanAction }.toSet()
+    val unusedActions = actions.map { it.name }.toSet() - translatedActions.keys.map { it.humanAction }.toSet()
     if (unusedActions.isNotEmpty()) {
       error("Has unused actions: $unusedActions. Consider add special EOFM node to forbid them")
     }

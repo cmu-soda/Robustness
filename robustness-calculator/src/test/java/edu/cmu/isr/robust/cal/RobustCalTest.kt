@@ -1,6 +1,7 @@
 package edu.cmu.isr.robust.cal
 
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.assertEquals
 
 class RobustCalTest {
   @Test
@@ -21,6 +22,12 @@ class RobustCalTest {
     val cal = ABPRobustCal(sys, env, p)
     cal.errsRobustAgainst()
     val r = cal.errsRobustAgainst()
+    assertEquals(listOf(
+        Pair(listOf("send[1]", "rec[0]"), null),
+        Pair(listOf("send[1]", "rec[1]", "ack[1]", "getack[0]"), null),
+        Pair(listOf("send[1]", "rec[1]", "ack[0]", "getack[1]"), null),
+        Pair(listOf("send[0]", "rec[1]"), null)
+    ), r)
     println("Found ${r.size} traces, matched ${r.filter { it.second != null }.size}/${r.size}.")
   }
 }

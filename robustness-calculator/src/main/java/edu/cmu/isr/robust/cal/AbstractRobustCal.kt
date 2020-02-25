@@ -10,8 +10,8 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
 
   private class Node(val s: Int, val t: String, val pre: Node?)
 
-  protected val waGenerator: AbstractWAGenerator
-  protected val wa: String
+  val waGenerator: AbstractWAGenerator
+  private val wa: String
 
   init {
     // Check that SYS||ENV |= P
@@ -24,17 +24,17 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     waGenerator = Corina02(sys, env, p)
     println("Generating the weakest assumption...")
     println("Alphabet for weakest assumption: ${waGenerator.alphabetOfWA()}")
-    wa = waGenerator.weakestAssumption()
+    wa = waGenerator.weakestAssumption("WA")
     println(wa)
   }
 
   fun errsRobustAgainst(level: Int = -1): List<Pair<List<String>, List<String>?>> {
     val traces = if (level == -1) {
       println("Generating the shortest delta traces...")
-      waGenerator.shortestDeltaTraces(wa)
+      waGenerator.shortestDeltaTraces(wa, "WA")
     } else {
       println("Generating the level $level delta traces...")
-      waGenerator.deltaTraces(wa, level = level)
+      waGenerator.deltaTraces(wa, "WA", level = level)
     }
 
     if (traces.isEmpty()) {
@@ -47,6 +47,26 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
 
     // Match each deviation trace back to the human model with error
     return traces.map { Pair(it, matchMinimalErr(it)) }
+  }
+
+  fun robustnessComparedTo(wa2: String, name2: String, level: Int = -1): List<List<String>> {
+    val traces = if (level == -1) {
+      println("Generating the shortest delta traces...")
+      waGenerator.shortestDeltaTraces(wa, "WA", wa2, name2)
+    } else {
+      println("Generating the level $level delta traces...")
+      waGenerator.deltaTraces(wa, "WA", wa2, name2, level = level)
+    }
+
+    if (traces.isEmpty()) {
+      println("No error found. The weakest assumption of M1 has equal or less behavior than the weakest assumption of M2.")
+      return emptyList()
+    }
+    for (t in traces)
+      println(t)
+    println()
+
+    return traces
   }
 
   /**

@@ -52,7 +52,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
     val composite = ltsaCall.doCompile(spec, "C").doCompose().minimise()
 
     if (!composite.composition.hasERROR())
-      throw Error("The error state is not reachable. The property is true under any environment.")
+      println("The error state is not reachable. The property is true under any permitted environment.")
 
     // Get the composed state machine
     return StateMachine(composite)
