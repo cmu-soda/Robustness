@@ -4,7 +4,6 @@ import edu.cmu.isr.robust.ltsa.LTSACall
 import edu.cmu.isr.robust.ltsa.combineSpecs
 import edu.cmu.isr.robust.ltsa.doCompose
 import edu.cmu.isr.robust.util.StateMachine
-import edu.cmu.isr.robust.util.Transition
 
 abstract class AbstractWAGenerator(val sys: String, val env: String, val p: String) {
 

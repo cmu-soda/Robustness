@@ -2,10 +2,11 @@ const NoMug = 0
 const MugPlaced = 1
 range MugState = NoMug..MugPlaced
 
-property P = Mug[NoMug],
+P = Mug[NoMug],
 Mug[m:MugState] = (
     when (m == NoMug) hPlaceMug -> Mug[MugPlaced]
   | when (m == MugPlaced) hTakeMug -> Mug[NoMug]
   | when (m == MugPlaced) brew -> Wait
+  | when (m == NoMug) brew -> ERROR
 ),
-Wait = (brew -> Wait | complete -> hTakeMug -> P).
+Wait = (brew -> Wait | hTakeMug -> ERROR | complete -> Mug[MugPlaced]).

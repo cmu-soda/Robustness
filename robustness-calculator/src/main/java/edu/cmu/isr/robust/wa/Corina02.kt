@@ -16,10 +16,11 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
     val alphabetENV = ltsaCall.doCompile(env, "ENV").alphabetSet()
     val alphabetSYS = ltsaCall.doCompile(sys, "SYS").alphabetSet()
 
-    val alphabetP = ltsaCall.doCompile(p, "P").alphabetSet()
-    val alphabetC = alphabetSYS intersect alphabetENV
-    val alphabetI = alphabetSYS - alphabetC
-    alphabetR = (alphabetC + (alphabetP - alphabetI))
+//    val alphabetP = ltsaCall.doCompile(p, "P").alphabetSet()
+//    val alphabetC = alphabetSYS intersect alphabetENV
+//    val alphabetI = alphabetSYS - alphabetC
+//    alphabetR = (alphabetC + (alphabetP - alphabetI))
+    alphabetR = alphabetSYS intersect alphabetENV
   }
 
   /**
