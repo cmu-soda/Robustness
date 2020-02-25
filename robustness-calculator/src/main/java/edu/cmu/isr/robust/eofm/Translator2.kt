@@ -194,8 +194,11 @@ class EOFMTranslator2(
 
     // Compose all the activities into one ENV process.
     val unusedActions = getActions().toSet() - translatedActions.keys.map { it.humanAction }.toSet()
-    builder.append("UNUSED = END+{${unusedActions.joinToString(",")}}.\n")
-    builder.append("||ENV = (UNUSED || ${topLevelNames.joinToString(" || ")})")
+    if (unusedActions.isNotEmpty()) {
+      error("Has unused actions: $unusedActions. Consider add special EOFM node to forbid them")
+    }
+
+    builder.append("||ENV = (${topLevelNames.joinToString(" || ")})")
     if (withError) {
       if (errs.isEmpty()) {
         val errors = translatedActivities.values.map { "commission_$it, repetition_$it, omission_$it" }
@@ -692,7 +695,7 @@ class EOFMTranslator2(
       this.append(l)
       this.append('\n')
     }
-    this.append(").\n\n")
+    this.append(")+{start_$name,repeat_$name,end_$name}.\n\n")
 
     return condName
   }

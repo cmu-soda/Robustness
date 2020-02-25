@@ -17,6 +17,24 @@
 <!--        <humanaction name="hWaitReady" behavior="autoreset"/>-->
 
         <eofm>
+            <activity name="aNoUp">
+                <precondition>0</precondition>
+                <decomposition operator="ord">
+                    <action humanaction="hPressUp"/>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aNoUp1">
+                <precondition>0</precondition>
+                <decomposition operator="ord">
+                    <action humanaction="hPressUp1"/>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
             <activity name="aSelectXorE">
                 <precondition>iInterface == Edit</precondition>
                 <completioncondition>iInterface != Edit</completioncondition>
