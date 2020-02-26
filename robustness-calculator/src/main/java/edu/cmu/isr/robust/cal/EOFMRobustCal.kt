@@ -47,6 +47,10 @@ class EOFMRobustCal private constructor(
     @JvmStatic
     private fun genConciseHumanModel(translator: EOFMTranslator2, sys: String, rawModel: String): String {
       val actions = translator.getActions()
+
+      val rawComposite = LTSACall().doCompile(rawModel, "ENV").doCompose()
+      println("Translated EOFM LTS: ${rawComposite.composition.maxStates} states and ${rawComposite.composition.ntransitions()} transitions.")
+
       val spec = combineSpecs(rawModel, sys, "||G = (SYS || ENV)@{${actions.joinToString(", ")}}.")
       val composite = LTSACall().doCompile(spec, "G").doCompose()
       val conciseHuman = StateMachine(composite).tauElmAndSubsetConstr().first

@@ -13,8 +13,14 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
   init {
     // Generate alphabets
     val ltsaCall = LTSACall()
-    val alphabetENV = ltsaCall.doCompile(env, "ENV").alphabetSet()
-    val alphabetSYS = ltsaCall.doCompile(sys, "SYS").alphabetSet()
+
+    val envComposite = ltsaCall.doCompile(env, "ENV").doCompose()
+    println("Environment LTS: ${envComposite.composition.maxStates} states and ${envComposite.composition.ntransitions()} transitions.")
+    val alphabetENV = envComposite.alphabetSet()
+
+    val sysComposite = ltsaCall.doCompile(sys, "SYS").doCompose()
+    println("System LTS: ${sysComposite.composition.maxStates} states and ${sysComposite.composition.ntransitions()} transitions.")
+    val alphabetSYS = sysComposite.alphabetSet()
 
 //    val alphabetP = ltsaCall.doCompile(p, "P").alphabetSet()
 //    val alphabetC = alphabetSYS intersect alphabetENV

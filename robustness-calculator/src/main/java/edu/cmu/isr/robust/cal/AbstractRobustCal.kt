@@ -10,10 +10,22 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
 
   private class Node(val s: Int, val t: String, val pre: Node?)
 
-  val waGenerator: AbstractWAGenerator
-  private val wa: String
+  var nameOfWA = "WA"
+    set(value) {
+      if (wa != null)
+        println("WARN: The weakest assumption has already generated, cannot change its name.")
+      else
+        field = value
+    }
 
-  init {
+  protected val waGenerator: AbstractWAGenerator = Corina02(sys, env, p)
+  private var wa: String? = null
+
+  fun getWA(): String {
+    return wa ?: genWeakestAssumption()
+  }
+
+  private fun genWeakestAssumption(): String {
     // Check that SYS||ENV |= P
     var spec = combineSpecs(sys, env, p, "||T = (SYS || ENV || P).")
     val errs = LTSACall().doCompile(spec, "T").doCompose().propertyCheck()
@@ -21,20 +33,23 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
       println("ERROR: SYS || ENV |= P does not hold, property violation or deadlock:\n\t${errs.joinToString("\n\t")}\n")
     }
 
-    waGenerator = Corina02(sys, env, p)
     println("Generating the weakest assumption...")
     println("Alphabet for weakest assumption: ${waGenerator.alphabetOfWA()}")
-    wa = waGenerator.weakestAssumption("WA")
+    wa = waGenerator.weakestAssumption(nameOfWA)
     println(wa)
+    return wa!!
   }
 
-  fun errsRobustAgainst(level: Int = -1): List<Pair<List<String>, List<String>?>> {
+  fun computeRobustness(level: Int = -1): List<Pair<List<String>, List<String>?>> {
+    if (wa == null)
+      genWeakestAssumption()
+
     val traces = if (level == -1) {
       println("Generating the shortest delta traces...")
-      waGenerator.shortestDeltaTraces(wa, "WA")
+      waGenerator.shortestDeltaTraces(wa!!, nameOfWA)
     } else {
       println("Generating the level $level delta traces...")
-      waGenerator.deltaTraces(wa, "WA", level = level)
+      waGenerator.deltaTraces(wa!!, nameOfWA, level = level)
     }
 
     if (traces.isEmpty()) {
@@ -50,12 +65,15 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   }
 
   fun robustnessComparedTo(wa2: String, name2: String, level: Int = -1): List<List<String>> {
+    if (wa == null)
+      genWeakestAssumption()
+
     val traces = if (level == -1) {
       println("Generating the shortest delta traces...")
-      waGenerator.shortestDeltaTraces(wa, "WA", wa2, name2)
+      waGenerator.shortestDeltaTraces(wa!!, nameOfWA, wa2, name2)
     } else {
       println("Generating the level $level delta traces...")
-      waGenerator.deltaTraces(wa, "WA", wa2, name2, level = level)
+      waGenerator.deltaTraces(wa!!, nameOfWA, wa2, name2, level = level)
     }
 
     if (traces.isEmpty()) {

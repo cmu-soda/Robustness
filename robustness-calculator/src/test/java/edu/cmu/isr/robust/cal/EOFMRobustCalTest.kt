@@ -12,7 +12,7 @@ class EOFMRobustCalTest {
     val config = CoffeeConfig()
     val cal = EOFMRobustCal.create(sys, p, coffee, config.initialValues, config.world, config.relabels)
 
-    cal.errsRobustAgainst()
+    cal.computeRobustness()
   }
 
   /**
@@ -41,7 +41,7 @@ class EOFMRobustCalTest {
     val config = TheracNoWaitConfig()
     val cal = EOFMRobustCal.create(sys, p, therac, config.initialValues, config.world, config.relabels)
 
-    cal.errsRobustAgainst()
+    cal.computeRobustness()
   }
 
   @Test
@@ -52,7 +52,7 @@ class EOFMRobustCalTest {
     val config = TheracNoWaitConfig()
     val cal = EOFMRobustCal.create(sys, p, therac, config.initialValues, config.world, config.relabels)
 
-    cal.errsRobustAgainst()
+    cal.computeRobustness()
   }
 
   @Test
@@ -63,12 +63,12 @@ class EOFMRobustCalTest {
     // Read therac
     val sys1 = ClassLoader.getSystemResource("specs/therac25/sys.lts").readText()
     val cal1 = EOFMRobustCal.create(sys1, p, therac, config.initialValues, config.world, config.relabels)
-    val wa1 = cal1.waGenerator.weakestAssumption("WA1")
+    cal1.nameOfWA = "WA1"
 
     // Read therac robust
     val sys2 = ClassLoader.getSystemResource("specs/therac25/sys_r.lts").readText()
     val cal2 = EOFMRobustCal.create(sys2, p, therac, config.initialValues, config.world, config.relabels)
-    cal2.robustnessComparedTo(wa1, "WA1", level = 0)
+    cal2.robustnessComparedTo(cal1.getWA(), "WA1", level = 0)
   }
 
 }
