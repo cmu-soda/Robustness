@@ -75,3 +75,29 @@ class TheracNoWaitConfig : TestConfig {
 
   override val relabels: Map<String, String> = emptyMap()
 }
+
+class TheracRobustNoWaitConfig : TestConfig {
+  override val initialValues: Map<String, String> =
+      mapOf("iInterface" to "Edit", "iSpreader" to "OutPlace", "iPowerLevel" to "NotSet")
+
+  override val world: List<String> =
+      listOf(
+          "when (iInterface == Edit) hPressX -> VAR[ConfirmXray][InPlace][iPowerLevel]",
+          "when (iInterface == Edit) hPressE -> VAR[ConfirmEBeam][OutPlace][iPowerLevel]",
+          "when (iInterface == ConfirmXray || iInterface == ConfirmEBeam) hPressUp -> VAR[Edit][iSpreader][iPowerLevel]",
+          "when (iInterface == PrepXray) hPressUp1 -> VAR[ConfirmXray][iSpreader][iPowerLevel]",
+          "when (iInterface == PrepEBeam) hPressUp1 -> VAR[ConfirmEBeam][iSpreader][iPowerLevel]",
+          "when (iInterface == ConfirmXray) hPressEnter -> VAR[PrepXray][iSpreader][iPowerLevel]",
+          "when (iInterface == ConfirmEBeam) hPressEnter -> VAR[PrepEBeam][iSpreader][iPowerLevel]",
+          "when (iInterface == PrepXray && iSpreader == InPlace && iPowerLevel == XrayLevel) hPressB -> VAR[Administered][iSpreader][iPowerLevel]",
+          "when (iInterface == PrepEBeam && iSpreader == OutPlace && iPowerLevel == EBeamLevel) hPressB -> VAR[Administered][iSpreader][iPowerLevel]",
+          "when (iInterface == PrepXray && !(iSpreader == InPlace && iPowerLevel == XrayLevel)) hPressB -> VAR[iInterface][iSpreader][iPowerLevel]",
+          "when (iInterface == PrepEBeam && !(iSpreader == OutPlace && iPowerLevel == EBeamLevel)) hPressB -> VAR[iInterface][iSpreader][iPowerLevel]",
+          "when (iPowerLevel == EBeamLevel) mXrayLvl -> VAR[iInterface][iSpreader][XrayLevel]",
+          "when (iPowerLevel == XrayLevel) mEBeamLvl -> VAR[iInterface][iSpreader][EBeamLevel]",
+          "when (iPowerLevel == NotSet) mInitXray -> VAR[iInterface][iSpreader][XrayLevel]",
+          "when (iPowerLevel == NotSet) mInitEBeam -> VAR[iInterface][iSpreader][EBeamLevel]"
+      )
+
+  override val relabels: Map<String, String> = emptyMap()
+}

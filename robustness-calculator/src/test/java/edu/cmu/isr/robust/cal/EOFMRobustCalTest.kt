@@ -27,20 +27,6 @@ class EOFMRobustCalTest {
   }
 
   /**
-   * therac25.xml model defines wait power level actions.
-   */
-  /*@Test
-  fun testTheracWait() {
-    val p = ClassLoader.getSystemResource("specs/therac25/p.lts").readText()
-    val sys = ClassLoader.getSystemResource("specs/therac25/sys.lts").readText()
-    val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25.xml"))
-    val config = TheracWaitConfig()
-    val cal = EOFMRobustCal.create(sys, p, therac, config.initialValues, config.world, config.relabels)
-
-    cal.errsRobustAgainst()
-  }*/
-
-  /**
    * In the therac25_nowait.xml model, although the EOFM defines a wait action, but this action is the internal action
    * of human and unobservable from the machine.
    */
@@ -60,7 +46,7 @@ class EOFMRobustCalTest {
     val p = ClassLoader.getSystemResource("specs/therac25/p_w.lts").readText()
     val sys = ClassLoader.getSystemResource("specs/therac25/sys_r.lts").readText()
     val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25_nowait.xml"))
-    val config = TheracNoWaitConfig()
+    val config = TheracRobustNoWaitConfig()
     val cal = EOFMRobustCal.create(sys, p, therac, config.initialValues, config.world, config.relabels)
 
     cal.computeRobustness()
@@ -70,15 +56,16 @@ class EOFMRobustCalTest {
   fun testCompareTheracAndTheracRobust() {
     val p = ClassLoader.getSystemResource("specs/therac25/p_w.lts").readText()
     val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25_nowait.xml"))
-    val config = TheracNoWaitConfig()
     // Read therac
+    val config = TheracNoWaitConfig()
     val sys1 = ClassLoader.getSystemResource("specs/therac25/sys.lts").readText()
     val cal1 = EOFMRobustCal.create(sys1, p, therac, config.initialValues, config.world, config.relabels)
     cal1.nameOfWA = "WA1"
 
     // Read therac robust
+    val configR = TheracRobustNoWaitConfig()
     val sys2 = ClassLoader.getSystemResource("specs/therac25/sys_r.lts").readText()
-    val cal2 = EOFMRobustCal.create(sys2, p, therac, config.initialValues, config.world, config.relabels)
+    val cal2 = EOFMRobustCal.create(sys2, p, therac, configR.initialValues, configR.world, configR.relabels)
     cal2.robustnessComparedTo(cal1.getWA(), "WA1")
   }
 

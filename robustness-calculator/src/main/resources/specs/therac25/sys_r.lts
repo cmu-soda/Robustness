@@ -12,15 +12,18 @@ EDIT[iSpreader:S_TSpreader][iPower:S_TPower] = (
     |   mXrayLvl -> EDIT[iSpreader][S_XrayPower] | mEBeamLvl -> EDIT[iSpreader][S_EBeamPower]
 ),
 CONFIRM[iSpreader:S_TSpreader][iPower:S_TPower] = (
-        hPressUp -> EDIT[iSpreader][iPower] | hPressEnter -> PREP[iSpreader][iPower]
+        hPressUp -> EDIT[iSpreader][iPower]
+    |   when (iSpreader == S_InPlace && iPower == S_XrayPower) hPressEnter -> PREP[iSpreader][iPower][1]
+    |   when (iSpreader == S_OutPlace && iPower == S_EBeamPower) hPressEnter -> PREP[iSpreader][iPower][1]
+    |   when (!(iSpreader == S_InPlace && iPower == S_XrayPower) && !(iSpreader == S_OutPlace && iPower == S_EBeamPower)) hPressEnter -> PREP[iSpreader][iPower][0]
     |   mXrayLvl -> CONFIRM[iSpreader][S_XrayPower] | mEBeamLvl -> CONFIRM[iSpreader][S_EBeamPower]
 ),
-PREP[iSpreader:S_TSpreader][iPower:S_TPower] = (
-        when (iSpreader == S_InPlace && iPower == S_XrayPower) hPressB -> FIRE
-    |   when (iSpreader == S_OutPlace && iPower == S_EBeamPower) hPressB -> FIRE
-    |   when (!(iSpreader == S_InPlace && iPower == S_XrayPower) && !(iSpreader == S_OutPlace && iPower == S_EBeamPower)) hPressB -> PREP[iSpreader][iPower]
+PREP[iSpreader:S_TSpreader][iPower:S_TPower][iSet:0..1] = (
+        when (iSet == 1) hPressB -> FIRE
+	|	when (iSet == 0 && ((iSpreader == S_InPlace && iPower == S_XrayPower) || (iSpreader == S_OutPlace && iPower == S_EBeamPower))) mReady -> PREP[iSpreader][iPower][1]
+    |   when (iSet == 0) hPressB -> PREP[iSpreader][iPower][iSet]
     |   hPressUp1 -> CONFIRM[iSpreader][iPower]
-    |   mXrayLvl -> PREP[iSpreader][S_XrayPower] | mEBeamLvl -> PREP[iSpreader][S_EBeamPower]
+    |   mXrayLvl -> PREP[iSpreader][S_XrayPower][iSet] | mEBeamLvl -> PREP[iSpreader][S_EBeamPower][iSet]
 ),
 FIRE = (mFire -> FIRE).
 

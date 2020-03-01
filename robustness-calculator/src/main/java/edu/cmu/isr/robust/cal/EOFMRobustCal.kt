@@ -187,6 +187,8 @@ class EOFMRobustCal private constructor(
         errs.add("commission_${translator.translatedName(a)}")
       } else { // the activity has started or repeated
         errs.add("repetition_${translator.translatedName(a)}")
+        // FIXME: not sure to add this
+        errs.add("commission_${translator.translatedName(a)}")
         break
       }
       i++
