@@ -10,6 +10,8 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
 
   private class Node(val s: Int, val a: String, val pre: Node?)
 
+  data class EquivClass(val s: Int, val a: String)
+
   /**
    *
    */
@@ -36,29 +38,29 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
     return StateMachine(composite)
   }
 
-  fun deltaTraces(wa: String, name: String, level: Int = 0): List<List<String>> {
+  fun deltaTraces(wa: String, name: String, level: Int = 0): Map<EquivClass, List<List<String>>> {
     val sm = computeDelta(wa, name)
-    if (!sm.hasError())
-      return emptyList()
-
-    val traces = mutableListOf<List<String>>()
-    val dfs = buildDFS(sm, level, traces)
-    dfs(Node(0, "", null), mapOf(0 to 1))
-    return traces
+    return deltaTraces(sm, level)
   }
 
-  fun deltaTraces(wa1: String, name1: String, wa2: String, name2: String, level: Int = 0): List<List<String>> {
+  fun deltaTraces(wa1: String, name1: String, wa2: String, name2: String, level: Int = 0): Map<EquivClass, List<List<String>>> {
     val sm = computeX(wa1, name1, wa2, name2)
-    if (!sm.hasError())
-      return emptyList()
+    return deltaTraces(sm, level)
+  }
 
-    val traces = mutableListOf<List<String>>()
+  private fun deltaTraces(sm: StateMachine, level: Int): Map<EquivClass, List<List<String>>> {
+    if (!sm.hasError())
+      return emptyMap()
+
+    val traces = mutableMapOf<EquivClass, MutableList<List<String>>>()
     val dfs = buildDFS(sm, level, traces)
     dfs(Node(0, "", null), mapOf(0 to 1))
     return traces
   }
 
-  private fun buildDFS(sm: StateMachine, level: Int, traces: MutableList<List<String>>): (Node, Map<Int, Int>) -> Unit {
+  private fun buildDFS(sm: StateMachine, level: Int,
+                       traces: MutableMap<EquivClass, MutableList<List<String>>>): (Node, Map<Int, Int>) -> Unit
+  {
     val outTrans = sm.transitions.outTrans()
 
     fun dfs(n: Node, visited: Map<Int, Int>) {
@@ -69,7 +71,9 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
           trace.add(0, nn.a)
           nn = nn.pre!!
         }
-        traces.add(trace)
+        val c = EquivClass(n.pre!!.s, n.a)
+        traces[c] = traces[c] ?: mutableListOf()
+        traces[c]!!.add(trace)
         return
       }
       for (t in outTrans[n.s] ?: emptyList()) {
@@ -93,30 +97,26 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
   /**
    *
    */
-  fun shortestDeltaTraces(wa: String, name: String): List<List<String>> {
+  fun shortestDeltaTraces(wa: String, name: String): Map<EquivClass, List<List<String>>> {
     val sm = computeDelta(wa, name)
-    if (!sm.hasError())
-      return emptyList()
-
-    val traces = mutableListOf<List<String>>()
-    val transToErr = sm.transitions.inTrans()[-1] ?: emptyList()
-    val paths = sm.pathFromInit(transToErr.map { it.first }.toSet())
-    for (t in transToErr) {
-      traces.add((paths[t.first] ?: error(t.first)) + sm.alphabet[t.second])
-    }
-    return traces
+    return shortestDeltaTraces(sm)
   }
 
-  fun shortestDeltaTraces(wa1: String, name1: String, wa2: String, name2: String): List<List<String>> {
+  fun shortestDeltaTraces(wa1: String, name1: String, wa2: String, name2: String): Map<EquivClass, List<List<String>>> {
     val sm = computeX(wa1, name1, wa2, name2)
-    if (!sm.hasError())
-      return emptyList()
+    return shortestDeltaTraces(sm)
+  }
 
-    val traces = mutableListOf<List<String>>()
+  private fun shortestDeltaTraces(sm: StateMachine): Map<EquivClass, List<List<String>>> {
+    if (!sm.hasError())
+      return emptyMap()
+
+    val traces = mutableMapOf<EquivClass, List<List<String>>>()
     val transToErr = sm.transitions.inTrans()[-1] ?: emptyList()
     val paths = sm.pathFromInit(transToErr.map { it.first }.toSet())
     for (t in transToErr) {
-      traces.add((paths[t.first] ?: error(t.first)) + sm.alphabet[t.second])
+      val a = sm.alphabet[t.second]
+      traces[EquivClass(t.first, a)] = listOf((paths[t.first] ?: error(t.first)) + a)
     }
     return traces
   }

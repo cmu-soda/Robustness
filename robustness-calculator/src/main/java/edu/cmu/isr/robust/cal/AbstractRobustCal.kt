@@ -40,6 +40,15 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     return wa!!
   }
 
+  private fun printRepTraces(traces: Map<AbstractWAGenerator.EquivClass, List<List<String>>>) {
+    for ((k, v) in traces) {
+      println("Class $k:")
+      for (l in v)
+        println("\t$l")
+    }
+    println()
+  }
+
   fun computeRobustness(level: Int = -1): List<Pair<List<String>, List<String>?>> {
     if (wa == null)
       genWeakestAssumption()
@@ -56,12 +65,10 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
       println("No error found. The weakest assumption has equal or less behavior than the environment.")
       return emptyList()
     }
-    for (t in traces)
-      println(t)
-    println()
+    printRepTraces(traces)
 
     // Match each deviation trace back to the human model with error
-    return traces.map { Pair(it, matchMinimalErr(it)) }
+    return traces.values.flatMap { v -> v.map { Pair(it, matchMinimalErr(it)) } }
   }
 
   fun robustnessComparedTo(wa2: String, name2: String, level: Int = -1): List<List<String>> {
@@ -80,11 +87,9 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
       println("No error found. The weakest assumption of M1 has equal or less behavior than the weakest assumption of M2.")
       return emptyList()
     }
-    for (t in traces)
-      println(t)
-    println()
+    printRepTraces(traces)
 
-    return traces
+    return traces.values.flatten()
   }
 
   /**

@@ -11,12 +11,15 @@ class Corina02Test {
     assertEquals(expected, wa)
   }
 
-  private fun assertTraces(traces: List<List<String>>, t: String, expected: List<String>) {
+  private fun assertTraces(traces: Map<AbstractWAGenerator.EquivClass, List<List<String>>>, t: String, expected: List<String>) {
     println("$t delta Traces:")
-    for (it in traces)
-      println(it)
+    for ((k, v) in traces) {
+      println("Class $k:")
+      for (l in v)
+        println("\t$l")
+    }
     println()
-    assertEquals(expected, traces.map { "[${it.joinToString(", ")}]" })
+    assertEquals(expected, traces.values.flatMap { v -> v.map { "[${it.joinToString(", ")}]" } })
   }
 
   @Test
@@ -54,43 +57,43 @@ class Corina02Test {
     ))
     assertTraces(cal.deltaTraces(wa, "WA", level = 0), "Level 0", listOf(
         "[send[0], rec[0], ack[0], getack[1]]",
-        "[send[0], rec[0], ack[1], getack[0]]",
-        "[send[0], rec[1]]",
-        "[send[1], rec[0]]",
         "[send[1], rec[1], ack[0], getack[1]]",
-        "[send[1], rec[1], ack[1], getack[0]]"
+        "[send[0], rec[0], ack[1], getack[0]]",
+        "[send[1], rec[1], ack[1], getack[0]]",
+        "[send[0], rec[1]]",
+        "[send[1], rec[0]]"
     ))
     assertTraces(cal.deltaTraces(wa, "WA", level = 1), "Level 1", listOf(
         "[send[0], rec[0], ack[0], getack[0], send[0], rec[0], ack[0], getack[1]]",
-        "[send[0], rec[0], ack[0], getack[0], send[0], rec[0], ack[1], getack[0]]",
-        "[send[0], rec[0], ack[0], getack[0], send[0], rec[1]]",
-        "[send[0], rec[0], ack[0], getack[0], send[1], rec[0]]",
         "[send[0], rec[0], ack[0], getack[0], send[1], rec[1], ack[0], getack[1]]",
-        "[send[0], rec[0], ack[0], getack[0], send[1], rec[1], ack[1], getack[0]]",
         "[send[0], rec[0], ack[0], getack[1]]",
-        "[send[0], rec[0], ack[1], getack[0]]",
         "[send[0], rec[0], ack[1], getack[1], send[0], rec[0], ack[0], getack[1]]",
-        "[send[0], rec[0], ack[1], getack[1], send[0], rec[0], ack[1], getack[0]]",
-        "[send[0], rec[0], ack[1], getack[1], send[0], rec[1]]",
-        "[send[0], rec[0], ack[1], getack[1], send[1], rec[0]]",
         "[send[0], rec[0], ack[1], getack[1], send[1], rec[1], ack[0], getack[1]]",
-        "[send[0], rec[0], ack[1], getack[1], send[1], rec[1], ack[1], getack[0]]",
-        "[send[0], rec[1]]",
-        "[send[1], rec[0]]",
         "[send[1], rec[1], ack[0], getack[0], send[0], rec[0], ack[0], getack[1]]",
-        "[send[1], rec[1], ack[0], getack[0], send[0], rec[0], ack[1], getack[0]]",
-        "[send[1], rec[1], ack[0], getack[0], send[0], rec[1]]",
-        "[send[1], rec[1], ack[0], getack[0], send[1], rec[0]]",
         "[send[1], rec[1], ack[0], getack[0], send[1], rec[1], ack[0], getack[1]]",
-        "[send[1], rec[1], ack[0], getack[0], send[1], rec[1], ack[1], getack[0]]",
         "[send[1], rec[1], ack[0], getack[1]]",
-        "[send[1], rec[1], ack[1], getack[0]]",
         "[send[1], rec[1], ack[1], getack[1], send[0], rec[0], ack[0], getack[1]]",
-        "[send[1], rec[1], ack[1], getack[1], send[0], rec[0], ack[1], getack[0]]",
-        "[send[1], rec[1], ack[1], getack[1], send[0], rec[1]]",
-        "[send[1], rec[1], ack[1], getack[1], send[1], rec[0]]",
         "[send[1], rec[1], ack[1], getack[1], send[1], rec[1], ack[0], getack[1]]",
-        "[send[1], rec[1], ack[1], getack[1], send[1], rec[1], ack[1], getack[0]]"
+        "[send[0], rec[0], ack[0], getack[0], send[0], rec[0], ack[1], getack[0]]",
+        "[send[0], rec[0], ack[0], getack[0], send[1], rec[1], ack[1], getack[0]]",
+        "[send[0], rec[0], ack[1], getack[0]]",
+        "[send[0], rec[0], ack[1], getack[1], send[0], rec[0], ack[1], getack[0]]",
+        "[send[0], rec[0], ack[1], getack[1], send[1], rec[1], ack[1], getack[0]]",
+        "[send[1], rec[1], ack[0], getack[0], send[0], rec[0], ack[1], getack[0]]",
+        "[send[1], rec[1], ack[0], getack[0], send[1], rec[1], ack[1], getack[0]]",
+        "[send[1], rec[1], ack[1], getack[0]]",
+        "[send[1], rec[1], ack[1], getack[1], send[0], rec[0], ack[1], getack[0]]",
+        "[send[1], rec[1], ack[1], getack[1], send[1], rec[1], ack[1], getack[0]]",
+        "[send[0], rec[0], ack[0], getack[0], send[0], rec[1]]",
+        "[send[0], rec[0], ack[1], getack[1], send[0], rec[1]]",
+        "[send[0], rec[1]]",
+        "[send[1], rec[1], ack[0], getack[0], send[0], rec[1]]",
+        "[send[1], rec[1], ack[1], getack[1], send[0], rec[1]]",
+        "[send[0], rec[0], ack[0], getack[0], send[1], rec[0]]",
+        "[send[0], rec[0], ack[1], getack[1], send[1], rec[0]]",
+        "[send[1], rec[0]]",
+        "[send[1], rec[1], ack[0], getack[0], send[1], rec[0]]",
+        "[send[1], rec[1], ack[1], getack[1], send[1], rec[0]]"
     ))
   }
 
