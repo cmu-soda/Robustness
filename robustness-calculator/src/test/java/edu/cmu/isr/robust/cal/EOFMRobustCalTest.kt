@@ -15,6 +15,17 @@ class EOFMRobustCalTest {
     cal.computeRobustness()
   }
 
+  @Test
+  fun testCoffeeRobust() {
+    val p = ClassLoader.getSystemResource("specs/coffee_eofm/p.lts").readText()
+    val sys = ClassLoader.getSystemResource("specs/coffee_eofm/machine_r.lts").readText()
+    val coffee: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
+    val config = CoffeeConfig()
+    val cal = EOFMRobustCal.create(sys, p, coffee, config.initialValues, config.world, config.relabels)
+
+    cal.computeRobustness()
+  }
+
   /**
    * therac25.xml model defines wait power level actions.
    */
