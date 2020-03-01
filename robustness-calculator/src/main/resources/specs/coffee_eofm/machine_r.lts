@@ -1,0 +1,18 @@
+const S_False = 0
+const S_True = 1
+range S_TBool = S_False..S_True
+
+const S_NoMug = 0
+const S_MugPlaced = 1
+range S_MugState = S_NoMug..S_MugPlaced
+
+SYS = Run[S_True][S_NoMug],
+Run[iHandleDown:S_TBool][iMug:S_MugState] = (
+    when (iHandleDown == S_True) hLiftHandle -> Run[S_False][iMug]
+  | when (iHandleDown == S_False) hLowerHandle -> Run[S_True][iMug]
+  | when (iHandleDown == S_True && iMug == S_MugPlaced) hPressBrew -> mBrew -> Brewing
+  | when (!(iHandleDown == S_True && iMug == S_MugPlaced)) hPressBrew -> Run[iHandleDown][iMug]
+  | when (iMug == S_NoMug) hPlaceMug -> Run[iHandleDown][S_MugPlaced]
+  | when (iMug == S_MugPlaced) hTakeMug -> Run[iHandleDown][S_NoMug]
+),
+Brewing = (mBrew -> Brewing | mBrewDone -> Run[S_True][S_MugPlaced] | hTakeMug -> mBrewDone -> Run[S_True][S_NoMug]).

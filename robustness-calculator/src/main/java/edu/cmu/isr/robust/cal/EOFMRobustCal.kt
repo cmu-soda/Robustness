@@ -148,7 +148,8 @@ class EOFMRobustCal private constructor(
   override fun genErrEnvironment(t: List<String>): String {
     // Match the normative prefix with the human model to get activity states
     val normPrefix = t.subList(0, t.size - 1)
-    val activityStates = matchNormTrace(normPrefix).filter { !isEnvEvent(it) }
+    val activityStates = if (normPrefix.isNotEmpty())
+      matchNormTrace(normPrefix).filter { !isEnvEvent(it) } else emptyList()
     val path = translator.pathToAction(t.last())
     val errs = matchErrors(path.reversed(), activityStates)
     println("Potential errors: $errs")

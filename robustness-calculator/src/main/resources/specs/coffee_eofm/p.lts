@@ -1,3 +1,3 @@
 P = (hPlaceMug -> MugPlaced | mBrew -> ERROR),
 MugPlaced = (hTakeMug -> P | mBrew -> Brewing),
-Brewing = (hTakeMug -> ERROR | mBrew -> Brewing | mBrewDone -> MugPlaced).
+Brewing = (hTakeMug -> (mBrew -> ERROR | mBrewDone -> P) | mBrew -> Brewing | mBrewDone -> MugPlaced).
