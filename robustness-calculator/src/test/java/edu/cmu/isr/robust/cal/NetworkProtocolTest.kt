@@ -3,7 +3,7 @@ package edu.cmu.isr.robust.cal
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 
-class RobustCalTest {
+class NetworkProtocolTest {
   @Test
   fun abpTest() {
     val sys = ClassLoader.getSystemResource("specs/abp/abp.lts").readText()
