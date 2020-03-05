@@ -12,6 +12,15 @@ class NetworkProtocolTest {
     val cal = ABPRobustCal(sys, env, p)
     val r = cal.computeRobustness()
     println("Found ${r.size} traces, matched ${r.filter { it.second != null }.size}/${r.size}.")
+
+    // Manually group them again
+    val grouped = r.groupBy {
+      val explan = it.second
+      explan?.filter { a -> cal.isErrEvent(a) }?.joinToString(",") ?: "Unexplained"
+    }
+    for ((k, v) in grouped) {
+      println("Group: $k, Number of traces: ${v.size}")
+    }
   }
 
   @Test
