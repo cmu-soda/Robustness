@@ -2,9 +2,6 @@ package edu.cmu.isr.robust.ltsa
 
 import lts.*
 
-/**
- * @author Changjian Zhang
- */
 class LTSACall {
   init {
     SymbolTable.init()

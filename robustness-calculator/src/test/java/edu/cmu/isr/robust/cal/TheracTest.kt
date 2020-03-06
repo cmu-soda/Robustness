@@ -8,10 +8,6 @@ import org.junit.jupiter.api.Test
 
 class TheracTest {
 
-  /**
-   * In the therac25_nowait.xml model, although the EOFM defines a wait action, but this action is the internal action
-   * of human and unobservable from the machine.
-   */
   @Test
   fun theracTest() {
     val p = ClassLoader.getSystemResource("specs/therac25/p_w.lts").readText()
