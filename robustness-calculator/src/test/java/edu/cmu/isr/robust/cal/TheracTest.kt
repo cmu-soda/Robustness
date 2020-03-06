@@ -48,7 +48,10 @@ class TheracTest {
     val configR = TheracRobustNoWaitConfig()
     val sys2 = ClassLoader.getSystemResource("specs/therac25/sys_r.lts").readText()
     val cal2 = EOFMRobustCal.create(sys2, p, therac, configR.initialValues, configR.world, configR.relabels)
+    println("Compute Delta(MR,E,P) - Delta(M,E,P)")
     cal2.robustnessComparedTo(cal1.getWA(), "WA1")
+    println("Compute Delta(M,E,P) - Delta(MR,E,P)")
+    cal1.robustnessComparedTo(cal2.getWA(), "WA")
   }
 
   @Test
