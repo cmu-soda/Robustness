@@ -11,7 +11,7 @@ File -> Project Structure -> Libraries -> Select '+' and Java -> Select the 'lts
 ## Try it out!
 
 ### Network Protocol Test
-Run test/java/edu.cmu.isr.robust/cal/NetworkProtocolTest
+Run test/java/xxx.xxx.xxx.robust/cal/NetworkProtocolTest
 
 ### Radiation Therapy System Test
-Run test/java/edu.cmu.isr.robust/cal/TheracTest
+Run test/java/xxx.xxx.xxx.robust/cal/TheracTest
