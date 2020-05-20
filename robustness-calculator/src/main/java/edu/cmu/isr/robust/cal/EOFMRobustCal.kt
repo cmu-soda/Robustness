@@ -1,3 +1,28 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2020 Changjian Zhang
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
 package edu.cmu.isr.robust.cal
 
 import edu.cmu.isr.robust.ltsa.LTSACall
@@ -6,7 +31,7 @@ import edu.cmu.isr.robust.ltsa.doCompose
 import edu.cmu.isr.robust.eofm.Action
 import edu.cmu.isr.robust.eofm.Activity
 import edu.cmu.isr.robust.eofm.EOFMS
-import edu.cmu.isr.robust.eofm.EOFMTranslator2
+import edu.cmu.isr.robust.eofm.EOFMTranslator
 import edu.cmu.isr.robust.ltsa.buildTrace
 import edu.cmu.isr.robust.util.StateMachine
 
@@ -15,7 +40,7 @@ class EOFMRobustCal private constructor(
     p: String,
     private val rawHumanModel: String,
     private val conciseHumanModel: String,
-    private val translator: EOFMTranslator2
+    private val translator: EOFMTranslator
 ) : AbstractRobustCal(sys, conciseHumanModel, p) {
 
   companion object {
@@ -24,7 +49,7 @@ class EOFMRobustCal private constructor(
                world: List<String>, relabels: Map<String, String>): EOFMRobustCal
     {
       println("Generating the LTSA spec of the EOFM human model...")
-      val translator = EOFMTranslator2(human, initState, world, relabels)
+      val translator = EOFMTranslator(human, initState, world, relabels)
       val rawModel = genHumanModel(translator)
       val conciseModel = genConciseHumanModel(translator, sys, rawModel)
       println(conciseModel)
@@ -35,7 +60,7 @@ class EOFMRobustCal private constructor(
      *
      */
     @JvmStatic
-    private fun genHumanModel(translator: EOFMTranslator2): String {
+    private fun genHumanModel(translator: EOFMTranslator): String {
       val builder = StringBuilder()
       translator.translate(builder)
       return builder.toString()
@@ -45,7 +70,7 @@ class EOFMRobustCal private constructor(
      *
      */
     @JvmStatic
-    private fun genConciseHumanModel(translator: EOFMTranslator2, sys: String, rawModel: String): String {
+    private fun genConciseHumanModel(translator: EOFMTranslator, sys: String, rawModel: String): String {
       val actions = translator.getActions()
 
       val rawComposite = LTSACall().doCompile(rawModel, "ENV").doCompose()
@@ -61,7 +86,7 @@ class EOFMRobustCal private constructor(
      *
      */
     @JvmStatic
-    private fun genHumanErrModel(translator: EOFMTranslator2): String {
+    private fun genHumanErrModel(translator: EOFMTranslator): String {
       val builder = StringBuilder()
       translator.translate(builder, withError = true)
       return builder.toString()
@@ -71,7 +96,7 @@ class EOFMRobustCal private constructor(
      *
      */
     @JvmStatic
-    private fun genHumanErrModel(translator: EOFMTranslator2, errs: List<String>): String {
+    private fun genHumanErrModel(translator: EOFMTranslator, errs: List<String>): String {
       val builder = StringBuilder()
       translator.translate(builder, errs = errs)
       return builder.toString()

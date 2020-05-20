@@ -1,26 +1,67 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2020 Changjian Zhang
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
 package edu.cmu.isr.robust.eofm
 
-class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
-
+class EOFMTranslator(
+    eofms: EOFMS,
+    initValues: Map<String, String>,
+    /**
+     * The world model which describes how the 'physical world' should change. We assume that this model is predefined
+     * and should not contain error. And the mapping from world to human/system should also be correct. It means that
+     * we omit the state mismatches between the world and human/system.
+     */
+    private val world: List<String>,
+    /**
+     * Labels to rename when composing with the machine specification.
+     */
+    private val relabels: Map<String, String> = emptyMap()
+) {
   /**
    * The list of all the constants defined in the EOFM. These constants will be translated to LTSA constants. In LTSA,
    * constants should be numbers.
    */
   private val consts: List<Constant> = eofms.constants
+
   /**
    * The list of all the user defined types in EOFM. Each type is translated to a set of constants and a range.
    * For instance, 'Bool == {True, False}' will be translated to 'const True = 1 const False = 0
    * range Bool = False..True'.
    */
   private val userDefinedTypes: List<UserDefineType> = eofms.userDefinedTypes
+
   /**
-   * The list of all the human actions. Right these actions are only used to define the actions exposed.
+   * The list of all the human actions. Right now, these actions are only used to define the actions exposed.
    */
   private val actions: List<HumanAction> = eofms.humanOperators.flatMap { it.humanActions }
+
   /**
    * The list of all the input variables. This is useful in the case of input variable links.
    */
   private val inputVariables: List<InputVariable> = eofms.humanOperators.flatMap { it.inputVariables }
+
   /**
    * The list of all the top-level activities. The translation will start from all the top-level activities.
    *
@@ -30,12 +71,35 @@ class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
    * top-level activity.
    */
   private val topLevelActivities: List<Activity> = eofms.humanOperators.flatMap { it.eofms.map { eofm -> eofm.activity } }
+
   /**
    * A map of all the activities by name. This is useful in the case of activity links.
    */
   private val activities: MutableMap<String, Activity> = mutableMapOf()
 
+  /**
+   * The list of activities that are translated when translating a top-level activity. When translating with error,
+   * we need these names to append the priority of '<error>_<activity>' events.
+   */
+  private val translatedActivities: MutableMap<Activity, String> = mutableMapOf()
+
+  /**
+   *
+   */
+  private val translatedActions: MutableMap<Action, String> = mutableMapOf()
+
+  /**
+   * The flag indicating whether injecting errors (omission, commission, repetition) to the translation.
+   */
+  private var withError: Boolean = false
+
+  /**
+   *
+   */
+  private var withErrs: List<String> = emptyList()
+
   init {
+    // Recursively find all the activities
     fun recursive(activity: Activity) {
       activities[activity.name] = activity
       for (it in activity.decomposition.subActivities) {
@@ -62,21 +126,82 @@ class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
   }
 
   /**
+   *
+   */
+  fun getActions(): List<String> {
+    return actions.map { relabels[it.name] ?: it.name }
+  }
+
+  /**
+   *
+   */
+  fun pathBetweenActions(x: String, y: String): Triple<Activity, List<Activity>, List<Activity>> {
+    val pathX = pathToAction(x)
+    val pathY = pathToAction(y)
+    var i = 0
+    while (i < pathX.size && i < pathY.size) {
+      if (pathX[i] !== pathY[i])
+        break
+      i++
+    }
+    val root = if (i > 0)
+      pathX[i-1] as Activity
+    else Activity(
+        name = "VROOT",
+        decomposition = Decomposition(operator = "optor_par", subActivities = listOf(pathX[0], pathY[0]))
+    )
+    return Triple(root, pathX.subList(i, pathX.size), pathY.subList(i, pathY.size))
+  }
+
+  /**
+   *
+   */
+  fun pathToAction(x: String): List<Activity> {
+    fun dfs(a: Any, p: List<Any>): List<Activity>? {
+      when (a) {
+        is Action -> return if (a.humanAction == x || relabels[a.humanAction] == x) p as List<Activity> else null
+        is Activity -> {
+          for (sub in a.decomposition.subActivities) {
+            val r = dfs(sub, p + a)
+            if (r != null)
+              return r
+          }
+          return null
+        }
+        else -> error("Unknown EOFM node '$a'")
+      }
+    }
+
+    for (top in topLevelActivities) {
+      val r = dfs(top, emptyList())
+      if (r != null)
+        return r
+    }
+    error("Cannot find such action '$x' in the EOFM model")
+  }
+
+  fun translatedName(a: Activity): String {
+    return translatedActivities[a]?: error("No such activity: ${a.name}")
+  }
+
+  fun translatedName(a: Action): String {
+    return translatedActions[a]?: error("No such action: ${a.humanAction}")
+  }
+
+  fun translate(builder: StringBuilder, withError: Boolean = false) {
+    translate(builder, withError, emptyList())
+  }
+
+  fun translate(builder: StringBuilder, errs: List<String>) {
+    translate(builder, true, errs)
+  }
+
+  /**
    * The process to translate a EOFM model to LTSA.
    */
-  fun translate(builder: StringBuilder, processes: MutableList<String>) {
-    val menu = actions.map { it.name } + inputVariables.map { "set_${it.name}[${it.userDefinedType}]" } +
-        "turn[Turn]"
-
-    // Build the constants for the activity/action state
-    builder.append("const Ready = 0\n")
-    builder.append("const Executing = 1\n")
-    builder.append("const Done = 2\n")
-    builder.append("range ActState = Ready..Done\n\n")
-
-    builder.append("const System = 0\n")
-    builder.append("const Human = 1\n")
-    builder.append("range Turn = System..Human\n\n")
+  private fun translate(builder: StringBuilder, withError: Boolean, errs: List<String>) {
+    this.withError = withError
+    this.withErrs = errs
 
     // Append all the EOFM constants
     for (it in consts)
@@ -87,27 +212,38 @@ class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
     for (it in userDefinedTypes)
       builder.appendUserDefinedType(it)
 
-    // Append a helper menu of LTSA
-    builder.append("menu HDI = {${menu.joinToString()}}\n\n")
+    // Append all the top-level activities
+    translatedActivities.clear()
+    translatedActions.clear()
+    val topLevelNames = topLevelActivities.map { builder.appendActivity(it) }
 
-    /**
-     * Start to translate all the top-level activities and their sub-activities recursively. Note that, the same
-     * activity (e.g., activity associated through the link) is translated to a different LTSA process, because its
-     * parent and siblings change.
-     */
-    for (i in topLevelActivities.indices)
-      ActivityTranslator(topLevelActivities[i], inputVariables, activities, postfix = "$i").translate(builder, processes)
+    // Compose all the activities into one ENV process.
+    val unusedActions = actions.map { it.name }.toSet() - translatedActions.keys.map { it.humanAction }.toSet()
+    if (unusedActions.isNotEmpty()) {
+      error("Has unused actions: $unusedActions. Consider add special EOFM node to forbid them")
+    }
 
-    /**
-     * Append the composition process.
-     * TODO: If each top-level activity is translated into different files. Then the name for this composition process
-     * should change.
-     */
-    builder.append("||EOFM = (\n\t")
-    builder.append(processes.joinToString("\n||\t"))
-    builder.append("\n)@{")
-    builder.append(menu.joinToString(",\n"))
-    builder.append("}.")
+    builder.append("||ENV = (${topLevelNames.joinToString(" || ")})")
+    if (withError) {
+      if (errs.isEmpty()) {
+        val errors = translatedActivities.values.map { "commission_$it, repetition_$it, omission_$it" }
+        builder.append("<<{${errors.joinToString(",\n")}\n}.\n")
+      } else {
+        builder.append("<<{${errs.joinToString(", ")}}.\n")
+      }
+    } else {
+      builder.append(".\n")
+    }
+  }
+
+  private fun genActivityProcessName(activity: Activity): String {
+    val i = translatedActivities.keys.count { it.name == activity.name }
+    val name = activity.name.capitalize()
+    return if (i == 0) name else "$name$i"
+  }
+
+  private fun genActionProcessName(action: Action): String {
+    return action.humanAction!!.capitalize()
   }
 
   /**
@@ -130,409 +266,462 @@ class EOFMTranslator(eofms: EOFMS, initValues: Map<String, String>) {
     this.append("\n\n")
   }
 
-}
-
-/**
- * The abstract translator for activity and action. It defines some common translation rules.
- */
-private abstract class ActTranslator(
-    name: String, val parOp: String?, val parent: String?, val preSibling: String?, val siblings: List<String>,
-    val postfix: String
-) {
   /**
-   * The process name of this activity. A process name in LTSA should be capitalizied (e.g., ABrewCoffee).
+   * @return The name of the LTSA process.
    */
-  protected val processName = "${name.capitalize()}$postfix"
-  /**
-   * The event name of this activity used to define transitions (e.g., set_aBrewCoffee)
-   */
-  protected val eventName = "${name}$postfix"
-  /**
-   * The variables for the LTSA process.
-   */
-  protected var processVars = if (parent != null)
-    listOf("turn", "self", parent, "reset") + siblings
-  else
-    listOf("turn", "self") + siblings
+  private fun StringBuilder.appendActivity(activity: Activity, ancestors: List<String> = emptyList()): String {
+    // Name of the translated process (should be capitalized)
+    val name = genActivityProcessName(activity)
+    translatedActivities[activity] = name
+    // The list of ancestors passed to children activities/actions
+    val nextAncestors = ancestors + name
+    // The list of all the sub-activities/actions
+    val subActivities = activity.decomposition.subActivities
+    // The name of all the processes to compose
+    val processes = mutableListOf<String>()
 
-  abstract fun translate(builder: StringBuilder, processes: MutableList<String>)
-  abstract fun StringBuilder.appendProcessHeader()
-
-  protected fun StringBuilder.appendProcessInit() {
-    if (parent != null)
-      this.append("P_$processName = $processName[Human][Ready][Ready][0]")
-    else
-      this.append("P_$processName = $processName[Human][Ready]")
-    for (it in siblings)
-      this.append("[Ready]")
-  }
-
-  protected fun StringBuilder.appendParamProcess() {
-    this.append("${processName}[turn:Turn][self:ActState]")
-    if (parent != null)
-      this.append("[$parent:ActState][reset:0..1]")
-    for (it in siblings)
-      this.append("[$it:ActState]")
-  }
-
-  protected abstract fun StringBuilder.appendReadyToExecuting()
-  protected abstract fun StringBuilder.appendExecutingToDone()
-
-  /**
-   * TODO:
-   */
-  protected fun StringBuilder.appendDoneToReady() {
-    this.append("\t\t// Done to Ready (reset)\n")
-    if (parent == null) {
-      this.append("\t\t// No parent, by default true.\n")
-      this.append("\t|\twhen (turn == Human && self == Done)\n")
-      this.append("\t\t\tset_$eventName[Ready] -> ")
-      this.appendProcessVars("self" to "Ready")
-    } else {
-      this.append("\t\t// Should synchronize on the parent's reset condition\n")
-      this.append("\t|\twhen (turn == Human && self == Done && $parent == Done)\n")
-      this.append("\t\t\tset_$parent[Ready] -> ")
-      this.appendProcessVars(parent to "Ready", "reset" to "1")
-
-      this.append("\t|\twhen (turn == Human && self == Done && $parent == Executing)\n")
-      this.append("\t\t\tset_$parent[Executing] -> ")
-      this.appendProcessVars(parent to "Executing", "reset" to "1")
-
-      this.append("\t|\twhen (turn == Human && self == Done && reset)\n")
-      this.append("\t\t\tset_$eventName[Ready] -> ")
-      this.appendProcessVars("self" to "Ready", "reset" to "0")
-    }
-  }
-
-  protected fun StringBuilder.appendStartCondition() {
-    if (parent != null)
-      this.append(" && $parent == Executing")
-
-    if (parOp != null) {
-      when (parOp) {
-        "and_par", "or_par", "optor_par", "sync" -> return
-        "ord" -> if (preSibling != null) this.append(" && $preSibling == Done")
-        "xor" -> for (it in siblings) this.append(" && $it == Ready")
-        else -> for (it in siblings) this.append(" && $it != Executing")
+    // If the activity has only one child action, we treat it as a leaf activity and we don't translate the
+    // decomposition operator because it is always 'ord'.
+    var isLeaf = subActivities.size == 1
+    for (it in subActivities) {
+      when (it) {
+        is Activity -> {
+          processes.add(this.appendActivity(it, nextAncestors))
+          isLeaf = false
+        }
+        is Action -> processes.add(this.appendAction(it, nextAncestors))
+        is ActivityLink -> processes.add(this.appendActivity(
+            activities[it.link] ?: error("Unknown activity link '${it.link}'"), nextAncestors
+        ))
+        else -> throw error("Unknown child for activity ${activity.name}")
       }
     }
+
+    // Translate the decomposition operator if this node is not a leaf activity.
+    if (!isLeaf)
+      processes.add(this.appendOperator(activity.decomposition.operator, processes, name))
+
+    // If this activity has any conditions, then translate the conditions as one LTSA process.
+    if (activity.preConditions.isNotEmpty() || activity.repeatConditions.isNotEmpty() || activity.completionConditions.isNotEmpty())
+      processes.add(this.appendCondition(name, activity.preConditions, activity.repeatConditions, activity.completionConditions))
+
+    // This activity is the parallel composition of all its sub-activity/action processes, operator process,
+    // and condition process.
+    this.append("||$name = (${processes.joinToString(" || ")}).\n\n")
+    return name
   }
-
-  protected abstract fun StringBuilder.appendEndCondition()
-
-  protected fun StringBuilder.appendProcessVars(vararg replaces: Pair<String, String>) {
-    this.append(processName)
-    var s = processVars.joinToString("") { "[$it]" }
-    for (it in replaces) {
-      s = s.replace(it.first, it.second)
-    }
-    this.append(s)
-    this.append('\n')
-  }
-
-  protected fun StringBuilder.appendSyncParent() {
-    if (parent != null) {
-      this.append("\t|\twhen (turn == Human && !(self == Done && $parent == Executing))\n")
-      this.append("\t\t\tset_$parent[Executing] -> ")
-      this.appendProcessVars(parent to "Executing")
-
-      this.append("\t|\twhen (turn == Human)\n")
-      this.append("\t\t\tset_$parent[Done] -> ")
-      this.appendProcessVars(parent to "Done")
-
-      this.append("\t|\twhen (turn == Human && !(self == Done && $parent == Done))\n")
-      this.append("\t\t\tset_$parent[Ready] -> ")
-      this.appendProcessVars(parent to "Ready")
-    }
-  }
-
-  protected fun StringBuilder.appendSyncSiblings() {
-    for (s in siblings) {
-      this.append("\t\t// sibling $s\n")
-      this.append("\t|\twhen (turn == Human)\n")
-      this.append("\t\t\tset_$s[i:ActState] -> ")
-      this.appendProcessVars(s to "i")
-    }
-  }
-
-  protected fun StringBuilder.appendSyncTurnChange() {
-    this.append("\t|\twhen(turn == Human) turn[System] -> ")
-    this.appendProcessVars("turn" to "System")
-    this.append("\t|\twhen (turn == System) turn[Human] -> ")
-    this.appendProcessVars("turn" to "Human")
-  }
-}
-
-/**
- * TODO:
- */
-private class ActivityTranslator(
-    val act: Activity, val inputVariables: List<InputVariable>, val activities: Map<String, Activity>,
-    parOp: String? = null, parent: String? = null, preSibling: String? = null, siblings: List<String> = emptyList(),
-    postfix: String = ""
-) : ActTranslator(act.name, parOp, parent, preSibling, siblings, postfix) {
 
   /**
-   * Get all the input variables related to the activity. According to EOFM's activity state transition rules, each
-   * activity process should keep track of the input variables associated to its preconditions, repeat-conditions, and
-   * completion-conditions.
+   * @return The LTSA process name of this action.
    */
-  private val inputs = inputVariables.filter { i ->
-    act.preConditions.find { it.indexOf(i.name) != -1 } != null ||
-        act.completionConditions.find { it.indexOf(i.name) != -1 } != null ||
-        act.repeatConditions.find { it.indexOf(i.name) != -1 } != null
-  }
-  /**
-   * Get the decomposition operator. This operator will affect the start-condition and end-condition of its child
-   * activities.
-   */
-  private val op = act.decomposition.operator
+  private fun StringBuilder.appendAction(action: Action, ancestors: List<String>): String {
+    assert(action.humanAction != null)
 
-  /**
-   * Get the names of all its sub-activities. Each activity process should keep track of the execution state of its
-   * child-activities. They are used to determine the start-and-end-condition.
-   */
-  private val subacts = act.decomposition.subActivities.map {
-    when (it) {
-      is Activity -> it.name
-      is ActivityLink -> activities[it.link]?.name
-          ?: throw IllegalArgumentException("No activity named ${it.link} found")
-      is Action -> it.humanAction
-      else -> throw IllegalArgumentException("Unknown type of activity/action in decomposition.")
-    }
-  }.mapIndexed { idx, s -> "$s$postfix$idx" }
+    // Process name of this action (should be capitalized).
+    val actName = genActionProcessName(action)
+    translatedActions[action] = actName
 
-  override fun translate(builder: StringBuilder, processes: MutableList<String>) {
-    processes.add("P_$processName")
-    // Append process header, and set the list of process variables for later user
-    builder.appendProcessHeader()
-    // From Ready to Executing
-    builder.appendReadyToExecuting()
-    // From Ready to Done
-    builder.appendReadyToDone()
-    // From Executing to Executing
-    builder.appendExecutingToExecuting()
-    // From Executing to Done
-    builder.appendExecutingToDone()
-    // From Done to Ready (reset)
-    builder.appendDoneToReady()
-    // Synchronize on parent activity
-    builder.appendSyncParent()
-    // Synchronize on siblings activities
-    builder.appendSyncSiblings()
-    // Synchronize on sub-activities
-    builder.appendSyncSubActs()
-    // Synchronize on variable value changes. IMPORTANT: variables changes should only happen in the machine's turn.
-    builder.appendSyncInputs()
-    // Synchronize on turn change.
-    builder.appendSyncTurnChange()
-    // Append process ending
-    builder.append(").\n\n")
-
-    // Append sub-activities
-    for (i in subacts.indices) {
-      when (val subact = act.decomposition.subActivities[i]) {
-        is Activity -> ActivityTranslator(
-            act = subact,
-            inputVariables = inputVariables,
-            activities = activities,
-            postfix = postfix + i,
-            parOp = op,
-            parent = eventName,
-            preSibling = if (i > 0) subacts[i - 1] else null,
-            siblings = subacts.filterIndexed { index, _ -> index != i }
-        ).translate(builder, processes)
-        is ActivityLink -> ActivityTranslator(
-            act = activities[subact.link] ?: error("The activity ${subact.link} is not found!"),
-            inputVariables = inputVariables,
-            activities = activities,
-            postfix = postfix + i,
-            parOp = op,
-            parent = eventName,
-            preSibling = if (i > 0) subacts[i - 1] else null,
-            siblings = subacts.filterIndexed { index, _ -> index != i }
-        ).translate(builder, processes)
-        is Action -> ActionTranslator(
-            act = subact,
-            postfix = postfix + i,
-            parOp = op,
-            parent = eventName,
-            preSibling = if (i > 0) subacts[i - 1] else null,
-            siblings = subacts.filterIndexed { index, _ -> index != i }
-        ).translate(builder, processes)
+    /*
+     * A helper function to append the action process. For an action A in the following hierarchy, P1 -> P2 -> A
+     * it should be translated as follows:
+     *
+     * A = (start_P1 -> P2 | end_P1 -> reset_P1 -> A),
+     * P2 = (start_P2 -> ACT | end_P2 -> END_REPEAT_P1 | skip_P2 -> END_REPEAT_P1),
+     * ACT = (action -> END_REPEAT_P2),
+     * END_REPEAT_P2 = (repeat_P2 -> ACT | end_P2 -> END_REPEAT_P1),
+     * END_REPEAT_P1 = (repeat_P1 -> P2 | end_P1 -> reset_P1 -> A).
+     *
+     */
+    fun helper(i: Int) {
+      /*
+       * End condition, all the ancestor activities have been translated. Then,
+       * ACT = (action -> END_REPEAT_<parent>)
+       */
+      if (i == ancestors.size) {
+        this.append("ACT = (${action.humanAction} -> END_REPEAT_${ancestors[i - 1]}")
+        this.append("),\n")
+        return
       }
-    }
-  }
 
-  override fun StringBuilder.appendProcessHeader() {
-    this.appendProcessInit()
-    // Append sub-activities init after the default init
-    for (it in subacts)
-      this.append("[Ready]")
-    // Append variables init after the default init
-    for (it in inputs)
-      this.append("[${it.initialValue}]")
-    this.append(",\n")
+      val name = ancestors[i]
+      /*
+       * Append "start each activity", i.e.,
+       * A = (start_P1 -> P2
+       * or
+       * P2 = (start_P2 -> ACT
+       */
+      if (i == 0)
+        this.append("$actName = (start_$name -> ")
+      else
+        this.append("$name = (start_$name -> ")
+      if (i + 1 < ancestors.size)
+        this.append(ancestors[i + 1])
+      else
+        this.append("ACT")
 
-    // Update the default process vars
-    processVars = processVars + subacts + inputs.map { it.name }
+      /*
+       * Append directly end this activity from ready state, i.e.,
+       * end_P1 -> reset_P1 -> A
+       * or
+       * end_P2 -> END_REPEAT_P1
+       */
+      if (i > 0)
+        this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1]}")
+      else
+        this.append(" | end_$name -> reset_$name -> $actName")
 
-    // Append process header
-    this.appendParamProcess()
-    // Append parameters for sub-activities and input variables
-    for (it in subacts)
-      this.append("[$it:ActState]")
-    for (it in inputs)
-      this.append("[${it.name}:${it.userDefinedType}]")
-    this.append(" = (\n")
-  }
+      /*
+       * Append skip this activity. Cannot skip the root activity, i.e.,
+       * skip_P2 -> END_REPEAT_P1
+       */
+      if (i > 0)
+        this.append(" | skip_$name -> END_REPEAT_${ancestors[i - 1]}")
 
-  override fun StringBuilder.appendReadyToExecuting() {
-    this.append("\t\t// Ready to Executing\n")
-    this.append("\t\twhen (turn == Human && self == Ready")
-    this.appendStartCondition()
-    this.appendPrecondition()
-    this.appendCompletionCondition(false)
-    this.append(")\n\t\t\tset_$eventName[Executing] -> ")
-    this.appendProcessVars("self" to "Executing")
-  }
+      this.append("),\n")
 
-  private fun StringBuilder.appendSyncSubActs() {
-    for (sub in subacts) {
-      this.append("\t\t// sub-activity $sub\n")
-      this.append("\t|\twhen (turn == Human)\n")
-      this.append("\t\t\tset_$sub[i:ActState] -> ")
-      this.appendProcessVars(sub to "i")
-    }
-  }
+      // recursively append the next ancestor
+      helper(i + 1)
 
-  private fun StringBuilder.appendSyncInputs() {
-    for (v in inputs) {
-      this.append("\t\t// input ${v.name}\n")
-      this.append("\t|\twhen (turn == System)\n")
-      this.append("\t\t\tset_${v.name}[i:${v.userDefinedType}] -> ")
-      this.appendProcessVars(v.name to "i")
-    }
-  }
+      this.append("END_REPEAT_$name = (")
+      /*
+       * Append repeat the sub-activity, i.e.,
+       * repeat_P1 -> P2
+       * or
+       * repeat_P2 -> ACT
+       */
+      if (i + 1 < ancestors.size)
+        this.append("repeat_$name -> ${ancestors[i + 1]}")
+      else
+        this.append("repeat_$name -> ACT")
 
-  private fun StringBuilder.appendReadyToDone() {
-    this.append("\t\t// Ready to Done\n")
-    this.append("\t|\twhen (turn == Human && self == Ready")
-    this.appendStartCondition()
-    this.appendCompletionCondition()
-    this.append(")\n\t\t\tset_$eventName[Done] -> ")
-    this.appendProcessVars("self" to "Done")
-  }
-
-  private fun StringBuilder.appendExecutingToExecuting() {
-    this.append("\t\t// Executing to Executing\n")
-    this.append("\t|\twhen (turn == Human && self == Executing")
-    this.appendEndCondition()
-    this.appendRepeatCondition()
-    this.appendCompletionCondition(false)
-    this.append(")\n\t\t\tset_$eventName[Executing] -> ")
-    this.appendProcessVars("self" to "Executing")
-  }
-
-  override fun StringBuilder.appendExecutingToDone() {
-    this.append("\t\t// Executing to Done\n")
-    this.append("\t|\twhen (turn == Human && self == Executing")
-    this.appendEndCondition()
-    this.appendCompletionCondition()
-    this.append(")\n\t\t\tset_$eventName[Done] -> ")
-    this.appendProcessVars("self" to "Done")
-  }
-
-  override fun StringBuilder.appendEndCondition() {
-    for (it in subacts) this.append(" && $it != Executing")
-    when (op) {
-      "and_seq", "and_par", "sync" -> for (it in subacts) this.append(" && $it == Done")
-      "or_seq", "or_par", "xor" -> {
-        this.append(" && (")
-        this.append(subacts.joinToString(" || ") { "$it == Done" })
+      /*
+       * Append end an activity, if the activity is the root, it should be reset after end, i.e.,
+       * end_P2 -> END_REPEAT_P1
+       * or
+       * end_P1 -> reset_P1 -> A
+       */
+      if (i > 0) {
+        this.append(" | end_$name -> END_REPEAT_${ancestors[i - 1]}")
+        this.append("),\n")
+      } else {
+        this.append(" | end_$name -> reset_$name -> $actName")
         this.append(")")
+        // Append relabel command if the action is renamed.
+        if (action.humanAction !in relabels)
+          this.append(".\n\n")
+        else
+          this.append("/{${relabels[action.humanAction]}/${action.humanAction}}.\n\n")
       }
-      "optor_seq", "optor_par" -> return
-      "ord" -> if (subacts.isNotEmpty()) this.append(" && ${subacts.last()} == Done")
-      else -> throw java.lang.IllegalArgumentException("Cannot recognize operator: $op")
     }
+
+    helper(0)
+    return actName
   }
 
-  private fun StringBuilder.appendPrecondition() {
-    for (it in act.preConditions)
-      this.append(" && $it")
-  }
+  /**
+   *
+   */
+  private fun StringBuilder.appendOperator(operator: String, subNames: List<String>, parent: String): String {
+    // Name of this operator process
+    val name = operator.toUpperCase() + "_" + subNames.joinToString("_")
+    // The code snippet for skipping sub-activities
+    val skips = subNames.joinToString(", ") { "skip_$it" }
 
-  private fun StringBuilder.appendCompletionCondition(sign: Boolean = true) {
-    if (!sign && act.completionConditions.isNotEmpty()) {
-      this.append(" && !(")
-      this.append(act.completionConditions.joinToString(" && "))
-      this.append(")")
-    } else {
-      for (it in act.completionConditions)
-        this.append(" && $it")
+    this.append("$name = (")
+    when (operator) {
+      /*
+       * For activity tree, A -(ord)-> (B, C), it will be translated to the following process:
+       * ORD_B_C = (start_B -> end_B -> C | end_B -> C),
+       * C = (start_C -> end_C -> ORD_B_C | end_C -> ORD_B_C)+{skip_B, skip_C}.
+       */
+      "ord" -> {
+        for (i in subNames.indices) {
+          if (i != subNames.size - 1) {
+            this.append("start_${subNames[i]} -> end_${subNames[i]} -> ${subNames[i + 1]}")
+            this.append(" | ")
+            this.append("end_${subNames[i]} -> ${subNames[i + 1]}")
+            this.append("),\n")
+            this.append("${subNames[i + 1]} = (")
+          } else {
+            this.append("start_${subNames[i]} -> end_${subNames[i]} -> $name")
+            this.append(" | ")
+            this.append("end_${subNames[i]} -> $name")
+            this.append(")+{$skips}.\n\n")
+          }
+        }
+      }
+      /*
+       * For activity tree, A -(and_seq)-> (B, C), it will be translated to the following process:
+       * AND_SEQ_B_C = (
+       *      start_B -> end_B -> AND_SEQ_B_C | end_B -> AND_SEQ_B_C
+       *    | start_C -> end_C -> AND_SEQ_B_C | end_C -> AND_SEQ_B_C
+       * )+{skip_B, skip_C}.
+       */
+      "and_seq" -> {
+        var tab = "\t\t"
+        this.append('\n')
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> $name | end_$it -> $name\n")
+        }
+        this.append(")+{$skips}.\n\n")
+      }
+      /*
+       * For activity tree, A -(and_par)-> (B, C), it will be translated to the following process:
+       * AND_PAR_B_C = END+{skip_B, skip_C}.
+       */
+      "and_par" -> {
+        this.setLength(this.length - 1)
+        this.append("END+{$skips}.\n\n")
+      }
+      /*
+       * For activity tree, A -(or_seq)-> (B, C), it will be translated to the following process:
+       * OR_SEQ_B_C = (
+       *      start_B -> end_B -> SKIP | end_B -> SKIP
+       *    | start_C -> end_C -> SKIP | end_C -> SKIP
+       *    | end_A -> OR_SEQ_B_C
+       * ),
+       * SKIP = (
+       *      start_B -> end_B -> SKIP | end_B -> SKIP | skip_B -> SKIP
+       *    | start_C -> end_C -> SKIP | end_C -> SKIP | skip_C -> SKIP
+       *    | repeat_A -> OR_SEQ_B_C | end_A -> OR_SEQ_B_C
+       * ).
+       */
+      "or_seq" -> {
+        var tab = "\t\t"
+        this.append('\n')
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> SKIP | end_$it -> SKIP\n")
+        }
+        this.append(tab)
+        this.append("end_$parent -> $name")
+        this.append("\n),\n")
+        this.append("SKIP = (\n")
+        tab = "\t\t"
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> SKIP | end_$it -> SKIP | skip_$it -> SKIP\n")
+        }
+        this.append(tab)
+        this.append("repeat_$parent -> $name | end_$parent -> $name")
+        this.append("\n).\n\n")
+      }
+      /*
+       * For activity tree, A -(or_par)-> (B, C), it will be translated to the following process:
+       * OR_PAR_B_C = (
+       *      start_B -> SKIP | end_B -> SKIP
+       *    | start_C -> SKIP | end_C -> SKIP
+       *    | end_A -> OR_PAR_B_C
+       * ),
+       * SKIP = (
+       *      start_B -> SKIP | end_B -> SKIP | skip_B -> SKIP
+       *    | start_C -> SKIP | end_C -> SKIP | skip_C -> SKIP
+       *    | repeat_A -> OR_PAR_B_C | end_A -> OR_PAR_B_C
+       * ).
+       */
+      "or_par" -> {
+        var tab = "\t\t"
+        this.append('\n')
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> SKIP | end_$it -> SKIP\n")
+        }
+        this.append(tab)
+        this.append("end_$parent -> $name")
+        this.append("\n),\n")
+        this.append("SKIP = (\n")
+        tab = "\t\t"
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> SKIP | end_$it -> SKIP | skip_$it -> SKIP\n")
+        }
+        this.append(tab)
+        this.append("repeat_$parent -> $name | end_$parent -> $name")
+        this.append("\n).\n\n")
+      }
+      /*
+       * For activity tree, A -(optor_seq)-> (B, C), it will be translated to the following process:
+       * OPTOR_SEQ_B_C = (
+       *      start_B -> end_B -> OPTOR_SEQ_B_C | end_B -> OPTOR_SEQ_B_C | skip_B -> OPTOR_SEQ_B_C
+       *    | start_C -> end_C -> OPTOR_SEQ_B_C | end_C -> OPTOR_SEQ_B_C | skip_C -> OPTOR_SEQ_B_C
+       * ).
+       */
+      "optor_seq" -> {
+        var tab = "\t\t"
+        this.append('\n')
+
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> $name | ")
+          this.append("end_$it -> $name | ")
+          this.append("skip_$it -> $name\n")
+        }
+        this.append(").\n\n")
+      }
+      /*
+       * For activity tree, A -(optor_par)-> (B, C), it will be translated to the following process:
+       * OPTOR_PAR_B_C = END.
+       */
+      "optor_par" -> {
+        this.setLength(this.length - 1)
+        this.append("END.\n\n")
+      }
+      /*
+       * For activity tree, A -(xor)-> (B, C), it will be translated to the following process:
+       * XOR_B_C = (
+       *      start_B -> end_B -> SKIP | end_B -> SKIP
+       *    | start_C -> end_C -> SKIP | end_C -> SKIP
+       *    | end_A -> XOR_B_C
+       * ),
+       * SKIP = (skip_B -> SKIP | skip_C -> SKIP | repeat_A -> XOR_B_C | end_A -> XOR_B_C).
+       */
+      "xor" -> {
+        var tab = "\t\t"
+        this.append('\n')
+        for (it in subNames) {
+          this.append(tab)
+          tab = "\t|\t"
+          this.append("start_$it -> end_$it -> SKIP | end_$it -> SKIP\n")
+        }
+        this.append(tab)
+        this.append("end_$parent -> $name")
+        this.append("\n),\n")
+        this.append("SKIP = (")
+        this.append(subNames.joinToString(" | ") { "skip_$it -> SKIP" })
+        this.append(" | ")
+        this.append("repeat_$parent -> $name | end_$parent -> $name")
+        this.append(").\n\n")
+      }
+      else -> throw IllegalArgumentException("$operator is not supported")
     }
+
+    return name
   }
 
-  private fun StringBuilder.appendRepeatCondition() {
-    for (it in act.repeatConditions)
-      this.append(" && $it")
-  }
-}
+  /**
+   * @return The name of LTSA process.
+   */
+  private fun StringBuilder.appendCondition(
+      name: String, preConditions: List<String>,
+      repeatConditions: List<String>, completionConditions: List<String>
+  ): String {
+    val condName = name + "_COND"
+    var tab = "\t\t"
+    val variables = inputVariables.joinToString("") { "[${it.name}]" }
 
-private class ActionTranslator(
-    val act: Action,
-    parOp: String, parent: String, preSibling: String? = null, siblings: List<String> = emptyList(),
-    postfix: String = ""
-) : ActTranslator(act.humanAction ?: error("No human action assigned to this action node!, '$act'"),
-    parOp, parent, preSibling, siblings, postfix) {
-
-  override fun translate(builder: StringBuilder, processes: MutableList<String>) {
-    processes.add("P_$processName")
-    // Append process header, and set the list of process variables for later user
-    builder.appendProcessHeader()
-    // From Ready to Executing
-    builder.appendReadyToExecuting()
-    // From Executing to Done
-    builder.appendExecutingToDone()
-    // From Done to Ready (reset)
-    builder.appendDoneToReady()
-    // Synchronize on parent activity
-    builder.appendSyncParent()
-    // Synchronize on siblings activities
-    builder.appendSyncSiblings()
-    // Synchronize on turn change.
-    builder.appendSyncTurnChange()
-    // Append process ending
-    builder.append(").\n\n")
-  }
-
-  override fun StringBuilder.appendProcessHeader() {
-    this.appendProcessInit()
+    /*
+     * Append the process name and its initial value.
+     * A_COND = VAR[<initial values>],
+     */
+    this.append("$condName = VAR")
+    this.append(inputVariables.joinToString("") { "[${it.initialValue}]" })
     this.append(",\n")
-    // Append process header
-    this.appendParamProcess()
+    /*
+     * VAR[<variables>] = (
+     *      when (precondition && !completioncondition)
+     *        start_A -> VAR[<variables>]
+     *    | when (!(precondition && !completioncondition))
+     *        start_A -> commission_A -> VAR[<variables>]
+     *    | when (repeatcondition && !(completioncondition))
+     *        repeat_A -> VAR[<vairables>]
+     *    | when (!(repeatcondition && !(completioncondition)))
+     *        repeat_A -> repetition_A -> VAR[<vairables>]
+     *    | when (completioncondition)
+     *        end_A -> VAR[<variables>]
+     *    | when (!completioncondition)
+     *        end_A -> omission_A -> VAR[<variables>]
+     *    | <variable changes in world model>
+     * ),
+     */
+    this.append("VAR")
+    this.append(inputVariables.joinToString("") { "[${it.name}:${it.userDefinedType}]" })
     this.append(" = (\n")
-  }
 
-  override fun StringBuilder.appendReadyToExecuting() {
-    this.append("\t\t// Ready to Executing\n")
-    this.append("\t\twhen (turn == Human && self == Ready")
-    this.appendStartCondition()
-    this.append(")\n\t\t\tset_$eventName[Executing] -> ")
-    this.appendProcessVars("self" to "Executing")
-  }
+    // Append preconditions
+    if (preConditions.isNotEmpty() || completionConditions.isNotEmpty()) {
+      this.append(tab); tab = "\t|\t"
 
-  override fun StringBuilder.appendExecutingToDone() {
-    this.append("\t\t// Executing to Done\n")
-    this.append("\t|\twhen (turn == Human && self == Executing")
-    this.appendEndCondition()
-    // Perform the human action and then wait for the environment to change, i.e., changes to System turn.
-    this.append(")\n\t\t\t${act.humanAction} -> turn[System] -> turn[Human] -> set_$eventName[Done] -> ")
-    this.appendProcessVars("self" to "Done")
-  }
+      val pres = preConditions.joinToString(" && ")
+      val completions = completionConditions.joinToString(" && ")
+      val cond = if (pres != "" && completions != "")
+        "$pres && !($completions)"
+      else if (pres != "")
+        pres
+      else
+        "!($completions)"
+      this.append("when ($cond) ")
+      this.append("start_$name -> VAR$variables\n")
 
-  override fun StringBuilder.appendEndCondition() {
-    return
+      // !!!IMPORTANT: Append commission error
+      if (withError && (withErrs.isEmpty() || "commission_$name" in withErrs)) {
+        this.append(tab); tab = "\t|\t"
+        this.append("when (!($cond)) ")
+        this.append("start_$name -> commission_$name -> VAR$variables\n")
+      }
+    } else {
+      this.append(tab); tab = "\t|\t"
+      this.append("start_$name -> VAR$variables\n")
+    }
+
+    // Append repetition conditions
+    if (repeatConditions.isNotEmpty() || completionConditions.isNotEmpty()) {
+      this.append(tab); tab = "\t|\t"
+
+      val repeats = repeatConditions.joinToString(" && ")
+      val completions = completionConditions.joinToString(" && ")
+      val cond = if (repeats != "" && completions != "")
+        "$repeats && !($completions)"
+      else if (repeats != "")
+        repeats
+      else
+        "!($completions)"
+      this.append("when ($cond) ")
+      this.append("repeat_$name -> VAR$variables\n")
+
+      // !!!IMPORTANT: Append repetition error
+      if (withError && (withErrs.isEmpty() || "repetition_$name" in withErrs)) {
+        this.append(tab); tab = "\t|\t"
+        this.append("when (!($cond)) ")
+        this.append("repeat_$name -> repetition_$name -> VAR$variables\n")
+      }
+    } else {
+      this.append(tab); tab = "\t|\t"
+      this.append("repeat_$name -> VAR$variables\n")
+    }
+
+    // Append completion condition
+    if (completionConditions.isNotEmpty()) {
+      this.append(tab); tab = "\t|\t"
+
+      val cond = completionConditions.joinToString(" && ")
+      this.append("when ($cond) ")
+      this.append("end_$name -> VAR$variables\n")
+
+      // !!!IMPORTANT: Append omission error!!!
+      if (withError && (withErrs.isEmpty() || "omission_$name" in withErrs)) {
+        this.append(tab); tab = "\t|\t"
+        this.append("when (!($cond)) ")
+        this.append("end_$name -> omission_$name -> VAR$variables\n")
+      }
+    } else {
+      this.append(tab); tab = "\t|\t"
+      this.append("end_$name -> VAR$variables\n")
+    }
+    // Append variables change
+    for (l in world) {
+      this.append(tab); tab = "\t|\t"
+      this.append(l)
+      this.append('\n')
+    }
+    this.append(")+{start_$name,repeat_$name,end_$name}.\n\n")
+
+    return condName
   }
 }

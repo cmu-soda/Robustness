@@ -1,3 +1,28 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2020 Changjian Zhang
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
 package edu.cmu.isr.robust.eofm
 
 import org.junit.jupiter.api.Test
@@ -7,7 +32,7 @@ class TranslatorTest {
   fun testCoffeeEOFM() {
     val coffee: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
     val config = CoffeeConfig()
-    val translator = EOFMTranslator2(coffee, config.initialValues, config.world, config.relabels)
+    val translator = EOFMTranslator(coffee, config.initialValues, config.world, config.relabels)
     val builder = StringBuilder()
 
     translator.translate(builder)
@@ -18,7 +43,7 @@ class TranslatorTest {
   fun testCoffeeEOFMError() {
     val coffee: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/coffee.xml"))
     val config = CoffeeConfig()
-    val translator = EOFMTranslator2(coffee, config.initialValues, config.world, config.relabels)
+    val translator = EOFMTranslator(coffee, config.initialValues, config.world, config.relabels)
     val builder = StringBuilder()
 
     translator.translate(builder, withError = true)
@@ -28,7 +53,7 @@ class TranslatorTest {
   @Test
   fun testTiny() {
     val tiny: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/tiny.xml"))
-    val translator = EOFMTranslator2(
+    val translator = EOFMTranslator(
         tiny,
         mapOf("iX" to "False"),
         listOf(
@@ -46,7 +71,7 @@ class TranslatorTest {
   @Test
   fun testOperators() {
     val operators: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/operators.xml"))
-    val translator = EOFMTranslator2(operators, emptyMap(), emptyList())
+    val translator = EOFMTranslator(operators, emptyMap(), emptyList())
 
     val builder = StringBuilder()
     translator.translate(builder)
@@ -56,7 +81,7 @@ class TranslatorTest {
   @Test
   fun testOmission1() {
     val omissions: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/omission1.xml"))
-    val translator = EOFMTranslator2(
+    val translator = EOFMTranslator(
         omissions,
         mapOf("iX" to "False"),
         listOf(
@@ -74,7 +99,7 @@ class TranslatorTest {
   @Test
   fun testBenchmark() {
     val test: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/benchmark.xml"))
-    val translator = EOFMTranslator2(test, emptyMap(), emptyList())
+    val translator = EOFMTranslator(test, emptyMap(), emptyList())
 
     val builder = StringBuilder()
     translator.translate(builder)
@@ -85,7 +110,7 @@ class TranslatorTest {
   fun testTherac() {
     val therac: EOFMS = parseEOFMS(ClassLoader.getSystemResourceAsStream("eofms/therac25.xml"))
     val config = TheracWaitConfig()
-    val translator = EOFMTranslator2(therac, config.initialValues, config.world, config.relabels)
+    val translator = EOFMTranslator(therac, config.initialValues, config.world, config.relabels)
     val builder = StringBuilder()
 
     translator.translate(builder)
