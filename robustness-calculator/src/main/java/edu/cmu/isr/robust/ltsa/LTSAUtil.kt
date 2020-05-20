@@ -26,6 +26,7 @@
 package edu.cmu.isr.robust.ltsa
 
 import lts.*
+import java.util.*
 
 class LTSACall {
   init {
@@ -42,6 +43,19 @@ class LTSACall {
       println(e)
       throw Exception("Failed to compile the fsp source string of machine '${compositeName}'.")
     }
+  }
+
+  /**
+   * Get the actions in a given menu from the last compilation
+   */
+  fun menuActions(name: String): List<String> {
+    val def = (MenuDefinition.definitions[name] ?: error("No such menu named '$name'")) as MenuDefinition
+    val actionField = MenuDefinition::class.java.getDeclaredField("actions")
+    actionField.isAccessible = true
+    val actions = actionField.get(def)
+    val actionVectorField = actions.javaClass.getDeclaredField("actions")
+    actionVectorField.isAccessible = true
+    return (actionVectorField.get(actions) as Vector<String>).toList()
   }
 }
 
