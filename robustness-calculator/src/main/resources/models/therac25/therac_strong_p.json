@@ -1,8 +1,8 @@
 {
   "mode": "eofm",
-  "sys": "sys.lts",
-  "env": "therac25_nowait.xml",
-  "prop": "p_s.lts",
+  "sys": "models/therac25/sys.lts",
+  "env": "models/therac25/therac25_nowait.xml",
+  "prop": "models/therac25/p_s.lts",
   "eofm": {
     "initialValues": {
       "iInterface": "Edit",

@@ -1,8 +1,8 @@
 {
   "mode": "eofm",
-  "sys": "machine.lts",
-  "env": "coffee.xml",
-  "prop": "p.lts",
+  "sys": "models/coffee/machine.lts",
+  "env": "models/coffee/coffee.xml",
+  "prop": "models/coffee/p.lts",
   "eofm": {
     "initialValues": {
       "iBrewing": "False",
