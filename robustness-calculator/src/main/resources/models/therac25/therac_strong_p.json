@@ -1,0 +1,28 @@
+{
+  "mode": "eofm",
+  "sys": "sys.lts",
+  "env": "therac25_nowait.xml",
+  "prop": "p_s.lts",
+  "eofm": {
+    "initialValues": {
+      "iInterface": "Edit",
+      "iSpreader": "OutPlace",
+      "iPowerLevel": "NotSet"
+    },
+    "world": [
+      "when (iInterface == Edit) hPressX -> VAR[ConfirmXray][InPlace][iPowerLevel]",
+      "when (iInterface == Edit) hPressE -> VAR[ConfirmEBeam][OutPlace][iPowerLevel]",
+      "when (iInterface == ConfirmXray || iInterface == ConfirmEBeam) hPressUp -> VAR[Edit][iSpreader][iPowerLevel]",
+      "when (iInterface == PrepXray) hPressUp1 -> VAR[ConfirmXray][iSpreader][iPowerLevel]",
+      "when (iInterface == PrepEBeam) hPressUp1 -> VAR[ConfirmEBeam][iSpreader][iPowerLevel]",
+      "when (iInterface == ConfirmXray) hPressEnter -> VAR[PrepXray][iSpreader][iPowerLevel]",
+      "when (iInterface == ConfirmEBeam) hPressEnter -> VAR[PrepEBeam][iSpreader][iPowerLevel]",
+      "when (iInterface == PrepXray || iInterface == PrepEBeam) hPressB -> VAR[Administered][iSpreader][iPowerLevel]",
+      "when (iPowerLevel == EBeamLevel) mXrayLvl -> VAR[iInterface][iSpreader][XrayLevel]",
+      "when (iPowerLevel == XrayLevel) mEBeamLvl -> VAR[iInterface][iSpreader][EBeamLevel]",
+      "when (iPowerLevel == NotSet) mInitXray -> VAR[iInterface][iSpreader][XrayLevel]",
+      "when (iPowerLevel == NotSet) mInitEBeam -> VAR[iInterface][iSpreader][EBeamLevel]"
+    ],
+    "relabels": {}
+  }
+}

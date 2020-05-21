@@ -1,0 +1,7 @@
+{
+  "mode": "fsp",
+  "sys": "abp.lts",
+  "env": "abp_env.lts",
+  "prop": "p.lts",
+  "deviation": "abp_env_lossy.lts"
+}

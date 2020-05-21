@@ -40,20 +40,24 @@ class EOFMRobustCal private constructor(
     p: String,
     private val rawHumanModel: String,
     private val conciseHumanModel: String,
-    private val translator: EOFMTranslator
-) : AbstractRobustCal(sys, conciseHumanModel, p) {
+    private val translator: EOFMTranslator,
+    verbose: Boolean
+) : AbstractRobustCal(sys, conciseHumanModel, p, verbose) {
 
   companion object {
     @JvmStatic
     fun create(sys: String, p: String, human: EOFMS, initState: Map<String, String>,
-               world: List<String>, relabels: Map<String, String>): EOFMRobustCal
+               world: List<String>, relabels: Map<String, String>, verbose: Boolean = true): EOFMRobustCal
     {
       println("Generating the LTSA spec of the EOFM human model...")
       val translator = EOFMTranslator(human, initState, world, relabels)
       val rawModel = genHumanModel(translator)
       val conciseModel = genConciseHumanModel(translator, sys, rawModel)
-      println(conciseModel)
-      return EOFMRobustCal(sys, p, rawModel, conciseModel, translator)
+      if (verbose) {
+        println("Translated LTSA spec:")
+        println(conciseModel)
+      }
+      return EOFMRobustCal(sys, p, rawModel, conciseModel, translator, verbose)
     }
 
     /**
@@ -110,7 +114,8 @@ class EOFMRobustCal private constructor(
       matchNormTrace(normPrefix).filter { !isEnvEvent(it) } else emptyList()
     val path = translator.pathToAction(t.last())
     val errs = matchErrors(path.reversed(), activityStates)
-    println("Potential errors: $errs")
+    if (verbose)
+      println("Potential errors: $errs")
     return genHumanErrModel(translator, errs.toList())
   }
 

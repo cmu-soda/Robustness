@@ -1,0 +1,12 @@
+const S_False = 0
+const S_True = 1
+range S_TBool = S_False..S_True
+
+SYS = Run[S_True],
+Run[iHandleDown:S_TBool] = (
+    when (iHandleDown == S_True) hLiftHandle -> Run[S_False]
+  | when (iHandleDown == S_False) hLowerHandle -> Run[S_True]
+  | when (iHandleDown == S_True) hPressBrew -> mBrew -> Brewing
+  | when (iHandleDown == S_False) hPressBrew -> Run[iHandleDown]
+),
+Brewing = (mBrew -> Brewing | mBrewDone -> Run[S_True]).

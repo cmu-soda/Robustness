@@ -1,0 +1,13 @@
+INTERFACE = (hPressX -> mInitXray -> CONFIRM | hPressE -> mInitEBeam -> CONFIRM),
+EDIT = (hPressX -> CONFIRM | hPressE -> CONFIRM),
+CONFIRM = (hPressUp -> EDIT | hPressEnter -> PREP),
+PREP = (hPressB -> FIRE | hPressUp1 -> CONFIRM),
+FIRE = (mFire -> FIRE).
+
+POWER = (hPressX -> mInitXray -> XRAY | hPressE -> mInitEBeam -> EBEAM),
+TOXRAY = (hPressX -> TOXRAY | hPressE -> EBEAM | mXrayLvl -> XRAY),
+TOEBEAM = (hPressX -> XRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),
+XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),
+EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY).
+
+||SYS = (INTERFACE || POWER).

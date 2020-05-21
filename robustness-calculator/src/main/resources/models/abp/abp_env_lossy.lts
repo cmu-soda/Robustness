@@ -1,0 +1,9 @@
+range E_B = 0 .. 1
+
+menu ERR_ACTS = {lose, duplicate, corrupt}
+
+CHANNEL = (in[b:E_B] -> TRANSIT[b]
+         | in[b:E_B] -> lose -> CHANNEL),
+TRANSIT[b:E_B] = (out[b] -> CHANNEL | corrupt -> out[!b] -> CHANNEL | out[b] -> duplicate -> TRANSIT[b]).
+
+||ENV = (trans:CHANNEL || ack:CHANNEL)/{send/trans.in, rec/trans.out, ack/ack.in, getack/ack.out}.

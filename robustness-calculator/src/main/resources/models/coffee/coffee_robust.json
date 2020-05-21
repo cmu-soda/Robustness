@@ -1,0 +1,28 @@
+{
+  "mode": "eofm",
+  "sys": "machine_r.lts",
+  "env": "coffee.xml",
+  "prop": "p.lts",
+  "eofm": {
+    "initialValues": {
+      "iBrewing": "False",
+      "iMugState": "Absent",
+      "iHandleDown": "True",
+      "iPodState": "EmptyOrUsed"
+    },
+    "world": [
+      "when (iMugState == Absent) hPlaceMug -> VAR[iBrewing][Empty][iHandleDown][iPodState]",
+      "when (iMugState != Absent) hTakeMug -> VAR[iBrewing][Absent][iHandleDown][iPodState]",
+      "when (iHandleDown == True) hLiftHandle -> VAR[iBrewing][iMugState][False][iPodState]",
+      "when (iHandleDown == False) hLowerHandle -> VAR[iBrewing][iMugState][True][iPodState]",
+      "when (1) hAddOrReplacePod -> VAR[iBrewing][iMugState][iHandleDown][New]",
+      "when (iPodState == New) hPressBrew -> VAR[True][iMugState][iHandleDown][EmptyOrUsed]",
+      "when (iPodState != New) hPressBrew -> VAR[True][iMugState][iHandleDown][iPodState]",
+      "when (iBrewing == True && iMugState == Empty) mBrewDone -> VAR[False][Full][iHandleDown][iPodState]",
+      "when (iBrewing == True && iMugState == Absent) mBrewDone -> VAR[False][iMugState][iHandleDown][iPodState]"
+    ],
+    "relabels": {
+      "hWaitBrewDone": "mBrewDone"
+    }
+  }
+}

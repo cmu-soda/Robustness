@@ -1,0 +1,78 @@
+<eofms>
+    <userdefinedtype name="TInterfaceState">{Edit, ConfirmXray, ConfirmEBeam, PrepXray, PrepEBeam, Administered}</userdefinedtype>
+    <userdefinedtype name="TSpreader">{OutPlace, InPlace}</userdefinedtype>
+    <userdefinedtype name="TPowerLevel">{NotSet, XrayLevel, EBeamLevel}</userdefinedtype>
+
+    <humanoperator name="User">
+        <inputvariable name="iInterface" userdefinedtype="TInterfaceState"/>
+        <inputvariable name="iSpreader" userdefinedtype="TSpreader"/>
+        <inputvariable name="iPowerLevel" userdefinedtype="TPowerLevel"/>
+
+        <humanaction name="hPressX" behavior="autoreset"/>
+        <humanaction name="hPressE" behavior="autoreset"/>
+        <humanaction name="hPressUp" behavior="autoreset"/>
+        <humanaction name="hPressUp1" behavior="autoreset"/>
+        <humanaction name="hPressEnter" behavior="autoreset"/>
+        <humanaction name="hPressB" behavior="autoreset"/>
+<!--        <humanaction name="hWaitReady" behavior="autoreset"/>-->
+
+        <eofm>
+            <activity name="aNoUp">
+                <precondition>0</precondition>
+                <decomposition operator="ord">
+                    <action humanaction="hPressUp"/>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aNoUp1">
+                <precondition>0</precondition>
+                <decomposition operator="ord">
+                    <action humanaction="hPressUp1"/>
+                </decomposition>
+            </activity>
+        </eofm>
+
+        <eofm>
+            <activity name="aSelectXorE">
+                <precondition>iInterface == Edit</precondition>
+                <completioncondition>iInterface != Edit</completioncondition>
+                <decomposition operator="xor">
+                    <activity name="aSelectXray">
+                        <completioncondition>iInterface == ConfirmXray</completioncondition>
+                        <decomposition operator="ord">
+                            <action humanaction="hPressX"/>
+                        </decomposition>
+                    </activity>
+                    <activity name="aSelectEBeam">
+                        <completioncondition>iInterface == ConfirmEBeam</completioncondition>
+                        <decomposition operator="ord">
+                            <action humanaction="hPressE"/>
+                        </decomposition>
+                    </activity>
+                </decomposition>
+            </activity>
+        </eofm>
+        <eofm>
+            <activity name="aConfirm">
+                <precondition>(iInterface == ConfirmXray || iInterface == ConfirmEBeam)</precondition>
+                <completioncondition>iInterface != ConfirmXray</completioncondition>
+                <completioncondition>iInterface != ConfirmEBeam</completioncondition>
+                <decomposition operator="ord">
+                    <action humanaction="hPressEnter"/>
+                </decomposition>
+            </activity>
+        </eofm>
+        <eofm>
+            <activity name="aFireBeam">
+                <precondition>(iInterface == PrepXray || iInterface == PrepEBeam)</precondition>
+                <completioncondition>iInterface != PrepXray</completioncondition>
+                <completioncondition>iInterface != PrepEBeam</completioncondition>
+                <decomposition operator="ord">
+                    <action humanaction="hPressB"/>
+                </decomposition>
+            </activity>
+        </eofm>
+    </humanoperator>
+</eofms>
