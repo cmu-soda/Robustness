@@ -43,7 +43,7 @@ private class MyArgs(parser: ArgParser) {
       "--compare" to Mode.COMPARE,
       help = "operation mode"
   )
-  val files by parser.positionalList("FILES", help = "system configs in JSON")
+  val files by parser.positionalList("FILES", help = "system description files in JSON")
 }
 
 private data class ConfigJson(
