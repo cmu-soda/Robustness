@@ -73,45 +73,55 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
       genWeakestAssumption()
 
     val traces = if (level == -1) {
-      println("Generating the representation traces...")
+      println("Generating the representation traces by equivalence classes...")
       waGenerator.shortestDeltaTraces(wa!!, nameOfWA)
     } else {
-      println("Generating the level $level representation traces...")
+      println("Generating the level $level representation traces by equivalence classes...")
       waGenerator.deltaTraces(wa!!, nameOfWA, level = level)
     }
 
     if (traces.isEmpty()) {
-      println("No error trace found. The weakest assumption has equal or less behavior than the environment.")
+      println("No representation traces found. The weakest assumption has equal or less behavior than the environment.")
       return emptyList()
     }
     printRepTraces(traces)
 
     // Match each deviation trace back to the human model with error
-    println("Generating the explanations for the representation traces...")
-    val explanation = traces.values.flatMap { v -> v.map { Pair(it, matchMinimalErr(it)) } }
+    println("Generating explanations for the representation traces...")
+    val explanation = traces.values.flatten().mapIndexed { i, v ->
+      if (verbose)
+        println("Matching the Representative Trace No.$i '$v' to the deviation model...")
+      val exp = matchMinimalErr(v)
+      if (verbose) {
+        if (exp != null) {
+          println("\t${exp.joinToString("\n\t")}\n")
+        } else {
+          println("ERROR: No explanation found.\n")
+        }
+      }
+      Pair(v, exp)
+    }
     printExplanation(explanation)
     return explanation
   }
 
   private fun printRepTraces(traces: Map<AbstractWAGenerator.EquivClass, List<List<String>>>) {
     println("Number of equivalence classes: ${traces.size}")
-    for ((k, v) in traces) {
-      println("Class $k:")
-      for (l in v)
-        println("\t$l")
+    traces.values.flatten().forEachIndexed { i, v ->
+      println("Representation Trace No.$i: $v")
     }
     println()
   }
 
   private fun printExplanation(r: List<Pair<List<String>, List<String>?>>) {
-    println("Found ${r.size} traces, matched ${r.filter { it.second != null }.size}/${r.size}.")
-    println("Group by error types:")
+    println("Found ${r.size} representation traces, matched ${r.filter { it.second != null }.size}/${r.size}.")
+    println("Group by error types in the deviation model:")
     val grouped = r.groupBy {
       val explanation = it.second
       explanation?.filter { a -> isErrEvent(a) }?.joinToString(",") ?: "Unexplained"
     }
     for ((k, v) in grouped) {
-      println("Group: $k, Number of traces: ${v.size}")
+      println("Group: '$k', Number of traces: ${v.size}")
     }
   }
 
@@ -120,15 +130,15 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
       genWeakestAssumption()
 
     val traces = if (level == -1) {
-      println("Generating the representation traces...")
+      println("Generating the representation traces by equivalence classes...")
       waGenerator.shortestDeltaTraces(wa!!, nameOfWA, wa2, name2)
     } else {
-      println("Generating the level $level representation traces...")
+      println("Generating the level $level representation traces by equivalence classes...")
       waGenerator.deltaTraces(wa!!, nameOfWA, wa2, name2, level = level)
     }
 
     if (traces.isEmpty()) {
-      println("No trace found. The weakest assumption of M1 has equal or less behavior than the weakest assumption of M2.")
+      println("No representation traces found. The weakest assumption of M1 has equal or less behavior than the weakest assumption of M2.")
       return emptyList()
     }
     printRepTraces(traces)
@@ -152,23 +162,12 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   abstract fun isErrEvent(a: String): Boolean
 
   private fun matchMinimalErr(trace: List<String>): List<String>? {
-    if (verbose)
-      println("Matching the representative trace '$trace' to the erroneous environment model...")
     val errEnv = genErrEnvironment(trace)
     val tSpec = buildTrace(trace, waGenerator.alphabetOfWA())
     val spec = combineSpecs(sys, errEnv, tSpec, "||T = (SYS || ENV || TRACE).")
     val composite = LTSACall().doCompile(spec, "T").doCompose()
     val sm = StateMachine(composite)
-
-    val t = bfs(sm, trace)
-    if (verbose) {
-      if (t != null) {
-        println("\t${t.joinToString("\n\t")}\n")
-      } else {
-        println("ERROR: No trace found for $trace.\n")
-      }
-    }
-    return t
+    return bfs(sm, trace)
   }
 
   private fun bfs(sm: StateMachine, trace: List<String>): List<String>? {
