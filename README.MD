@@ -5,19 +5,18 @@ This program takes a system specification *S*, an environment specification *E*,
 
 By default, all the specifications should be specified in FSP, the modelling language used by [the LTSA tool](https://www.doc.ic.ac.uk/ltsa/). In addition, the program accepts environment models defined in the Enhanced Operator Function Model ([EOFM](http://fhsl.eng.buffalo.edu/EOFM/)), which is a specification language for modeling human tasks.
 
-## Download Instruction
-The latest version of this program can be downloaded from the [GitHub Release](https://github.com/SteveZhangBit/LTSA-Robust/releases) page. Please download the *robustness-calculator.jar* and *models.zip* to complete this instruction.
-
-*robustness-calculator.jar* provides a command-line interface, and *models.zip* includes the models used in the paper.
-
-## Reproduce the results in the paper
-### System Requirements
+## System Requirements
 This program requires Java version >= 1.8. The program has been tested under
 ```
 openjdk version "1.8.0_222"
 OpenJDK Runtime Environment Corretto-8.222.10.3 (build 1.8.0_222-b10)
 OpenJDK 64-Bit Server VM Corretto-8.222.10.3 (build 25.222-b10, mixed mode)
 ```
+
+## Download Instruction
+The latest version of this program can be downloaded from the [GitHub Release](https://github.com/SteveZhangBit/LTSA-Robust/releases) page. Please download the *robustness-calculator.jar* and *models.zip* to complete this instruction.
+
+*robustness-calculator.jar* provides a command-line interface, and *models.zip* includes the models used in the paper.
 
 After downloading *robustness-calculator.jar* and *models.zip*, change to the download directory, unzip *models.zip*, the download directory should be like:
 ```
@@ -61,6 +60,7 @@ positional arguments:
 
 **Now, the program is ready to go!**
 
+## Reproduce the results in the paper
 ### Network Protocol Case Study (Section 7.2)
 #### Compute Robustness of the Perfect Channel (Section 7.2.3)
 ```
@@ -191,11 +191,12 @@ A description file is a JSON file in the following format, (e.g., the descriptio
   "sys": "models/abp/abp.lts",      // the path to the system model specification
   "env": "models/abp/abp_env.lts",  // the path to the environment model specification
   "prop": "models/abp/p.lts",       // the path to the property model specification
-  "deviation": "models/abp/abp_env_lossy.lts" // the path to the deviation model specification. In the "eofm" mode, the deviation model is not required.
+  "deviation": "models/abp/abp_env_lossy.lts" // the path to the deviation model specification.
+                                              // In the "eofm" mode, the deviation model is not required.
 }
 ```
 
-In the *eofm* mode, we need additional descriptions for translating a EOFM model to a LTSA model (however, this is not described in the paper due to the page limit):
+In the *eofm* mode, we need additional descriptions for translating a EOFM model to a LTSA model (e.g., the description for the radiation therapy system). However, the details of the translation process is not described in the paper due to the page limit):
 ```
 {
   "mode": "eofm",                     // should be either "fsp" or "eofm"
