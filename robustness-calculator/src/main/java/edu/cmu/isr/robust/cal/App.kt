@@ -43,6 +43,7 @@ private class MyArgs(parser: ArgParser) {
       "--compare" to Mode.COMPARE,
       help = "operation mode"
   )
+  val outputFile by parser.storing("-o","--output", help = "save the results in a JSON file").default("")
   val files by parser.positionalList("FILES", help = "system description files in JSON")
 }
 
@@ -70,6 +71,20 @@ private data class EOFMConfigJson(
     val relabels: Map<String, String>
 )
 
+private data class ResultJson(
+    @JsonProperty
+    val mode: String,
+    @JsonProperty
+    val traces: List<RepTraceJson>
+)
+
+private data class RepTraceJson(
+    @JsonProperty
+    val trace: String,
+    @JsonProperty
+    val explanation: String
+)
+
 fun main(args: Array<String>): Unit = mainBody {
   val formatter = DefaultHelpFormatter(prologue =
   """
@@ -79,7 +94,7 @@ fun main(args: Array<String>): Unit = mainBody {
 |different properties.
 |""".trimMargin())
   ArgParser(args, helpFormatter = formatter).parseInto(::MyArgs).run {
-    when (mode) {
+    val resultJson = when (mode) {
       Mode.COMPUTE -> {
         assert(files.size == 1)
         if (files.size != 1)
@@ -87,7 +102,11 @@ fun main(args: Array<String>): Unit = mainBody {
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
         val cal = createCalculator(config, verbose)
-        cal.computeRobustness()
+        val result = cal.computeRobustness()
+        ResultJson(
+            mode = "compute",
+            traces = result.map { RepTraceJson(it.first.joinToString(), (it.second?:emptyList()).joinToString()) }
+        )
       }
       Mode.COMPARE -> {
         if (files.size != 2)
@@ -98,8 +117,16 @@ fun main(args: Array<String>): Unit = mainBody {
         val cal2 = createCalculator(config2, verbose)
         cal1.nameOfWA = "WA1"
         cal2.nameOfWA = "WA2"
-        cal1.robustnessComparedTo(cal2.getWA(), "WA2")
+        val result = cal1.robustnessComparedTo(cal2.getWA(), "WA2")
+        ResultJson(
+            mode = "compare",
+            traces = result.map { RepTraceJson(it.joinToString(), "") }
+        )
       }
+    }
+    // Write to JSON file it the output file if specified
+    if (outputFile != "") {
+      jacksonObjectMapper().writerWithDefaultPrettyPrinter().writeValue(File(outputFile), resultJson)
     }
   }
 }
