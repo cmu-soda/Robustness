@@ -80,7 +80,7 @@ class StateMachine {
 
     // A helper function to generate LTSA process names.
     fun processName(i: Int): String {
-      return if (i == 0) name else if (i in groups.keys) "${name}_$i" else "END"
+      return if (i == 0) name else if (i == -1) "ERROR" else if (i in groups.keys) "${name}_$i" else "END"
     }
 
     var fsp = groups.map { entry ->
