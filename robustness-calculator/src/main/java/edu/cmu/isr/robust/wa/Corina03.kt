@@ -26,7 +26,7 @@
 package edu.cmu.isr.robust.wa
 
 import edu.cmu.isr.robust.ltsa.LTSACall
-import edu.cmu.isr.robust.ltsa.alphabetSet
+import edu.cmu.isr.robust.ltsa.alphabetNoTau
 import edu.cmu.isr.robust.ltsa.getCompositeName
 import edu.cmu.isr.robust.ltsa.propertyCheck
 
@@ -43,15 +43,15 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
     println("========== Parsing the alphabets ==========")
     val ltsaCall = LTSACall()
     var sm = ltsaCall.doCompile(M1)
-    val αM1 = sm.alphabetSet()
+    val αM1 = sm.alphabetNoTau()
     nameM1 = sm.getCompositeName()
 
     sm = ltsaCall.doCompile(M2)
-    val αM2 = sm.alphabetSet()
+    val αM2 = sm.alphabetNoTau()
     nameM2 = sm.getCompositeName()
 
     sm = ltsaCall.doCompile(p)
-    val αP = sm.alphabetSet()
+    val αP = sm.alphabetNoTau()
     nameP = sm.getCompositeName()
 
     println("========== M1, M2, P model information ==========")

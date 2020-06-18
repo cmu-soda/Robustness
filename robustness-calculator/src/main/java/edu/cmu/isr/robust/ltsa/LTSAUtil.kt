@@ -33,6 +33,12 @@ class LTSACall {
     SymbolTable.init()
   }
 
+  /**
+   * Compile a given FSP spec. This should behave the same as the compile button in the LTSA tool.
+   * @param compositeName The name of the targeting composition process. This will affect which process
+   * would be composed when calling the doCompose() function. By default, the name is "DEFAULT" which will
+   * create an implicit process named DEFAULT which is the composition of all the processes in the spec.
+   */
   fun doCompile(fsp: String, compositeName: String = "DEFAULT"): CompositeState {
     val ltsInput = StringLTSInput(fsp)
     val ltsOutput = StringLTSOutput()
@@ -60,7 +66,7 @@ class LTSACall {
 }
 
 /**
- *
+ * This behaves the same as the Compose option in the LTSA tool.
  */
 fun CompositeState.doCompose(): CompositeState {
   val ltsOutput = StringLTSOutput()
@@ -74,7 +80,10 @@ fun CompositeState.doCompose(): CompositeState {
 }
 
 /**
- *
+ * This behaves the same as the Check -> Safety option in the LTSA tool.
+ * @return A list of actions leading to a property violation. Note: the property check will only return a trace
+ * to deadlock when deadlock and property violation both exist in the system. In this case, this function returns
+ * null, however, it does indicate that the system does not violate the property.
  */
 fun CompositeState.propertyCheck(): List<String>? {
   val ltsOutput = StringLTSOutput()
@@ -88,9 +97,9 @@ fun CompositeState.propertyCheck(): List<String>? {
 }
 
 /**
- * @return The alphabet of all the processes without tau.
+ * @return The alphabet of all the processes without tau. The alphabet has also been escaped.
  */
-fun CompositeState.alphabetSet(): Set<String> {
+fun CompositeState.alphabetNoTau(): Set<String> {
   val alphabet = this.machines
       .flatMap { (it as CompactState).alphabet.toList() }
       .fold(mutableSetOf<String>()) { s, a ->
@@ -104,7 +113,7 @@ fun CompositeState.alphabetSet(): Set<String> {
 /**
  * @return The alphabet list of the composed state machine including tau. The alphabet has also been escaped.
  */
-fun CompositeState.compositionAlphabet(): List<String> {
+fun CompositeState.alphabetWithTau(): List<String> {
   return this.composition.alphabet.map(::escapeEvent)
 }
 
@@ -118,7 +127,8 @@ fun CompositeState.minimise(): CompositeState {
 }
 
 /**
- * The composite state should be composed first.
+ * Use the builtin determinise function in LTSA.
+ * @requires The composite state should be composed first.
  */
 fun CompositeState.determinise(): CompositeState {
   val ltsOutput = StringLTSOutput()
@@ -139,20 +149,8 @@ fun CompositeState.getCompositeName(): String {
 }
 
 /**
- *
- */
-private fun renameConsts(spec: String, prefix: String): String {
-  val p = """(const|range)\s+([_\w]+)\s*=""".toRegex()
-  var re = spec
-  p.findAll(spec).forEach {
-    val name = it.groupValues[2]
-    re = re.replace(name, "${prefix}_$name")
-  }
-  return re
-}
-
-/**
- *
+ * Simply concat multiple specs.
+ * TODO: In ideal, when combining multiple specs, we should also fix the conflicting constant names.
  */
 fun combineSpecs(vararg specs: String): String {
   return specs.joinToString("\n")
@@ -175,7 +173,8 @@ private fun escapeEvent(e: String): String {
 }
 
 /**
- *
+ * Build a trace to a process: for a trace <a, b, c>, this function returns a spec:
+ * TRACE = (a -> b -> c -> ERROR). It uses ERROR state to indicate the end of the state.
  */
 fun buildTrace(t: List<String>, alphabet: Iterable<String>): String {
   return "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${alphabet.joinToString(",")}}."

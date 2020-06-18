@@ -47,7 +47,7 @@ class StateMachine {
 
   constructor(comp: CompositeState) {
     transitions = SimpleTransitions(comp)
-    alphabet = comp.compositionAlphabet()
+    alphabet = comp.alphabetWithTau()
     tau = alphabet.indexOf("_tau_")
   }
 
