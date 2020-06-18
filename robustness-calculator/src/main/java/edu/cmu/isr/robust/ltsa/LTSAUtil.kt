@@ -102,7 +102,7 @@ fun CompositeState.alphabetSet(): Set<String> {
 }
 
 /**
- * @return The alphabet list of the composed state machine including tau
+ * @return The alphabet list of the composed state machine including tau. The alphabet has also been escaped.
  */
 fun CompositeState.compositionAlphabet(): List<String> {
   return this.composition.alphabet.map(::escapeEvent)

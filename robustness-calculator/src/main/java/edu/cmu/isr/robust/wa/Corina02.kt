@@ -101,7 +101,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
       if (s.first == 0) {
         throw Error("Initial state becomes the error state, no environment can prevent the system from reaching error state")
       }
-      trans = SimpleTransitions(trans.allTrans()
+      trans = SimpleTransitions(trans
           .filter { it.first != s.first }
           .map { if (it.third == s.first) it.copy(third = -1) else it })
     }
@@ -131,7 +131,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    *
    */
   private fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>): StateMachine {
-    val newTrans = this.transitions.allTrans().toMutableSet()
+    val newTrans = this.transitions.toMutableSet()
     val alphabetIdx = this.alphabet.indices.filter { it != this.tau }
     val theta = dfaStates.size
     for (s in dfaStates.indices) {
@@ -152,7 +152,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    */
   private fun StateMachine.deleteErrors(dfaStates: List<Set<Int>>): StateMachine {
     val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
-    val trans = this.transitions.allTrans().filter { it.first !in errStates && it.third !in errStates }
+    val trans = this.transitions.filter { it.first !in errStates && it.third !in errStates }
     return StateMachine(SimpleTransitions(trans), this.alphabet)
   }
 }

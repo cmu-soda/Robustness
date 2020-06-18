@@ -54,7 +54,7 @@ class StateMachine {
   constructor(transitions: Transitions, alphabet: List<String>) {
     this.transitions = transitions
     this.alphabet = alphabet
-    this.tau = alphabet.indexOf("_tau_") // will be escaped to _tau_
+    this.tau = alphabet.indexOf("_tau_")
   }
 
   /**
@@ -99,7 +99,8 @@ class StateMachine {
   }
 
   /**
-   * Convert the state machine to a FSP spec and use the built-in minimization function in LTSA.
+   * Return the minimized state machine. It converts the state machine to a FSP spec and use the built-in
+   * minimization function in LTSA.
    */
   fun minimize(): StateMachine {
     val fsp = this.buildFSP()
@@ -223,16 +224,25 @@ class StateMachine {
   }
 
   /**
-   * Return a map where the key is the state, and the value is the shortest path from the initial state to the state.
+   * Return a map where the key is a state s, and the value is the shortest path from the initial state s0 to
+   * that state s.
    */
   fun pathFromInit(): Map<Int, List<String>> {
     return pathFromInitHelper { false }
   }
 
+  /**
+   * Return a map where the key is a state s, and the value is the shortest path from the initial state s0 to
+   * that state s. Stop the search when all the states in the stop set have been visited.
+   */
   fun pathFromInit(stop: Set<Int>): Map<Int, List<String>> {
     return pathFromInitHelper { it.keys.containsAll(stop) }
   }
 
+  /**
+   * Return a map where the key is a state s, and the value is the shortest path from the initial state s0 to
+   * that state s. Stop the search when the shortest trace has been found for the stop state.
+   */
   fun pathFromInit(stop: Int): List<String> {
     return (pathFromInitHelper { stop in it })[stop]!!
   }

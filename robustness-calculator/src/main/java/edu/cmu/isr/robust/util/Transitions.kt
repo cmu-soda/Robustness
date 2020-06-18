@@ -30,62 +30,80 @@ import lts.EventState
 
 typealias Transition = Triple<Int, Int, Int>
 
-interface Transitions {
+/**
+ * For an LTS = <S, A, R, s0> where S is a set of states, A is a set of actions (alphabet), R is a relation of
+ * S x A x S called transitions, and s0 is the initial state. This interface defines util functions for the
+ * transition relation R.
+ */
+interface Transitions : Iterable<Transition> {
+  /**
+   * Return true when the transition relation R is empty.
+   */
   fun isEmpty(): Boolean
+
+  /**
+   * Return true when the transition relation R is NOT empty.
+   */
   fun isNotEmpty(): Boolean
 
   /**
-   * Return a map from states to the transitions that come out from each state.
+   * Return a map from states to the transitions that come out from each state,
+   * i.e., { s \mapsto { (s, a, s') | \forall a:A, s':S . (s, a, s') \in R } | \forall s:S }
    */
   fun outTrans(): Map<Int, Iterable<Transition>>
 
   /**
-   * Return a map from states to the transitions that come in each state.
+   * Return a map from states to the transitions that come in each state,
+   * i.e., { s \mapsto { (s', a, s) | \forall a:A, s':S . (s', a, s) \in R } | \forall s:S }
    */
   fun inTrans(): Map<Int, Iterable<Transition>>
 
   /**
-   * Return all the transitions as an iterable.
-   */
-  fun allTrans(): Iterable<Transition>
-
-  /**
-   *
+   * Return a set of integers indicating the indices of the states appearing in the transition,
+   * i.e., { s | \forall s:S . \exists a:A, s':S . (s, a, s') \in R \/ (s', a, s) \in R }.
+   * Be aware that \result \subseteq S.
    */
   fun allStates(): Set<Int>
 
   /**
-   *
+   * Return a set of integers indicating the indices of the events appearing in the transitions,
+   * i.e., { a | \forall a:A . \exists s,s':S . (s, a, s') \in R }.
+   * Be aware that \result \subseteq A.
    */
   fun allEvents(): Set<Int>
 
   /**
-   *
+   * Return a set of integers indicating all the possible states from the given state s,
+   * i.e., { s' | \forall s':S, a:A . (s, a, s') \in R }
    */
   fun nextStates(s: Int): Set<Int>
 
   /**
-   *
+   * Return a set of integers indicating all the possible states from the given state s and action a,
+   * i.e., { s' | \forall s':S . (s, a, s') \in R }
    */
   fun nextStates(s: Int, a: Int): Set<Int>
 
   /**
-   *
+   * Return a set of integers indicating all the possible states that has a transition to the given state s,
+   * i.e., { s' | \forall s':S, a:A . (s', a, s) \in R }
    */
   fun prevStates(s: Int): Set<Int>
 
   /**
-   *
+   * Return a set of integers indicating all the possible states that has a transition to the given state s
+   * with action a, i.e., { s' | \forall s':S . (s', a, s) \in R }
    */
   fun prevStates(s: Int, a: Int): Set<Int>
 
   /**
-   *
+   * Return the set of states which has no transitions out,
+   * i.e., { s | \forall s:S . (\exists a:A, s':S . (s', a, s) \in R) /\ (~\exists a:A, s':S . (s, a, s') \in R) }
    */
   fun findEndStates(): Set<Int>
 
   /**
-   *
+   * Recursively find all the transitions that can be reached starting from the given state s.
    */
   fun transFromState(s: Int): Iterable<Transition>
 }
@@ -136,10 +154,6 @@ class SimpleTransitions : Transitions {
     return inMap!!
   }
 
-  override fun allTrans(): Iterable<Transition> {
-    return trans
-  }
-
   override fun allStates(): Set<Int> {
     return trans.flatMap { listOf(it.first, it.third) }.toSet()
   }
@@ -178,6 +192,10 @@ class SimpleTransitions : Transitions {
       search = search.flatMap { nextStates(it) }.toSet() - visited
     }
     return trans
+  }
+
+  override fun iterator(): Iterator<Transition> {
+    return trans.iterator()
   }
 
 }
