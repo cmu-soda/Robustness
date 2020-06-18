@@ -29,14 +29,20 @@ import edu.cmu.isr.robust.ltsa.*
 import edu.cmu.isr.robust.util.SimpleTransitions
 import edu.cmu.isr.robust.util.StateMachine
 
+/**
+ * This class implements the algorithm to generate weakest assumption described in:
+ * D. Giannakopoulou, C. S. Pǎsǎreanu, and H. Barringer, “Assumption generation for software component
+ * verification,” in Proceedings - ASE 2002: 17th IEEE International Conference on Automated Software
+ * Engineering, 2002, pp. 3–12.
+ */
 class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, env, p) {
   /**
-   *
+   * The alphabet of the weakest assumption
    */
   private val alphabetR: Set<String>
 
   init {
-    // Generate alphabets
+    // Generate alphabets for the weakest assumption
     val ltsaCall = LTSACall()
 
     val envComposite = ltsaCall.doCompile(env, "ENV").doCompose()
@@ -47,16 +53,16 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
     println("System LTS: ${sysComposite.composition.maxStates} states and ${sysComposite.composition.ntransitions()} transitions.")
     val alphabetSYS = sysComposite.alphabetNoTau()
 
+    // The following statements follow Corina's paper to compute the alphabet for the weakest assumption.
+    // However, in our work, we simply change it to the intersection of the system and the environment.
 //    val alphabetP = ltsaCall.doCompile(p, "P").alphabetSet()
 //    val alphabetC = alphabetSYS intersect alphabetENV
 //    val alphabetI = alphabetSYS - alphabetC
 //    alphabetR = (alphabetC + (alphabetP - alphabetI))
+
     alphabetR = alphabetSYS intersect alphabetENV
   }
 
-  /**
-   * Return the alphabet of the weakest assumption
-   */
   override fun alphabetOfWA(): Iterable<String> {
     return alphabetR
   }
@@ -66,14 +72,20 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
   }
 
   /**
-   * Return the LTSA spec representing the weakest assumption of the env.
+   * Return the LTSA spec representing the weakest assumption of the env. In the final step of Corina's algorithm,
+   * they introduce a sink state indicating all the other transitions that are not specified in the system model.
+   * It means that because these transitions are not specified by the system, an environment with these
+   * transitions will not cause a safety property violation (since they will be removed from the composition), thus
+   * the weakest assumption should include these transitions. However, we make this as an option, and by default,
+   * we choose not to generate such a sink state.
    */
   fun weakestAssumption(name: String, sink: Boolean): String {
     return composeSysP().pruneError().determinate(sink).minimize().buildFSP(name)
   }
 
   /**
-   *
+   * The first step of the algorithm: compose SYS || P, and only expose the alphabet of the intersection of the
+   * system and the environment.
    */
   private fun composeSysP(): StateMachine {
     val ltsaCall = LTSACall()
@@ -90,7 +102,9 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
   }
 
   /**
-   *
+   * The second step of the algorithm: if a state can reach the error state with one or more tau transitions,
+   * then we mark these states as error state. It means that the system cannot stop reaching the error state
+   * because of some internal actions which are not controlled by the environment.
    */
   private fun StateMachine.pruneError(): StateMachine {
     var trans = this.transitions
@@ -116,7 +130,8 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
   }
 
   /**
-   *
+   * The last step of the algorithm: remove the tau transitions in the LTS and determinise the state machine by
+   * using set construction. Finally, remove the error state and all the transitions to that state.
    */
   private fun StateMachine.determinate(sink: Boolean): StateMachine {
     // tau elimination ans subset construction
@@ -128,7 +143,9 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
   }
 
   /**
-   *
+   * To build the sink state, this functions first make the LTS complete, i.e., every state should specify the
+   * transition of every action. In this case, we target these transitions to the sink state. Then, we make the
+   * sink state complete in the way that any action points to itself.
    */
   private fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>): StateMachine {
     val newTrans = this.transitions.toMutableSet()
@@ -148,7 +165,9 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
   }
 
   /**
-   *
+   * When performing set construction to determinise the state machine, multiple states in the original LTS are
+   * grouped as one state in the new LTS. Then, any new state containing the original error state is identified
+   * as the new error state in the deterministic LTS.
    */
   private fun StateMachine.deleteErrors(dfaStates: List<Set<Int>>): StateMachine {
     val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }

@@ -30,6 +30,11 @@ import edu.cmu.isr.robust.ltsa.alphabetNoTau
 import edu.cmu.isr.robust.ltsa.getCompositeName
 import edu.cmu.isr.robust.ltsa.propertyCheck
 
+/**
+ * This class implements the algorithm to generate weakest assumption described in:
+ * J. M. Cobleigh, D. Giannakopoulou, and C. S. Pǎsǎreanu, “Learning Assumptions for Compositional Verification,”
+ * in International Conference on Tools and Algorithms for the Construction and Analysis of Systems, 2003, pp. 331–346.
+ */
 class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(M1, M2, p) {
   private val Σ: Set<String>
   private val S = mutableSetOf("")
