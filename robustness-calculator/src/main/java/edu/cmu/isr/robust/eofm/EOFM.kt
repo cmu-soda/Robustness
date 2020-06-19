@@ -23,6 +23,10 @@
  *
  */
 
+/**
+ * This file defines data structures for holding the EOFM model. We use jackson fasterxml package to serialize and
+ * deserialize an EOFM XML file.
+ */
 package edu.cmu.isr.robust.eofm
 
 import com.fasterxml.jackson.annotation.*
@@ -245,6 +249,17 @@ fun parseEOFMS(xmlStream: InputStream?): EOFMS {
   return _parse(docBuilder.parse(xmlStream))
 }
 
+/**
+ * When serialize and deserialize the EOFM model, we have to play a trick here:
+ * under a <decomposition> node, there could be three possible subtags: <activity>, <activitylink>, and <action>.
+ * However, the jackson xml parser cannot handle this correctly because they are in different names.
+ * Therefore, we have to wrap these children with a <subactivity> tag in order to let the parser to parse them into
+ * a generic list called subActivities of the Decomposition class.
+ *
+ * Therefore, when deserialize the model, we have to first manually add the <subactivity> tags to the XML file. And
+ * when serialize the model, we have to manually delete all the <subactivity> tags because they not in the syntax of
+ * EOFM.
+ */
 private fun _parse(doc: Document): EOFMS {
   val decompositions = doc.getElementsByTagName("decomposition")
   // Wrap all the sub-activities with <subactivity> tag
