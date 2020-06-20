@@ -85,6 +85,8 @@ END_REPEAT_AA = (repeat_AA -> AB | end_AA -> reset_AA -> HA).
 ## Operators
 An operator is also translated into a process in FSP. The operator process acts like a lock or a mutex in order to control the execution sequence of the sub-activities or actions. We support all the operators in EOFM except the ```sync``` operator, since it is impossible in LTSA to have multiple actions happening at exact the same time unless we combine them into one action.
 
+**Also, readers can play with the test case, test/java/edu.cmu.isr.robust/eofm/TranslatorTest.testOperators, which prints the code for the following examples.**
+
 ### ord
 ```
 ORD_AB_AC = (start_AB -> end_AB -> AC | end_AB -> AC),
@@ -162,3 +164,68 @@ XOR_AB_AC = (
 SKIP = (skip_AB -> SKIP | skip_AC -> SKIP | repeat_AA -> XOR_AB_AC | end_AA -> XOR_AB_AC).
 ```
 In ```xor```, it behaves like ```or_seq``` at the beginning, we can choose to do either activity ```aB``` or ```aC``` and have to wait for its completion. After that, we enter a special SKIP sub-process where we can only skip the reset activities.
+
+## Conditions
+In the Operators section, we use help actions such as ```start_X, end_X, repeat_X, skip_X``` to control the execution order of activities. They correspond to the *startcondition*, *endcondition*, and *resetcondition* described in Bolton's paper. This section describes the translation process for another important concept in EOFM, the activity conditions, including *precondition*, *completioncondition*, and *repeatcondition*.
+
+The conditions associated to an activity are translated into one process in FSP. It should follow the following pattern:
+```
+<activity name>_COND = VAR[<initial values>],
+VAR[<variables>] = (
+     when (precondition && !completioncondition)
+       start_<activity name> -> VAR[<variables>]
+   | when (repeatcondition && !(completioncondition))
+       repeat_<activity name> -> VAR[<vairables>]
+   | when (completioncondition)
+       end_<activity name> -> VAR[<variables>]
+   | <variable changes in world model>
+)
+```
+```VAR[<variables>]``` defines a sub-process where it adds guards to the ```start_X, repeat_X, end_X``` helper events based on the *precondition*, *completioncondition*, and *repeatcondition* associated to the activity. For example, according to Bolton's paper, an activity can start when its precondition is satisfied and its completioncondition is not satisfied. Thus, we add a guard function, ```when (precondition && !completioncondition)```, to the ```start_X``` event.
+
+In the example we described above, we have:
+```
+<activity name="aA">
+    <precondition>iX == False</precondition>
+    <completioncondition>iX == True</completioncondition>
+    ...
+</activity>
+```
+It will be translated into a process:
+```
+AA_COND = VAR[False],
+VAR[iX:TBool] = (
+    when (iX == False && !(iX == True)) start_AA -> VAR[iX]
+  |	when (!(iX == True)) repeat_AA -> VAR[iX]
+  |	when (iX == True) end_AA -> VAR[iX]
+  | <variable changes in world model>
+).
+```
+
+The ```<variables>``` placeholder refers to **ALL** the input variables defined in the EOFM model. The reason why ALL the variables are needed will be explained later, as well as the ```<variable changes in world model>``` placeholder.
+
+## Activities
+An activity is the parallel composition of all its sub-activities or actions. In our example, we have:
+
+### Activity aB
+```
+||AB = (HA).
+```
+
+### Activity aC
+```
+||AC = (HB).
+```
+
+### Activity aA
+```
+||AA = (AB || AC || <operator>_AB_AC || AA_COND).
+```
+
+## World Model
+
+## Initial Values
+EOFM does not provide the facilities to model initial values of input variables. However, in our translation, the initial values are required; otherwise, the tool does not know how to build the state machines. The constructor of the Translator class takes a map named ```initValues``` to set the initial values for all the input variables. In our example, we have ```mapOf("iX" to "False")```.
+
+## Relabels
+FSP provides the function to relabel the names of events. This is useful when developers want to synchronize events in different processes with different names. We also provide this functionality for the translation process. The Translator class takes a map named ```relabels``` as input, and the translation process relabels all the names in the key to the corresponding names in the value.
