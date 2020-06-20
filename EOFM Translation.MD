@@ -226,7 +226,30 @@ An activity is the parallel composition of all its sub-activities or actions. In
 ```
 
 ## World Model
-TBD
+The conditions of an activity defines that when this activity can be executed, repeat, and end. The conditions are defined based on the input variables which are, in fact, the states of the system which the human operator interacts with. The system states will change according to actions from the operator. However, in FSP, we do not explicitly model system states. Therefore, we have to manually create this event-state-changing relation in the translated EOFM model; otherwise, we will have a human behavior model which repeats the first action forever because the system does not respond to that action. We call such additional information the *world model* which basically defines how the input variables (system states) will change when an action happens.
+
+Back to our example, let's assume that we have a system spec as below:
+```
+SYS = (hA -> hB -> restart | hB -> hA -> restart).
+```
+We do not explicitly model the state variable ```iX``` in this model. However, we know that ```iX == False``` in the initial state; after ```hA -> hB``` or ```hB -> hA```, ```iX``` becomes ```True```; finally, the ```restart``` event (an internal event of the system) will reset ```iX``` to ```False```. Thus, we have to explicitly model these transitions into the translated EOFM model, in particular, into the condition processes where we use input variables to define guard functions. We have world model:
+```
+"when (iX == False) hA -> hB -> VAR[True]",
+"when (iX == False) hB -> hA -> VAR[True]",
+"when (iX == True) restart -> VAR[False]"
+```
+Then, we append these transitions to all the condition processes. In our example, we only have one condition process, i.e., ```AA_COND```. Thus, we have
+```
+AA_COND = VAR[False],
+VAR[iX:TBool] = (
+		when (iX == False && !(iX == True)) start_AA -> VAR[iX]
+	|	when (!(iX == True)) repeat_AA -> VAR[iX]
+	|	when (iX == True) end_AA -> VAR[iX]
+	|	when (iX == False) hA -> hB -> VAR[True]
+	|	when (iX == False) hB -> hA -> VAR[True]
+	|	when (iX == True) restart -> VAR[False]
+).
+```
 
 ## Initial Values
 EOFM does not provide the facilities to model initial values of input variables. However, in our translation, the initial values are required; otherwise, the tool does not know how to build the state machines. The constructor of the Translator class takes a map named ```initValues``` to set the initial values for all the input variables. In our example, we have ```mapOf("iX" to "False")```.
