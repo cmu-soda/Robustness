@@ -195,9 +195,12 @@ It will be translated into a process:
 ```
 AA_COND = VAR[False],
 VAR[iX:TBool] = (
-    when (iX == False && !(iX == True)) start_AA -> VAR[iX]
-  |	when (!(iX == True)) repeat_AA -> VAR[iX]
-  |	when (iX == True) end_AA -> VAR[iX]
+    when (iX == False && !(iX == True))
+      start_AA -> VAR[iX]
+  |	when (!(iX == True))
+      repeat_AA -> VAR[iX]
+  |	when (iX == True)
+      end_AA -> VAR[iX]
   | <variable changes in world model>
 ).
 ```
@@ -223,9 +226,37 @@ An activity is the parallel composition of all its sub-activities or actions. In
 ```
 
 ## World Model
+TBD
 
 ## Initial Values
 EOFM does not provide the facilities to model initial values of input variables. However, in our translation, the initial values are required; otherwise, the tool does not know how to build the state machines. The constructor of the Translator class takes a map named ```initValues``` to set the initial values for all the input variables. In our example, we have ```mapOf("iX" to "False")```.
 
 ## Relabels
 FSP provides the function to relabel the names of events. This is useful when developers want to synchronize events in different processes with different names. We also provide this functionality for the translation process. The Translator class takes a map named ```relabels``` as input, and the translation process relabels all the names in the key to the corresponding names in the value.
+
+## Erroneous Human Behaviors
+The translation process can also inject erroneous human behaviors to the translated model. The error injection process is based on Matthew Bolton's paper,
+
+M. L. Bolton and E. J. Bass, “Generating erroneous human behavior from strategic knowledge in task models and evaluating its impact on system safety with model checking,” IEEE Trans. Syst. Man, Cybern. Syst., vol. 43, no. 6, pp. 1314–1327, 2013.
+
+The general idea of the paper is that: human operators should execute, repeat, or end an activity or an action only when the corresponding condition is met. For instance, an operator should only start an action when its precondition is met. These conditions are considered as the strategic knowledge of a human operator, and an operator may mistakenly execute or end an action by violating these conditions because of some cognitive errors. Therefore, Bolton formalizes these cognitive errors (genotype errors) by using the different conditions in the EOFM model. For example, an omission error can be represented by the human operator ends an activity without the satisfaction of its completion condition.
+
+In our translation, this become straightforward since we have the condition process for each activity. We change the condition process pattern to:
+```
+<activity name>_COND = VAR[<initial values>],
+VAR[<variables>] = (
+     when (precondition && !completioncondition)
+       start_<activity name> -> VAR[<variables>]
+   | when (!(precondition && !completioncondition))
+       start_<activity name> -> commission_<activity name> -> VAR[<variables>]
+   | when (repeatcondition && !(completioncondition))
+       repeat_<activity name> -> VAR[<vairables>]
+   | when (!(repeatcondition && !(completioncondition)))
+       repeat_<activity name> -> repetition_<activity name> -> VAR[<vairables>]
+   | when (completioncondition)
+       end_<activity name> -> VAR[<variables>]
+   | when (!completioncondition)
+       end_<activity name> -> omission_<activity name> -> VAR[<variables>]
+   | <variable changes in world model>
+)
+```
