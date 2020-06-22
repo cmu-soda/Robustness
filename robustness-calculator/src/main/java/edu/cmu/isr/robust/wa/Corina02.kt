@@ -120,9 +120,9 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
           .map { if (it.third == s.first) it.copy(third = -1) else it })
     }
     // Eliminate the states that are not backward reachable from the error state
-    // FIXME: The Corina02 paper describes this step to remove the unreachable states. However, in the therac25 example,
-    // hPressB will lead to "deadlock" (fire forever) and thus will be removed. It results in no hPressB event in the
-    // weakest assumption. For now, we remove this step!
+    // ATTENTION: The Corina02 paper describes this step to remove the unreachable states. However, in the therac25
+    // example, hPressB will lead to "deadlock" (fire forever) and thus will be removed. It results in no hPressB
+    // event in the weakest assumption. For now, we remove this step!
 //    val reachable = this.getBackwardReachable(setOf(-1))
 //    trans = SimpleTransitions(trans.allTrans().filter { it.first in reachable && it.third in reachable })
 

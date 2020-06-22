@@ -61,7 +61,7 @@ class EOFMRobustCal private constructor(
     }
 
     /**
-     *
+     * Translate the human behavior model in EOFM to FSP.
      */
     @JvmStatic
     private fun genHumanModel(translator: EOFMTranslator): String {
@@ -71,7 +71,8 @@ class EOFMRobustCal private constructor(
     }
 
     /**
-     *
+     * Generate the concise FSP spec for the human behavior by composing the translated EOFM model with the
+     * system model.
      */
     @JvmStatic
     private fun genConciseHumanModel(translator: EOFMTranslator, sys: String, rawModel: String): String {
@@ -87,7 +88,7 @@ class EOFMRobustCal private constructor(
     }
 
     /**
-     *
+     * Generate the human error model (deviation model).
      */
     @JvmStatic
     private fun genHumanErrModel(translator: EOFMTranslator): String {
@@ -97,7 +98,7 @@ class EOFMRobustCal private constructor(
     }
 
     /**
-     *
+     * Generate the human error model (deviation model) containing only certain human errors.
      */
     @JvmStatic
     private fun genHumanErrModel(translator: EOFMTranslator, errs: List<String>): String {

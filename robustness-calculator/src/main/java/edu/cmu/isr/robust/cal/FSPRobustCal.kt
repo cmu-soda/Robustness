@@ -28,6 +28,9 @@ package edu.cmu.isr.robust.cal
 import edu.cmu.isr.robust.ltsa.LTSACall
 
 /**
+ * A general purpose AbstractRobustCal implementation for FSP specs. Users have to provide a fixed deviation model.
+ * And in the deviation model, users have to define a special menu, ERR_ACTS, to identify the error actions in the
+ * deviation model.
  * @param sys model should be named with SYS
  * @param env model should be named with ENV
  * @param p model should be named with P

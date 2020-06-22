@@ -36,6 +36,13 @@ import java.lang.IllegalArgumentException
 
 enum class Mode { COMPUTE, COMPARE }
 
+/**
+ * This private class defines the command line options.
+ * TODO: Add feature to do tau elimination and subset construction
+ * TODO: Add feature to just compute the weakest assumption
+ * TODO: Add feature to just output the EOFM translation and EOFM concise translation model
+ * TODO: Optimize the error message
+ */
 private class MyArgs(parser: ArgParser) {
   val verbose by parser.flagging("-v", "--verbose", help = "enable verbose mode")
   val mode by parser.mapping(
@@ -47,6 +54,9 @@ private class MyArgs(parser: ArgParser) {
   val files by parser.positionalList("FILES", help = "system description files in JSON")
 }
 
+/**
+ * The ConfigJson and EOFMConfigJson class define the structure of the JSON configuration file.
+ */
 private data class ConfigJson(
     @JsonProperty
     val mode: String,
@@ -71,6 +81,10 @@ private data class EOFMConfigJson(
     val relabels: Map<String, String>
 )
 
+/**
+ * The ResultJson and RepTraceJson class define the structure of the output JSON file for holding the representative
+ * traces and their explanations.
+ */
 private data class ResultJson(
     @JsonProperty
     val mode: String,
@@ -131,6 +145,9 @@ fun main(args: Array<String>): Unit = mainBody {
   }
 }
 
+/**
+ * A helper function to create the corresponding AbstractRobustCal based on the JSON config file.
+ */
 private fun createCalculator(config: ConfigJson, verbose: Boolean): AbstractRobustCal {
   val sys = File(config.sys).readText()
   val env = File(config.env).readText()
