@@ -84,6 +84,29 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
   }
 
   /**
+   * Compute the set of behaviors allowed by the system but will violate the property. This function first
+   * composes SYS || P and exposes the common interface E_M. Then, it prunes the states where it can reach the
+   * error state from one or more tau transitions. Then, we generate the representation counterexamples (the
+   * same method as we generate robustness representation trace).
+   */
+  fun computeUnsafeBeh(): Map<EquivClass, List<List<String>>> {
+    val (dfa, states) = composeSysP().pruneError().tauElmAndSubsetConstr()
+    val errStates = states.indices.filter { states[it].contains(-1) }
+    val trans = dfa.transitions.map {
+      if (it.first in errStates)
+        it.copy(first = -1)
+      else if (it.third in errStates)
+        it.copy(third = -1)
+      else
+        it
+    }.filter { it.first != -1 }
+    val sm = StateMachine(SimpleTransitions(trans), dfa.alphabet)
+//    println("Unsafe representation model:")
+//    println(sm.buildFSP("U"))
+    return shortestDeltaTraces(sm)
+  }
+
+  /**
    * The first step of the algorithm: compose SYS || P, and only expose the alphabet of the intersection of the
    * system and the environment.
    */

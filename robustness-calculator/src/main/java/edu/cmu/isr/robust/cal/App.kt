@@ -34,7 +34,7 @@ import edu.cmu.isr.robust.eofm.parseEOFMS
 import java.io.File
 import java.lang.IllegalArgumentException
 
-enum class Mode { COMPUTE, COMPARE }
+enum class Mode { COMPUTE, COMPARE, UNSAFE }
 
 /**
  * This private class defines the command line options.
@@ -48,6 +48,7 @@ private class MyArgs(parser: ArgParser) {
   val mode by parser.mapping(
       "--compute" to Mode.COMPUTE,
       "--compare" to Mode.COMPARE,
+      "--unsafe" to Mode.UNSAFE,
       help = "operation mode"
   )
   val outputFile by parser.storing("-o","--output", help = "save the results in a JSON file").default("")
@@ -136,6 +137,15 @@ fun main(args: Array<String>): Unit = mainBody {
             mode = "compare",
             traces = result.map { RepTraceJson(it.joinToString(), "") }
         )
+      }
+      Mode.UNSAFE -> {
+        assert(files.size == 1)
+        if (files.size != 1)
+          throw IllegalArgumentException("Need one config file for computing unsafe behavior")
+        val configFile = files[0]
+        val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
+        val cal = createCalculator(config, verbose)
+        ResultJson(mode = "unsafe", traces = cal.computeUnsafeBeh().map { RepTraceJson(it, "") })
       }
     }
     // Write to JSON file it the output file if specified

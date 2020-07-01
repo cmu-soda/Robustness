@@ -89,6 +89,16 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   }
 
   /**
+   * Compute the set of traces allowed by the system but would violate the safety property.
+   */
+  fun computeUnsafeBeh(): List<String> {
+    val corina02 = waGenerator as? Corina02 ?: error("This function is only supported by the Corina02 approach")
+    val traces = corina02.computeUnsafeBeh()
+    printRepTraces(traces)
+    return traces.values.flatten().flatten()
+  }
+
+  /**
    * The entrance function to compute the robustness. It first generates the weakest assumption, and then build the
    * representation model and compute the representative traces, and finally, match an explanation for each
    * representative trace respectively.

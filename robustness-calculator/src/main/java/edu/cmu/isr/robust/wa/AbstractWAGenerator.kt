@@ -204,7 +204,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
    * i.e., S_err = { s | \forall s:S . \exists a:A . (s, a, error) \in R }.
    * Then, we compute the shortest traces from the initial state s_0 to each state in S_err.
    */
-  private fun shortestDeltaTraces(sm: StateMachine): Map<EquivClass, List<List<String>>> {
+  fun shortestDeltaTraces(sm: StateMachine): Map<EquivClass, List<List<String>>> {
     if (!sm.hasError())
       return emptyMap()
 
@@ -213,7 +213,9 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
     val paths = sm.pathFromInit(transToErr.map { it.first }.toSet())
     for (t in transToErr) {
       val a = sm.alphabet[t.second]
-      traces[EquivClass(t.first, a)] = listOf((paths[t.first] ?: error(t.first)) + a)
+      if (t.first in paths) {
+        traces[EquivClass(t.first, a)] = listOf(paths[t.first]!! + a)
+      }
     }
     return traces
   }

@@ -217,6 +217,25 @@ In the *eofm* mode, we need additional descriptions for translating a EOFM model
 }
 ```
 
+## Compute Unsafe behaviors of the system
+Use ```java -jar robustness-calculator.jar --unsafe FILE``` option can compute the unsafe behaviors of the system, i.e., the set of traces allowed by the system but will lead to a safety property violation.
+```
+java -jar robustness-calculator.jar --unsafe models/abp/perfect_channel.json
+Environment LTS: 9 states and 24 transitions.
+System LTS: 20 states and 67 transitions.
+Number of equivalence classes: 8
+Representation Trace No.0: [rec[0]]
+Representation Trace No.1: [rec[1]]
+Representation Trace No.2: [send[1], getack[0]]
+Representation Trace No.3: [send[1], getack[1]]
+Representation Trace No.4: [send[1], rec[1], getack[0]]
+Representation Trace No.5: [send[1], rec[1], getack[1]]
+Representation Trace No.6: [send[1], rec[1], ack[1], rec[0]]
+Representation Trace No.7: [send[1], rec[1], ack[1], rec[1]]
+```
+
+For example, the trace ```rec[0]``` represents that when the system synchronize with this trace, it is *possible* for the system to enter the error state because of some internal actions which cannot be controlled by the environment.
+
 ## Assumptions on the [LTSA](https://www.doc.ic.ac.uk/~jnm/book/) specifications
 As a prototype implementation, the program carries the following assumptions:
 - The system specification needs to be a process named *SYS*.
@@ -235,3 +254,11 @@ Import Project -> Select 'LTSA-Robust/robustness-calculator' -> Import project f
 File -> Project Structure -> Libraries -> Select '+' and Java -> Select the 'ltsa.jar' -> OK
 
 ### Build project!
+
+## Build Executable JAR File
+
+File -> Project Structure -> Artifacts -> Select '+' -> JAR -> From modules with dependencies
+
+In the popup windows, set 'Main Class' to 'edu.cmu.isr.robust.cal.AppKt', and set 'Directory for META-INF/MANIFEST.MF' to the 'resources' directory under 'src/main' (i.e., 'your/project/path/robustness-calculator/src/main/resources').
+
+You can find the JAR file under out/artifacts.
