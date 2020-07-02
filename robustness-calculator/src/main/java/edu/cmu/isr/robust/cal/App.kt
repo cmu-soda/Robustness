@@ -145,7 +145,10 @@ fun main(args: Array<String>): Unit = mainBody {
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
         val cal = createCalculator(config, verbose)
-        ResultJson(mode = "unsafe", traces = cal.computeUnsafeBeh().map { RepTraceJson(it, "") })
+        ResultJson(
+            mode = "unsafe",
+            traces = cal.computeUnsafeBeh().map { RepTraceJson(it.joinToString(), "") }
+        )
       }
     }
     // Write to JSON file it the output file if specified

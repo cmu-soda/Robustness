@@ -91,11 +91,11 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * Compute the set of traces allowed by the system but would violate the safety property.
    */
-  fun computeUnsafeBeh(): List<String> {
+  fun computeUnsafeBeh(): List<List<String>> {
     val corina02 = waGenerator as? Corina02 ?: error("This function is only supported by the Corina02 approach")
     val traces = corina02.computeUnsafeBeh()
     printRepTraces(traces)
-    return traces.values.flatten().flatten()
+    return traces.values.flatten()
   }
 
   /**
