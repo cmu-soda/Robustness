@@ -97,6 +97,21 @@ fun CompositeState.propertyCheck(): List<String>? {
 }
 
 /**
+ * This behaves the same as the Check -> Safety option in the LTSA tool.
+ * @return A list of actions leading to a deadlock.
+ */
+fun CompositeState.deadlockCheck(): List<String>? {
+  val ltsOutput = StringLTSOutput()
+  this.analyse(ltsOutput)
+  val out = ltsOutput.getText()
+  return if (out.contains("""DEADLOCK""".toRegex())) {
+    this.errorTrace.map { (it as String) }
+  } else {
+    null
+  }
+}
+
+/**
  * @return The alphabet of all the processes without tau. The alphabet has also been escaped.
  */
 fun CompositeState.alphabetNoTau(): Set<String> {
