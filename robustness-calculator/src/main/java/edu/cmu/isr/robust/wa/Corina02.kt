@@ -43,19 +43,17 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
 
   init {
     // Generate alphabets for the weakest assumption
-    val ltsaCall = LTSACall()
-
-    val envComposite = ltsaCall.doCompile(env, "ENV").doCompose()
+    val envComposite = LTSACall.doCompile(env, "ENV").doCompose()
     println("Environment LTS: ${envComposite.composition.maxStates} states and ${envComposite.composition.ntransitions()} transitions.")
     val alphabetENV = envComposite.alphabetNoTau()
 
-    val sysComposite = ltsaCall.doCompile(sys, "SYS").doCompose()
+    val sysComposite = LTSACall.doCompile(sys, "SYS").doCompose()
     println("System LTS: ${sysComposite.composition.maxStates} states and ${sysComposite.composition.ntransitions()} transitions.")
     val alphabetSYS = sysComposite.alphabetNoTau()
 
     // The following statements follow Corina's paper to compute the alphabet for the weakest assumption.
     // However, in our work, we simply change it to the intersection of the system and the environment.
-//    val alphabetP = ltsaCall.doCompile(p, "P").alphabetSet()
+//    val alphabetP = LTSACall.doCompile(p, "P").alphabetSet()
 //    val alphabetC = alphabetSYS intersect alphabetENV
 //    val alphabetI = alphabetSYS - alphabetC
 //    alphabetR = (alphabetC + (alphabetP - alphabetI))
@@ -111,11 +109,10 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * system and the environment.
    */
   private fun composeSysP(): StateMachine {
-    val ltsaCall = LTSACall()
     val spec = combineSpecs(sys, p, "||C = (SYS || P)@{${alphabetR.joinToString(",")}}.")
 
     // Compose and minimise
-    val composite = ltsaCall.doCompile(spec, "C").doCompose().minimise()
+    val composite = LTSACall.doCompile(spec, "C").doCompose().minimise()
 
     if (!composite.composition.hasERROR())
       println("The error state is not reachable. The property is true under any permitted environment.")

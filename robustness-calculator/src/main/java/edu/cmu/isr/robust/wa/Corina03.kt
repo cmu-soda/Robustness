@@ -46,16 +46,15 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
 
   init {
     println("========== Parsing the alphabets ==========")
-    val ltsaCall = LTSACall()
-    var sm = ltsaCall.doCompile(M1)
+    var sm = LTSACall.doCompile(M1)
     val αM1 = sm.alphabetNoTau()
     nameM1 = sm.getCompositeName()
 
-    sm = ltsaCall.doCompile(M2)
+    sm = LTSACall.doCompile(M2)
     val αM2 = sm.alphabetNoTau()
     nameM2 = sm.getCompositeName()
 
-    sm = ltsaCall.doCompile(p)
+    sm = LTSACall.doCompile(p)
     val αP = sm.alphabetNoTau()
     nameP = sm.getCompositeName()
 
@@ -70,13 +69,12 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
   }
 
   override fun weakestAssumption(name: String): String {
-    val ltsaCall = LTSACall()
     while (true) {
       println("========== Find assumption for M1 ==========")
       val A = lstar()
       val A_fsp = conjectureToFSP(A, name)
       println("========== Validate conjecture assumption with the environment M2 ==========")
-      val counterExample = ltsaCall.doCompile(
+      val counterExample = LTSACall.doCompile(
         "$M2\nproperty $A_fsp\n||Composite = ($nameM2 || $name).", "Composite"
       ).propertyCheck()
       if (counterExample == null) {
@@ -86,7 +84,7 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
         println("========== Counterexample found with environment M2 ==========\n$counterExample")
         val projected = counterExample.filter { it in Σ }
         val A_c = "AC = (${projected.joinToString(" -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
-        val check = ltsaCall.doCompile(
+        val check = LTSACall.doCompile(
           "$A_c\n$M1\n$p\n||Composite = (AC || $nameM1 || $nameP).", "Composite"
         ).propertyCheck()
         if (check == null) {
@@ -150,9 +148,8 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
   }
 
   private fun checkCorrectness(C: Set<Triple<String, String, String>>): List<String>? {
-    val ltsaCall = LTSACall()
     val fsp = conjectureToFSP(C)
-    return ltsaCall.doCompile(
+    return LTSACall.doCompile(
       "$fsp\n$M1\n$p\n||Composite = (C || $nameM1 || $nameP).", "Composite"
     ).propertyCheck()
   }
@@ -256,9 +253,8 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
       }
     }
 
-    val ltsaCall = LTSACall()
     val fsp = "A = (${σ.replace(",", " -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
-    return ltsaCall.doCompile(
+    return LTSACall.doCompile(
       "$fsp\n$M1\n$p\n||Composite = (A || $nameM1 || $nameP).", "Composite"
     ).propertyCheck() == null
   }

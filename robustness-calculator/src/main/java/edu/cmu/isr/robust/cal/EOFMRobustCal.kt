@@ -78,11 +78,11 @@ class EOFMRobustCal private constructor(
     private fun genConciseHumanModel(translator: EOFMTranslator, sys: String, rawModel: String): String {
       val actions = translator.getActions()
 
-      val rawComposite = LTSACall().doCompile(rawModel, "ENV").doCompose()
+      val rawComposite = LTSACall.doCompile(rawModel, "ENV").doCompose()
       println("Translated EOFM LTS: ${rawComposite.composition.maxStates} states and ${rawComposite.composition.ntransitions()} transitions.")
 
       val spec = combineSpecs(rawModel, sys, "||G = (SYS || ENV)@{${actions.joinToString(", ")}}.")
-      val composite = LTSACall().doCompile(spec, "G").doCompose()
+      val composite = LTSACall.doCompile(spec, "G").doCompose()
       val conciseHuman = StateMachine(composite).tauElmAndSubsetConstr().first
       return conciseHuman.minimize().buildFSP("ENV")
     }
@@ -132,7 +132,7 @@ class EOFMRobustCal private constructor(
   private fun matchNormTrace(t: List<String>): List<String> {
     val tSpec = buildTrace(t, waGenerator.alphabetOfWA())
     val spec = combineSpecs(rawHumanModel, sys, tSpec, "||T = (SYS || ENV || TRACE).")
-    val composite = LTSACall().doCompile(spec, "T").doCompose()
+    val composite = LTSACall.doCompile(spec, "T").doCompose()
     val sm = StateMachine(composite)
     return sm.pathFromInit(-1)
   }

@@ -65,7 +65,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
   private fun computeDelta(wa: String, name: String): StateMachine {
     val pEnv = projectedEnv()
     val deltaSpec = combineSpecs(pEnv, "property ||PENV = (ENV).", wa, "||D = (PENV || $name).")
-    val composite = LTSACall().doCompile(deltaSpec, "D").doCompose()
+    val composite = LTSACall.doCompile(deltaSpec, "D").doCompose()
     return StateMachine(composite)
   }
 
@@ -80,12 +80,12 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
   private fun computeX(wa1: String, name1: String, wa2: String, name2: String): StateMachine {
     val pEnv = projectedEnv()
     val checkWA2 = combineSpecs(pEnv, wa2, "property ||P_$name2 = ($name2).", "||T = (ENV || P_$name2).")
-    if (LTSACall().doCompile(checkWA2, "T").doCompose().propertyCheck() != null) {
+    if (LTSACall.doCompile(checkWA2, "T").doCompose().propertyCheck() != null) {
       error("Compute X only works when the weakest assumption 2 covers all the behaviors of the original environment")
     }
 
     val deltaSpec = combineSpecs(wa1, wa2, "property ||P_$name2 = ($name2).", "||X = ($name1 || P_$name2).")
-    val composite = LTSACall().doCompile(deltaSpec, "X").doCompose()
+    val composite = LTSACall.doCompile(deltaSpec, "X").doCompose()
     return StateMachine(composite)
   }
 
@@ -227,7 +227,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
   private fun projectedEnv(): String {
     // For the environment, expose only the alphabets in the weakest assumption, and do tau elimination
     val pEnv = combineSpecs(env, "||E = (ENV)@{${alphabetOfWA().joinToString(", ")}}.")
-    val composite = LTSACall().doCompile(pEnv, "E").doCompose()
+    val composite = LTSACall.doCompile(pEnv, "E").doCompose()
     val envSM = StateMachine(composite).tauElmAndSubsetConstr().first
     return envSM.buildFSP("ENV")
   }

@@ -28,7 +28,7 @@ package edu.cmu.isr.robust.ltsa
 import lts.*
 import java.util.*
 
-class LTSACall {
+object LTSACall {
   init {
     SymbolTable.init()
   }

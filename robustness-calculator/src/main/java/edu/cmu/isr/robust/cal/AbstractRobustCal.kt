@@ -72,8 +72,8 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   private fun genWeakestAssumption(): String {
     // Check that SYS||ENV |= P. Our tool assumes that the system should already satisfy the property under the
     // original environment model. Thus, we check this assumption here first.
-    var spec = combineSpecs(sys, env, p, "||T = (SYS || ENV || P).")
-    val errs = LTSACall().doCompile(spec, "T").doCompose().propertyCheck()
+    val spec = combineSpecs(sys, env, p, "||T = (SYS || ENV || P).")
+    val errs = LTSACall.doCompile(spec, "T").doCompose().propertyCheck()
     if (errs != null) {
       println("ERROR: SYS || ENV |= P does not hold, property violation or deadlock:\n\t${errs.joinToString("\n\t")}\n")
     }
@@ -217,7 +217,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     val errEnv = genErrEnvironment(trace)
     val tSpec = buildTrace(trace, waGenerator.alphabetOfWA())
     val spec = combineSpecs(sys, errEnv, tSpec, "||T = (SYS || ENV || TRACE).")
-    val composite = LTSACall().doCompile(spec, "T").doCompose()
+    val composite = LTSACall.doCompile(spec, "T").doCompose()
     val sm = StateMachine(composite)
     return bfs(sm, trace)
   }

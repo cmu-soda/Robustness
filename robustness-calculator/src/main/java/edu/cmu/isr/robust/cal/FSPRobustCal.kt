@@ -42,9 +42,8 @@ class FSPRobustCal(sys: String, env: String, p: String, private val deviation: S
 
   init {
     // initialize the error actions in the deviation model
-    val ltsaCall = LTSACall()
-    ltsaCall.doCompile(deviation)
-    errActions = ltsaCall.menuActions("ERR_ACTS")
+    LTSACall.doCompile(deviation)
+    errActions = LTSACall.menuActions("ERR_ACTS")
   }
 
   override fun genErrEnvironment(t: List<String>): String {

@@ -104,8 +104,7 @@ class StateMachine {
    */
   fun minimize(): StateMachine {
     val fsp = this.buildFSP()
-    val ltsaCall = LTSACall()
-    val composite = ltsaCall.doCompile(fsp).doCompose().minimise()
+    val composite = LTSACall.doCompile(fsp).doCompose().minimise()
     return StateMachine(composite)
   }
 

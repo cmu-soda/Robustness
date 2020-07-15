@@ -28,16 +28,15 @@ package edu.cmu.isr.robust.lts
 import edu.cmu.isr.robust.ltsa.LTSACall
 import edu.cmu.isr.robust.ltsa.deadlockCheck
 import edu.cmu.isr.robust.ltsa.doCompose
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class LTSTest {
   @Test
   fun testMenu() {
     val errModel = ClassLoader.getSystemResource("specs/abp/abp_env_lossy.lts").readText()
-    val ltsaCall = LTSACall()
-    ltsaCall.doCompile(errModel)
-    assertEquals(listOf("lose", "duplicate", "corrupt"), ltsaCall.menuActions("ERR_ACTS"))
+    LTSACall.doCompile(errModel)
+    assertEquals(listOf("lose", "duplicate", "corrupt"), LTSACall.menuActions("ERR_ACTS"))
   }
 
   @Test
@@ -45,7 +44,7 @@ class LTSTest {
     val spec = "A = (a -> b -> c -> A).\n" +
         "B = (a -> c -> b -> B).\n" +
         "||C = (A || B)."
-    val composite = LTSACall().doCompile(spec).doCompose()
+    val composite = LTSACall.doCompile(spec).doCompose()
     assertEquals(listOf("a"), composite.deadlockCheck())
   }
 
@@ -55,7 +54,7 @@ class LTSTest {
         "B = (a -> c -> b -> B).\n" +
         "property P = (a -> c -> P).\n" +
         "||C = (A || B || P)."
-    val composite = LTSACall().doCompile(spec).doCompose()
+    val composite = LTSACall.doCompile(spec).doCompose()
     assertEquals(listOf("a"), composite.deadlockCheck())
   }
 }
