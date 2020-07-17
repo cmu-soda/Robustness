@@ -2,24 +2,12 @@ package edu.cmu.isr.robust.fuzz
 
 import edu.cmu.isr.robust.ltsa.*
 import edu.cmu.isr.robust.util.StateMachine
+import edu.cmu.isr.robust.util.Transition
+import java.util.*
 
-class PhenoFuzz(val sys: String, val env: String, val p: String) {
+class PhenoFuzz(val env: String) {
 
-  private fun initFuzz(): Boolean {
-    val spec = combineSpecs(sys, env, p, "||C = (SYS || ENV || P).")
-    val composite = LTSACall.doCompile(spec, "C").doCompose()
-    var err = composite.deadlockCheck()
-    if (err != null) {
-      println("Deadlock in the original SYS||ENV: $err")
-      return false
-    }
-    err = composite.propertyCheck()
-    if (err != null) {
-      println("Property violation in the original SYS||ENV: $err")
-      return false
-    }
-    return true
-  }
+  private val envModel = StateMachine(LTSACall.doCompile(env, "ENV").doCompose())
 
   /**
    * TODO: Compared to normal model checking:
@@ -33,28 +21,15 @@ class PhenoFuzz(val sys: String, val env: String, val p: String) {
    * TODO: Scalability?
    * TODO: How to avoid mutations which result in the same error trace?
    * TODO: How to fuzz? Completely random? Coverage?
+   *
+   * @param K the maximal depth to search when generating the normal trace
    */
-  fun fuzz() {
-    val envModel = StateMachine(LTSACall.doCompile(env, "ENV").doCompose())
-    for (normTrace in traceIter(envModel)) {
+  fun fuzz(K: Int) {
+    for (normTrace in traceIter(K)) {
       println("Pick normal trace: $normTrace")
       for ((phenotype, mutated) in mutationIter(normTrace)) {
         println("Mutate the trace with error type: $phenotype")
         println("Mutated trace: $mutated")
-
-//        val t = buildTrace(mutated, envModel.alphabet, ending = "END")
-//        val spec = combineSpecs(sys, t, p, "||C = (SYS || TRACE || P).")
-//        val composite = LTSACall.doCompile(spec, "C").doCompose()
-//        var err = composite.deadlockCheck()
-//        if (err != null) {
-//          println("Cause deadlock: $err")
-//          continue
-//        }
-//        err = composite.propertyCheck()
-//        if (err != null) {
-//          println("Cause Property violation: $err")
-//          continue
-//        }
       }
     }
   }
@@ -64,8 +39,8 @@ class PhenoFuzz(val sys: String, val env: String, val p: String) {
    *
    * @author Changjian
    */
-  private fun traceIter(sm: StateMachine): Iterable<List<String>> {
-    TODO("How to iterate over the traces in the original environment")
+  fun traceIter(K: Int): Iterator<List<String>> {
+    return TraceIterator(envModel, K)
   }
 
   /**
@@ -78,10 +53,53 @@ class PhenoFuzz(val sys: String, val env: String, val p: String) {
    *      Create a record;
    *      normal: <a, b, c, d>, mutated <a, e1, c, d>
    *
+   * NOTE to Katherine: I made the return class as an Iterator, which means it does not need to return a whole list
+   * of mutated string which might save some memory. So it means that you probably have to build another class
+   * which implements the Iterator interface like I did below.
    *  @author Katherine
    */
-  private fun mutationIter(trace: List<String>): Iterable<Pair<String, List<String>>> {
+  fun mutationIter(trace: List<String>): Iterator<Pair<String, List<String>>> {
     TODO("How to mutate a given normal trace")
-
   }
+}
+
+/**
+ * Use DFS to iterate over a state machine
+ */
+private class TraceIterator(val sm: StateMachine, val K: Int): Iterator<List<String>> {
+
+  private val outTrans = sm.transitions.outTrans()
+  private val curTrace = LinkedList<String>()
+  private val stack: Deque<Iterator<Transition>> = LinkedList()
+
+  init {
+    stack.push(outTrans[0]?.iterator()?: emptyList<Transition>().iterator())
+  }
+
+  override fun hasNext(): Boolean {
+    while (stack.isNotEmpty()) {
+      if (stack.peek().hasNext()) {
+        return true
+      }
+      stack.pop()
+      if (stack.isNotEmpty())
+        curTrace.removeLast()
+    }
+    return false
+  }
+
+  override fun next(): List<String> {
+    val curIter = stack.peek()
+    val t = curIter.next()
+    curTrace.add(sm.alphabet[t.second])
+    val copy = curTrace.toList()
+
+    if (stack.size < K)
+      stack.push(outTrans[t.third]?.iterator()?: emptyList<Transition>().iterator())
+    else
+      curTrace.removeLast()
+
+    return copy
+  }
+
 }

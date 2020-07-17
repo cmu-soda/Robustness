@@ -112,6 +112,19 @@ fun CompositeState.deadlockCheck(): List<String>? {
 }
 
 /**
+ * Use LTSA to analyze the state machine, return either a trace to deadlock or property violation
+ */
+fun CompositeState.safetyCheck(): Pair<String, List<String>?> {
+  var err = this.deadlockCheck()
+  if (err != null)
+    return Pair("Deadlock", err)
+  err = this.propertyCheck()
+  if (err != null)
+    return Pair("Property", err)
+  return Pair("None", err)
+}
+
+/**
  * @return The alphabet of all the processes without tau. The alphabet has also been escaped.
  */
 fun CompositeState.alphabetNoTau(): Set<String> {
