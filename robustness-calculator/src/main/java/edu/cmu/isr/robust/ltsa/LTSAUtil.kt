@@ -191,6 +191,6 @@ private fun escapeEvent(e: String): String {
  * Build a trace to a process: for a trace <a, b, c>, this function returns a spec:
  * TRACE = (a -> b -> c -> ERROR). It uses ERROR state to indicate the end of the state.
  */
-fun buildTrace(t: List<String>, alphabet: Iterable<String>): String {
-  return "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${alphabet.joinToString(",")}}."
+fun buildTrace(t: List<String>, alphabet: Iterable<String>, ending: String = "ERROR"): String {
+  return "TRACE = (${t.joinToString(" -> ")} -> $ending)+{${alphabet.joinToString(",")}}."
 }
