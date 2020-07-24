@@ -26,6 +26,16 @@ class ADBTest {
   }
 
   @Test
+  fun processAliveTest() {
+    ADBHelper.shutdown("com.example.myfirstapp")
+    Thread.sleep(500)
+    assertEquals(ADBHelper.isProcessAlive("com.example.myfirstapp"), false)
+    ADBHelper.startActivity("com.example.myfirstapp", "com.example.myfirstapp.MainActivity")
+    Thread.sleep(500)
+    assertEquals(ADBHelper.isProcessAlive("com.example.myfirstapp"), true)
+  }
+
+  @Test
   fun parseFireableUIFilesTest() {
     val dump = ClassLoader.getSystemResource("android/files_drawer.xml").readText()
     val builder = UIParser(dump, "com.android.documentsui")
@@ -75,7 +85,8 @@ class ADBTest {
 
   @Test
   fun modelBuilderAndroidFilesTest() {
-    val builder = UIModelBuilder("com.android.documentsui", "com.android.documentsui.files.FilesActivity")
+    val builder = UIModelBuilder("com.android.documentsui", "com.android.documentsui.files.FilesActivity",
+        steps = 500, restart = 100)
     builder.build()
   }
 }

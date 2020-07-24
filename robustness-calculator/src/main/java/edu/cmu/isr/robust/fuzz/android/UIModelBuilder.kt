@@ -21,7 +21,8 @@ const val DumpDelayTime: Long = 1000
 /**
  *
  */
-class UIModelBuilder(val pkg: String, val activity: String, val steps: Int = 100, val restart: Int = 10) {
+class UIModelBuilder(val pkg: String, val activity: String,
+                     val steps: Int = 100, val restart: Int = 10, val random: Boolean = false) {
 
   private class UIAutomatorFail: IllegalStateException("Failed to dump the current UI layout.")
 
@@ -133,18 +134,30 @@ class UIModelBuilder(val pkg: String, val activity: String, val steps: Int = 100
   /**
    *
    */
-  private fun dumpUI(retry: Int = 3): String {
+  private fun dumpUI(retry: Int = 5): String {
     var dump: String? = null
     for (i in 1..retry) {
       dump = ADBHelper.uiautomatorDump()
-      if (dump != null)
+      if (dump != null) {
+        dump = abstractDump(dump)
         break
+      }
       Thread.sleep(DumpDelayTime)
     }
     if (dump == null) {
       throw UIAutomatorFail()
     }
     return dump
+  }
+
+  /**
+   *
+   */
+  private fun abstractDump(dump: String): String {
+    return dump
+        // Remove the text in the text attribute
+        .replace("text=\"[\\w|\\s]+\"".toRegex(), "text=\"\"")
+//        .replace("focused=\"(false|true)\"".toRegex(), "focused=\"\"")
   }
 
   /**
@@ -188,50 +201,72 @@ class UIModelBuilder(val pkg: String, val activity: String, val steps: Int = 100
 
       // Check if we are still in the component we want to test
       if (!ADBHelper.isFocusedApp(pkg)) {
-        transitions.add(Transition(s, a, 0))
-        println("Has left the system under test.")
+        if (ADBHelper.isProcessAlive(pkg)) {
+          transitions.add(Transition(s, a, 0))
+          println("Has back to the home screen.")
+        } else {
+          transitions.add(Transition(s, a, -1))
+          println("ERROR: App crashes.")
+        }
         return
       }
-      // Dump the current UI layout, retry for at most 3 times
-      val dump = dumpUI()
-      // Identify the current state or create a new state
-      val ss = statesMap[dump]?: let {
-        maxState++
-        println("Find a new state $maxState.")
-        // Update states map and initialize enabled map
-        statesMap[dump] = maxState
-        enabled[maxState] = mutableMapOf()
 
-        // search fireable UI elements
-        val parser = UIParser(dump, pkg)
-        val actions = parser.parseFireableUI()
-        if (actions.isEmpty()) {
-          println("No fireable actions on this state.")
-        } else {
-          println("Find enabled actions for this state:")
-        }
-        // Add the actions to the alphabet and update the enabled map
-        for (act in actions) {
-          println("\t${act.toShortName()}")
-          var newa = alphabet.indexOf(act)
-          if (newa == -1) { // Add a new alphabet
-            newa = alphabet.size
-            alphabet.add(act)
+      // FIXME
+      val existTrans = transitions.filter { it.first == s && it.second == a }
+      if (s != 0 && existTrans.size == 1) {
+        println("Transition already exists, skip the dump process.")
+        s = existTrans.first().third
+      } else {
+        // Dump the current UI layout, retry for at most 3 times
+        val dump = dumpUI()
+        // Identify the current state or create a new state
+        val ss = statesMap[dump] ?: let {
+          maxState++
+          println("Find a new state $maxState.")
+          // Update states map and initialize enabled map
+          statesMap[dump] = maxState
+          enabled[maxState] = mutableMapOf()
+
+          // search fireable UI elements
+          val parser = UIParser(dump, pkg)
+          val actions = parser.parseFireableUI()
+          if (actions.isEmpty()) {
+            println("No fireable actions on this state.")
+          } else {
+            println("Find enabled actions for this state:")
           }
-          // The default weight is the height of this node
-          enabled[maxState]!![newa] = steps - i
-        }
+          // Add the actions to the alphabet and update the enabled map
+          for (act in actions) {
+            println("\t${act.toShortName()}")
+            var newa = alphabet.indexOf(act)
+            if (newa == -1) { // Add a new alphabet
+              newa = alphabet.size
+              alphabet.add(act)
+            }
+            // The default weight is the height of this node
+            enabled[maxState]!![newa] = steps - i
+          }
 
-        maxState
+          maxState
+        }
+        // Update transitions
+        transitions.add(Transition(s, a, ss))
+        s = ss
       }
-      // Update transitions
-      transitions.add(Transition(s, a, ss))
-      s = ss
+
       // If this is step 0 that just starts the main activity, update the weights in the enabled map
       if (i == 0)
         updateEnabled(s, emptySet())
       // Find next unvisited enabled action for this state or use back button
-      a = enabled[s]!!.let { m -> m.keys.filter { m[it]!! > 0 }.maxBy { m[it]!! } }?: alphabet.indexOf(UIBackButton)
+      a = if (random) {
+        val ks = enabled[s]!!.let { m -> m.keys.filter { m[it]!! > 0 } }
+        if (ks.isEmpty())
+          alphabet.indexOf(UIBackButton)
+        else
+          ks.random()
+      } else {
+        enabled[s]!!.let { m -> m.keys.filter { m[it]!! > 0 }.maxBy { m[it]!! } } ?: alphabet.indexOf(UIBackButton)
+      }
     }
   }
 

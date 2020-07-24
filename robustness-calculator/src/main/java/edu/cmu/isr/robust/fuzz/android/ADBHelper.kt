@@ -17,12 +17,13 @@ object ADBHelper {
   /**
    *
    */
-  fun killServer() {
+  fun killServer(): Boolean {
     val proc = ProcessBuilder(ADB, "kill-server")
         .redirectOutput(ProcessBuilder.Redirect.PIPE)
         .redirectError(ProcessBuilder.Redirect.PIPE)
         .start()
     proc.waitFor()
+    return proc.exitValue() == 0
   }
 
   /**
@@ -38,21 +39,31 @@ object ADBHelper {
     return re.contains(pkg)
   }
 
-  /**
-   *
-   */
-  fun shutdown(pkg: String) {
-    val proc = ProcessBuilder(ADB, "shell", "am", "force-stop", pkg)
+  fun isProcessAlive(pkg: String): Boolean {
+    val proc = ProcessBuilder(ADB, "shell", "pidof", pkg)
         .redirectOutput(ProcessBuilder.Redirect.PIPE)
         .redirectError(ProcessBuilder.Redirect.PIPE)
         .start()
     proc.waitFor()
+    return proc.inputStream.bufferedReader().readText() != ""
   }
 
   /**
    *
    */
-  fun startActivity(pkg: String, activity: String) {
+  fun shutdown(pkg: String): Boolean {
+    val proc = ProcessBuilder(ADB, "shell", "am", "force-stop", pkg)
+        .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+    proc.waitFor()
+    return proc.exitValue() == 0
+  }
+
+  /**
+   *
+   */
+  fun startActivity(pkg: String, activity: String): Boolean {
     val proc = ProcessBuilder(ADB, "shell", "am", "start", "-n", "$pkg/$activity")
         .redirectOutput(ProcessBuilder.Redirect.PIPE)
         .redirectError(ProcessBuilder.Redirect.PIPE)
@@ -62,6 +73,7 @@ object ADBHelper {
     if (proc.exitValue() != 0) {
       error("Failed to start activity: $out")
     }
+    return proc.exitValue() == 0
   }
 
   /**
@@ -100,22 +112,24 @@ object ADBHelper {
   /**
    *
    */
-  fun input(cmd: Array<String>) {
+  fun input(cmd: Array<String>): Boolean {
     val proc = ProcessBuilder(ADB, "shell", "input", *cmd)
         .redirectOutput(ProcessBuilder.Redirect.PIPE)
         .redirectError(ProcessBuilder.Redirect.PIPE)
         .start()
     proc.waitFor()
+    return proc.exitValue() == 0
   }
 
   /**
    *
    */
-  fun backButton() {
+  fun backButton(): Boolean {
     val proc = ProcessBuilder(ADB, "shell", "input", "keyevent", "KEYCODE_BACK")
         .redirectOutput(ProcessBuilder.Redirect.PIPE)
         .redirectError(ProcessBuilder.Redirect.PIPE)
         .start()
     proc.waitFor()
+    return proc.exitValue() == 0
   }
 }
