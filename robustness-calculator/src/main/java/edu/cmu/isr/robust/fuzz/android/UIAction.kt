@@ -77,6 +77,15 @@ data class UIAction(val id: String, val clz: String, val bounds: String, val typ
       UIActionType.Enabled -> "tap_${shortID}_${xc}_${yc}"
       UIActionType.Other -> id
     }
+//    return when (type) {
+//      UIActionType.KeyEvent -> "key_$id"
+//      UIActionType.Clickable -> "click_${shortID}"
+//      UIActionType.LongClickable -> "longclick_${shortID}"
+//      UIActionType.Scrollable -> "scroll_${shortID}"
+//      UIActionType.Checkable -> "check_${shortID}"
+//      UIActionType.Enabled -> "tap_${shortID}"
+//      UIActionType.Other -> id
+//    }
   }
 
   override fun toString(): String {

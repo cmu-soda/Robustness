@@ -1,18 +1,21 @@
 package edu.cmu.isr.robust.fuzz.android
 
 import org.w3c.dom.Document
-import org.w3c.dom.Element
 import org.w3c.dom.Node
-import org.w3c.dom.NodeList
 import java.io.ByteArrayInputStream
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.xpath.XPathConstants
 import javax.xml.xpath.XPathFactory
 
+val AndroidListView = listOf(
+    "ListView",
+    "RecyclerView"
+)
+
 /**
  *
  */
-class UIParser(dump: String, val pkg: String) {
+class UIParser(dump: String) {
 
   /**
    *
@@ -22,56 +25,101 @@ class UIParser(dump: String, val pkg: String) {
   /**
    *
    */
-  private val Clickable = """.//node[@package="$pkg"][@clickable="true"]"""
-
-  /**
-   *
-   */
-  private val LongClickable = """.//node[@package="$pkg"][@long-clickable="true"]"""
-
-  /**
-   *
-   */
-  private val Checkable = """.//node[@package="$pkg"][@checkable="true"]"""
-
-  /**
-   *
-   */
-  private val Enabled = """.//node[@package="$pkg"][@enabled="true"][not(node())]""" // Enabled with no children
-
-  /**
-   *
-   */
-  private val Scrollable = """.//node[@package="$pkg"][@scrollable="true"]"""
-
-  /**
-   *
-   */
-  private val enabled: NodeList
-
-  /**
-   *
-   */
-  private val excludedEnabled = mutableSetOf<String>()
+  private val fireableActions = mutableListOf<UIAction>()
 
   init {
     val docFactory = DocumentBuilderFactory.newInstance()
     val docBuilder = docFactory.newDocumentBuilder()
     xml = docBuilder.parse(ByteArrayInputStream(dump.toByteArray()))
+  }
 
-    // Find all the leaf enabled nodes and annotate them with fake id
-    val xpath = XPathFactory.newInstance().newXPath()
-    enabled = xpath.compile(Enabled).evaluate(xml, XPathConstants.NODESET) as NodeList
-    for (i in 0 until enabled.length) {
-      val n = enabled.item(i)
-      (n as Element).setAttribute("fake-id", i.toString())
-      // Exclude android:id/statusBarBackground and android:id/navigationBarBackground
-      val id = n.attributes.getNamedItem("resource-id").nodeValue
-      if (id == "android:id/statusBarBackground" || id == "android:id/navigationBarBackground")
-        excludedEnabled.add(i.toString())
+  /**
+   *
+   */
+  private fun buildAction(n: Node, type: UIActionType): UIAction {
+    var id = n.attributes.getNamedItem("resource-id").nodeValue
+    if (id == "") {
+      // special treatment for nodes without id, e.g., auto-generated navigation button
+      id = n.attributes.getNamedItem("content-desc").nodeValue.replace(" ", "_").toLowerCase()
+    }
+    return UIAction(id, n.attributes.getNamedItem("class").nodeValue,
+        n.attributes.getNamedItem("bounds").nodeValue, type)
+  }
+
+  private fun isClickable(n: Node): Boolean {
+    return n.attributes.getNamedItem("clickable").nodeValue == "true"
+  }
+
+  private fun isLongClickable(n: Node): Boolean {
+    return n.attributes.getNamedItem("long-clickable").nodeValue == "true"
+  }
+
+  private fun isCheckable(n: Node): Boolean {
+    return n.attributes.getNamedItem("checkable").nodeValue == "true"
+  }
+
+  private fun isScrollable(n: Node): Boolean {
+    return n.attributes.getNamedItem("scrollable").nodeValue == "true"
+  }
+
+  private fun isEnabled(n: Node): Boolean {
+    return n.attributes.getNamedItem("enabled").nodeValue == "true"
+  }
+
+  private fun isList(n: Node): Boolean {
+    val clz = n.attributes.getNamedItem("class").nodeValue
+    return clz.substring(clz.lastIndexOf('.') + 1, clz.length) in AndroidListView
+  }
+
+  private fun search(n: Node) {
+    var deeper = true
+    if (isClickable(n)) {
+      fireableActions.add(buildAction(n, UIActionType.Clickable))
+      deeper = false
+    }
+    if (isLongClickable(n)) {
+      fireableActions.add(buildAction(n, UIActionType.LongClickable))
+      deeper = false
+    }
+    if (isCheckable(n)) {
+      fireableActions.add(buildAction(n, UIActionType.Checkable))
+      deeper = false
+    }
+    if (!deeper)
+      return
+
+    if (isEnabled(n)) {
+      val children = n.childNodes
+      when {
+        children.length == 0 -> fireableActions.add(buildAction(n, UIActionType.Enabled))
+        isList(n) -> {
+          for (i in 0 until children.length) {
+            val child = children.item(i)
+            if (child.nodeType == Node.ELEMENT_NODE) {
+              search(child)
+              break
+            }
+          }
+        }
+        else -> {
+          for (i in 0 until children.length) {
+            val child = children.item(i)
+            if (child.nodeType == Node.ELEMENT_NODE)
+              search(child)
+          }
+        }
+      }
     }
   }
 
+  fun parseFireableUI(): List<UIAction> {
+    fireableActions.clear()
+
+    val xpath = XPathFactory.newInstance().newXPath()
+    val content = xpath.compile("/hierarchy/node[1]/node[1]").evaluate(xml, XPathConstants.NODE) as Node
+    search(content)
+    return fireableActions
+  }
 
   /**
    *
@@ -87,74 +135,6 @@ class UIParser(dump: String, val pkg: String) {
       return Pair(width, height)
     }
     return Pair(-1, -1)
-  }
-
-  /**
-   *
-   */
-  fun parseFireableUI(): List<UIAction> {
-    val fireable = mutableListOf<UIAction>()
-
-    fireable.addAll(parseUIBy(Clickable, UIActionType.Clickable))
-    fireable.addAll(parseUIBy(LongClickable, UIActionType.LongClickable))
-    fireable.addAll(parseUIBy(Checkable, UIActionType.Checkable))
-
-    // Add enabled
-    for (i in 0 until enabled.length) {
-      val n = enabled.item(i)
-      val fakeID = n.attributes.getNamedItem("fake-id").nodeValue
-      if (fakeID !in excludedEnabled)
-        fireable.add(buildAction(n, UIActionType.Enabled))
-    }
-
-    return fireable
-  }
-
-  /**
-   *
-   */
-  private fun buildAction(n: Node, type: UIActionType): UIAction {
-    var id = n.attributes.getNamedItem("resource-id").nodeValue
-    if (id == "") {
-      // special treatment for nodes without id, e.g., auto-generated navigation button
-      id = n.attributes.getNamedItem("content-desc").nodeValue.replace(" ", "_")
-    }
-    return UIAction(id, n.attributes.getNamedItem("class").nodeValue,
-        n.attributes.getNamedItem("bounds").nodeValue, type)
-  }
-
-  /**
-   *
-   */
-  private fun parseUIBy(expr: String, type: UIActionType): List<UIAction> {
-    assert(type != UIActionType.Enabled)
-
-    val xpath = XPathFactory.newInstance().newXPath()
-    val actions = mutableListOf<UIAction>()
-    val nodes = xpath.compile(expr).evaluate(xml, XPathConstants.NODESET) as NodeList
-    for (i in 0 until nodes.length) {
-      val n = nodes.item(i)
-      actions.add(buildAction(n, type))
-      // Exclude the node and its children from the enabled set
-      excludeNodeAndChildren(n)
-    }
-    return actions
-  }
-
-  /**
-   *
-   */
-  private fun excludeNodeAndChildren(n: Node) {
-    val xpath = XPathFactory.newInstance().newXPath()
-    val fakeID = n.attributes.getNamedItem("fake-id")?.nodeValue
-    if (fakeID != null)
-      excludedEnabled.add(fakeID)
-
-    val children = xpath.compile(Enabled).evaluate(n, XPathConstants.NODESET) as NodeList
-    for (i in 0 until children.length) {
-      val c = children.item(i)
-      excludedEnabled.add(c.attributes.getNamedItem("fake-id").nodeValue)
-    }
   }
 
 }
