@@ -9,7 +9,12 @@ import javax.xml.xpath.XPathFactory
 
 val AndroidListView = listOf(
     "ListView",
-    "RecyclerView"
+    "RecyclerView",
+    "GridView",
+    "HorizontalScrollView",
+    "ScrollView",
+    "Spinner",
+    "StackView"
 )
 
 /**
