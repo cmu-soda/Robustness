@@ -132,4 +132,73 @@ object ADBHelper {
     proc.waitFor()
     return proc.exitValue() == 0
   }
+
+  fun isKeyboardUp(): Boolean {
+    val proc = ProcessBuilder(ADB, "shell", "dumpsys", "window", "InputMethod", "|", "grep", "'mHasSurface=true'")
+        .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+    proc.waitFor()
+    return proc.inputStream.bufferedReader().readText().isNotBlank()
+  }
+
+  fun findScreenInputDevice(): String {
+    val proc = ProcessBuilder(ADB, "shell", "getevent", "-lp")
+        .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+    proc.waitFor()
+    val out = proc.inputStream.bufferedReader().readText()
+    val devices = "/dev/input/event\\S+".toRegex().findAll(out)
+    for (d in devices) {
+      val proc1 = ProcessBuilder(ADB, "shell", "getevent", "-lp", d.value)
+          .redirectOutput(ProcessBuilder.Redirect.PIPE)
+          .redirectError(ProcessBuilder.Redirect.PIPE)
+          .start()
+      proc1.waitFor()
+      if ("ABS_MT" in proc1.inputStream.bufferedReader().readText()) {
+        return d.value
+      }
+    }
+    error("Cannot find screen input device.")
+  }
+
+  fun describeInputDevice(device: String): String {
+    val proc = ProcessBuilder(ADB, "shell", "getevent", "-lp", device)
+        .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+    proc.waitFor()
+    return proc.inputStream.bufferedReader().readText()
+  }
+
+  fun recordScreenInputs(): Process {
+    // FIXME: min android api version 23
+    val device = findScreenInputDevice()
+    return ProcessBuilder(ADB, "exec-out", "getevent", "-lt", device)
+        .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+  }
+
+  fun recordScreenInputs(device: String): Process {
+    // FIXME: min android api version 23
+    return ProcessBuilder(ADB, "exec-out", "getevent", "-lt", device)
+        .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+  }
+
+  fun getScreenSize(): Pair<Int, Int> {
+    val proc = ProcessBuilder(ADB, "shell", "wm", "size")
+        .redirectOutput(ProcessBuilder.Redirect.PIPE)
+        .redirectError(ProcessBuilder.Redirect.PIPE)
+        .start()
+    proc.waitFor()
+    val out = proc.inputStream.bufferedReader().readText()
+    val size = "(\\d+)x(\\d+)".toRegex().find(out)
+    if (size != null)
+      return Pair(size.groupValues[1].toInt(), size.groupValues[2].toInt())
+    error("Failed to read screen size.")
+  }
 }

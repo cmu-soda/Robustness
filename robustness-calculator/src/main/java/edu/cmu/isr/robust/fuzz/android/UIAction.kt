@@ -23,6 +23,26 @@ data class UIAction(val id: String, val clz: String, val bounds: String, val typ
   /**
    *
    */
+  private val x1: Int
+
+  /**
+   *
+   */
+  private val y1: Int
+
+  /**
+   *
+   */
+  private val x2: Int
+
+  /**
+   *
+   */
+  private val y2: Int
+
+  /**
+   *
+   */
   private val xc: Int
 
   /**
@@ -38,10 +58,10 @@ data class UIAction(val id: String, val clz: String, val bounds: String, val typ
   init {
     // Calculate the center point of a UI element
     val match = "\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]".toRegex().find(bounds)
-    val x1 = match?.groupValues?.get(1)?.toInt()?: 0
-    val y1 = match?.groupValues?.get(2)?.toInt()?: 0
-    val x2 = match?.groupValues?.get(3)?.toInt()?: 0
-    val y2 = match?.groupValues?.get(4)?.toInt()?: 0
+    x1 = match?.groupValues?.get(1)?.toInt()?: 0
+    y1 = match?.groupValues?.get(2)?.toInt()?: 0
+    x2 = match?.groupValues?.get(3)?.toInt()?: 0
+    y2 = match?.groupValues?.get(4)?.toInt()?: 0
     xc = x1 + (x2 - x1) / 2
     yc = y1 + (y2 - y1) / 2
 

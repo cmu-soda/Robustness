@@ -5,7 +5,6 @@ import edu.cmu.isr.robust.fuzz.android.UIIndex
 import edu.cmu.isr.robust.fuzz.android.UIModelBuilder
 import edu.cmu.isr.robust.fuzz.android.UIParser
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class ADBTest {
@@ -84,5 +83,28 @@ class ADBTest {
     val index = UIIndex()
     index.put(ClassLoader.getSystemResource("android/files_downloads.xml").readText(), 1)
     assertEquals(1, index.get(ClassLoader.getSystemResource("android/files_images.xml").readText()))
+  }
+
+  @Test
+  fun keyboardTest() {
+    ADBHelper.shutdown("com.example.myfirstapp")
+    ADBHelper.startActivity("com.example.myfirstapp", "com.example.myfirstapp.MainActivity")
+    Thread.sleep(3000)
+    println(System.currentTimeMillis())
+    assertEquals(false, ADBHelper.isKeyboardUp())
+    println(System.currentTimeMillis())
+    ADBHelper.input(arrayOf("tap", "403", "311"))
+    Thread.sleep(500)
+    assertEquals(true, ADBHelper.isKeyboardUp())
+    ADBHelper.backButton()
+    Thread.sleep(500)
+    assertEquals(false, ADBHelper.isKeyboardUp())
+  }
+
+  @Test
+  fun getScreenSizeTest() {
+    val (width, height) = ADBHelper.getScreenSize()
+    assertEquals(1080, width)
+    assertEquals(1920, height)
   }
 }
