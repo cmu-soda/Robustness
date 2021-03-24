@@ -28,6 +28,7 @@ package edu.cmu.isr.robust.wa
 import edu.cmu.isr.robust.ltsa.*
 import edu.cmu.isr.robust.util.SimpleTransitions
 import edu.cmu.isr.robust.util.StateMachine
+import edu.cmu.isr.robust.util.Trace
 
 /**
  * This class implements the algorithm to generate weakest assumption described in:
@@ -87,7 +88,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * error state from one or more tau transitions. Then, we generate the representation counterexamples (the
    * same method as we generate robustness representation trace).
    */
-  fun computeUnsafeBeh(): Map<EquivClass, List<List<String>>> {
+  fun computeUnsafeBeh(): Map<EquivClass, List<Trace>> {
     val (dfa, states) = composeSysP().pruneError().tauElmAndSubsetConstr()
     val errStates = states.indices.filter { states[it].contains(-1) }
     val trans = dfa.transitions.map {

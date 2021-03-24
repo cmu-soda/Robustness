@@ -29,6 +29,8 @@ import edu.cmu.isr.robust.ltsa.*
 import lts.CompositeState
 import java.util.*
 
+typealias Trace = List<String>
+
 class StateMachine {
   /**
    * The transitions of this state machine. States and labels are all represented in integers.
@@ -226,7 +228,7 @@ class StateMachine {
    * Return a map where the key is a state s, and the value is the shortest path from the initial state s0 to
    * that state s.
    */
-  fun pathFromInit(): Map<Int, List<String>> {
+  fun pathFromInit(): Map<Int, Trace> {
     return pathFromInitHelper { false }
   }
 
@@ -234,7 +236,7 @@ class StateMachine {
    * Return a map where the key is a state s, and the value is the shortest path from the initial state s0 to
    * that state s. Stop the search when all the states in the stop set have been visited.
    */
-  fun pathFromInit(stop: Set<Int>): Map<Int, List<String>> {
+  fun pathFromInit(stop: Set<Int>): Map<Int, Trace> {
     return pathFromInitHelper { it.keys.containsAll(stop) }
   }
 
@@ -242,15 +244,15 @@ class StateMachine {
    * Return a map where the key is a state s, and the value is the shortest path from the initial state s0 to
    * that state s. Stop the search when the shortest trace has been found for the stop state.
    */
-  fun pathFromInit(stop: Int): List<String> {
+  fun pathFromInit(stop: Int): Trace {
     return (pathFromInitHelper { stop in it })[stop]!!
   }
 
   /**
    * The helper function for pathFromInit, the search stops when the stop function evaluates to true.
    */
-  private fun pathFromInitHelper(stop: (Map<Int, List<String>>) -> Boolean): Map<Int, List<String>> {
-    val traces = mutableMapOf<Int, List<String>>(0 to emptyList())
+  private fun pathFromInitHelper(stop: (Map<Int, Trace>) -> Boolean): Map<Int, Trace> {
+    val traces = mutableMapOf<Int, Trace>(0 to emptyList())
     val visited = mutableListOf<Int>()
 
     val outTrans = transitions.outTrans()

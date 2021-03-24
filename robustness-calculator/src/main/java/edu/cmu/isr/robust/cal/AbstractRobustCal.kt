@@ -27,6 +27,7 @@ package edu.cmu.isr.robust.cal
 
 import edu.cmu.isr.robust.ltsa.*
 import edu.cmu.isr.robust.util.StateMachine
+import edu.cmu.isr.robust.util.Trace
 import edu.cmu.isr.robust.wa.AbstractWAGenerator
 import edu.cmu.isr.robust.wa.Corina02
 import java.util.*
@@ -91,7 +92,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * Compute the set of traces allowed by the system but would violate the safety property.
    */
-  fun computeUnsafeBeh(): List<List<String>> {
+  fun computeUnsafeBeh(): List<Trace> {
     val corina02 = waGenerator as? Corina02 ?: error("This function is only supported by the Corina02 approach")
     val traces = corina02.computeUnsafeBeh()
     printRepTraces(traces)
@@ -103,7 +104,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
    * representation model and compute the representative traces, and finally, match an explanation for each
    * representative trace respectively.
    */
-  fun computeRobustness(level: Int = -1): List<Pair<List<String>, List<String>?>> {
+  fun computeRobustness(level: Int = -1): List<Pair<Trace, Trace?>> {
     if (wa == null)
       genWeakestAssumption()
 
@@ -143,7 +144,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * Helper function to print all the representative traces
    */
-  private fun printRepTraces(traces: Map<AbstractWAGenerator.EquivClass, List<List<String>>>) {
+  private fun printRepTraces(traces: Map<AbstractWAGenerator.EquivClass, List<Trace>>) {
     println("Number of equivalence classes: ${traces.size}")
     traces.values.flatten().forEachIndexed { i, v ->
       println("Representation Trace No.$i: $v")
@@ -154,7 +155,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * Helper function to print all the <representative trace, explanation> pair.
    */
-  private fun printExplanation(r: List<Pair<List<String>, List<String>?>>) {
+  private fun printExplanation(r: List<Pair<Trace, Trace?>>) {
     println("Found ${r.size} representation traces, matched ${r.filter { it.second != null }.size}/${r.size}.")
     println("Group by error types in the deviation model:")
     val grouped = r.groupBy {
@@ -171,7 +172,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
    * @param wa2 the FSP spec of the weakest assumption of the other model
    * @param name2 the name of the process of the weakest assumption.
    */
-  fun robustnessComparedTo(wa2: String, name2: String, level: Int = -1): List<List<String>> {
+  fun robustnessComparedTo(wa2: String, name2: String, level: Int = -1): List<Trace> {
     if (wa == null)
       genWeakestAssumption()
 
@@ -198,7 +199,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
    * build a deviation model only contains errors related to the representative trace.
    * @param t the representative trace
    */
-  abstract fun genErrEnvironment(t: List<String>): String
+  abstract fun genErrEnvironment(t: Trace): String
 
   /**
    * Returns True when the given action is an environmental action.
@@ -213,7 +214,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * The entrance function to match the representative trace to the shortest explanation in the deviation model.
    */
-  private fun matchMinimalErr(trace: List<String>): List<String>? {
+  private fun matchMinimalErr(trace: Trace): Trace? {
     val errEnv = genErrEnvironment(trace)
     val tSpec = buildTrace(trace, waGenerator.alphabetOfWA())
     val spec = combineSpecs(sys, errEnv, tSpec, "||T = (SYS || ENV || TRACE).")
@@ -225,7 +226,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * Using BFS to search for the shortest trace in the deviation model which matches the representative trace.
    */
-  private fun bfs(sm: StateMachine, trace: List<String>): List<String>? {
+  private fun bfs(sm: StateMachine, trace: Trace): Trace? {
     val q: Queue<Node> = LinkedList()
     val visited = mutableSetOf<Int>()
     val outTrans = sm.transitions.outTrans()

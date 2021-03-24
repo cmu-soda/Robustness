@@ -26,6 +26,7 @@
 package edu.cmu.isr.robust.cal
 
 import edu.cmu.isr.robust.ltsa.LTSACall
+import edu.cmu.isr.robust.util.Trace
 
 /**
  * A general purpose AbstractRobustCal implementation for FSP specs. Users have to provide a fixed deviation model.
@@ -46,7 +47,7 @@ class FSPRobustCal(sys: String, env: String, p: String, private val deviation: S
     errActions = LTSACall.menuActions("ERR_ACTS")
   }
 
-  override fun genErrEnvironment(t: List<String>): String {
+  override fun genErrEnvironment(t: Trace): String {
     return deviation
   }
 
