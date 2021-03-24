@@ -1,13 +1,13 @@
 range B= 0..1
 
-INPUT = (input -> SENDING[0]),
+INPUT = (input -> send[0] -> SENDING[0]),
 SENDING[b:B] = (send[b] -> SENDING[b]
-              | getack[b] -> input -> SENDING[!b]
+              | getack[b] -> input -> send[!b] -> SENDING[!b]
               | getack[!b] -> SENDING[b]).
 
-OUTPUT = (rec[0] -> output -> ACKING[0]),
+OUTPUT = (rec[0] -> output -> ack[0] -> ACKING[0]),
 ACKING[b:B] = (ack[b] -> ACKING[b]
              | rec[b] -> ACKING[b]
-             | rec[!b] -> output -> ACKING[!b]).
+             | rec[!b] -> output -> ack[!b] -> ACKING[!b]).
 
 ||SYS = (INPUT || OUTPUT).

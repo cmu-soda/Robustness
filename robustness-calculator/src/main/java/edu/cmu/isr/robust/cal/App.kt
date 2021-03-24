@@ -44,7 +44,6 @@ enum class Mode { COMPUTE, COMPARE, UNSAFE }
 /**
  * This private class defines the command line options.
  * TODO: Add feature to do tau elimination and subset construction
- * TODO: Add feature to just compute the weakest assumption
  * TODO: Add feature to just output the EOFM translation and EOFM concise translation model
  * TODO: Optimize the error message
  */
@@ -62,17 +61,18 @@ different properties.
   )
   val outputFile by option("--output", "-o", metavar = "OUTPUT", help = "save the results in a JSON file")
   val files by argument("FILES", help = "system description files in JSON").multiple()
+  val waOnly by option("-w", help = "weakest assumption only").flag()
+  val sink by option("--sink", "-s", help = "weakest assumption with sink state").flag()
 
   override fun run() {
     val resultJson = when (mode) {
       Mode.COMPUTE -> {
-        assert(files.size == 1)
         if (files.size != 1)
           throw IllegalArgumentException("Need one config file for computing robustness")
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
         val cal = createCalculator(config, verbose)
-        val result = cal.computeRobustness()
+        val result = cal.computeRobustness(waOnly = waOnly, sink = sink)
         ResultJson(
             mode = "compute",
             traces = result.map { RepTraceJson(it.first.joinToString(), (it.second?:emptyList()).joinToString()) }
@@ -87,7 +87,7 @@ different properties.
         val cal2 = createCalculator(config2, verbose)
         cal1.nameOfWA = "WA1"
         cal2.nameOfWA = "WA2"
-        val result = cal1.robustnessComparedTo(cal2.getWA(), "WA2")
+        val result = cal1.robustnessComparedTo(cal2.getWA(sink), "WA2", sink = sink)
         ResultJson(
             mode = "compare",
             traces = result.map { RepTraceJson(it.joinToString(), "") }

@@ -1,0 +1,7 @@
+{
+  "mode": "fsp",
+  "sys": "models/abp/perfect0.lts",
+  "env": "models/abp/env0.lts",
+  "prop": "models/abp/p.lts",
+  "deviation": "models/abp/env0_lossy.lts"
+}

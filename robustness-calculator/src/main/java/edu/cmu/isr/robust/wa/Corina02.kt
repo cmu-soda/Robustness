@@ -78,7 +78,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * the weakest assumption should include these transitions. However, we make this as an option, and by default,
    * we choose not to generate such a sink state.
    */
-  fun weakestAssumption(name: String, sink: Boolean): String {
+  override fun weakestAssumption(name: String, sink: Boolean): String {
     return composeSysP().pruneError().determinate(sink).minimize().buildFSP(name)
   }
 

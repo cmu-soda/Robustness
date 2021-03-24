@@ -52,6 +52,15 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
   abstract fun weakestAssumption(name: String): String
 
   /**
+   * This function returns a FSP spec indicating the weakest assumption of the system against the given
+   * environment and property.
+   * @param name is the name of the process in the FSP spec.
+   * @param sink indicates whether to generate a sink state for the unspecified behavior of the system, i.e., we treat
+   * the unspecified behavior as 'ignored' such that the system is robust.
+   */
+  abstract fun weakestAssumption(name: String, sink: Boolean): String
+
+  /**
    * Return the alphabet of the weakest assumption.
    */
   abstract fun alphabetOfWA(): Iterable<String>
