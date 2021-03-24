@@ -53,16 +53,18 @@ and a safety property P. Also, it takes a deviation model D to generate explanat
 system robustness. In addition, it can compare the robustness of two systems or a system under
 different properties.
 """) {
-  val verbose by option("--verbose", "-v", help = "enable verbose mode").flag()
-  val mode by option(help = "operation mode").switch(
+  val verbose by option("--verbose", "-v", help = "Enable verbose mode").flag()
+  val mode by option(help = "Operation mode: --compute compute the robustness of a given system w.r.t an environment" +
+      "and a safety property; --compare compare the robustness of two; --unsafe compute the unsafe behaviors of a" +
+      "given system w.r.t a safety property").switch(
       "--compute" to Mode.COMPUTE,
       "--compare" to Mode.COMPARE,
       "--unsafe" to Mode.UNSAFE
   )
-  val outputFile by option("--output", "-o", metavar = "OUTPUT", help = "save the results in a JSON file")
-  val files by argument("FILES", help = "system description files in JSON").multiple()
-  val waOnly by option("-w", help = "weakest assumption only").flag()
-  val sink by option("--sink", "-s", help = "weakest assumption with sink state").flag()
+  val outputFile by option("--output", "-o", metavar = "OUTPUT", help = "Save the results in a JSON file")
+  val files by argument("FILES", help = "System description files in JSON").multiple()
+  val waOnly by option("-w", help = "Generate the weakest assumption only").flag()
+  val sink by option("--sink", "-s", help = "Generate the weakest assumption with sink state").flag()
 
   override fun run() {
     val resultJson = when (mode) {
