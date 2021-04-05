@@ -225,6 +225,28 @@ class StateMachine {
   }
 
   /**
+   *
+   */
+  fun makeInputErrEnable(inputs: List<String>): StateMachine {
+    assert(alphabet.containsAll(inputs))
+
+    val newTrans = transitions.toMutableList()
+    val indexOfStates = 0..maxIndexOfState()
+    val outTrans = transitions.outTrans()
+    for (s in indexOfStates) {
+      for (a in inputs) {
+        val i = alphabet.indexOf(a)
+        if (outTrans[s]?.find { it.second == i } == null) {
+          for (s_ in indexOfStates) {
+            newTrans.add(Transition(s, i, s_))
+          }
+        }
+      }
+    }
+    return StateMachine(SimpleTransitions(newTrans), alphabet)
+  }
+
+  /**
    * Return a map where the key is a state s, and the value is the shortest path from the initial state s0 to
    * that state s.
    */

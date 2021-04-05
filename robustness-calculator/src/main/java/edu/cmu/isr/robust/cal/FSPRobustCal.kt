@@ -26,6 +26,8 @@
 package edu.cmu.isr.robust.cal
 
 import edu.cmu.isr.robust.ltsa.LTSACall
+import edu.cmu.isr.robust.ltsa.doCompose
+import edu.cmu.isr.robust.util.StateMachine
 import edu.cmu.isr.robust.util.Trace
 
 /**
@@ -37,8 +39,8 @@ import edu.cmu.isr.robust.util.Trace
  * @param p model should be named with P
  * @param deviation model should be named with ENV, also it needs to define a menu named ERR_ACTS to specify the error actions.
  */
-class FSPRobustCal(sys: String, env: String, p: String, private val deviation: String,
-                   verbose: Boolean) : AbstractRobustCal(sys, env, p, verbose) {
+open class FSPRobustCal(sys: String, env: String, p: String, private val deviation: String,
+                        verbose: Boolean) : AbstractRobustCal(sys, env, p, verbose) {
   private val errActions: List<String>
 
   init {
@@ -67,4 +69,16 @@ class FSPRobustCal(sys: String, env: String, p: String, private val deviation: S
     return false
   }
 
+}
+
+class InputEnabledRobustCal private constructor(private val cal: FSPRobustCal) : RobustCal by cal {
+  constructor(sys: String, env: String, p: String, deviation: String, verbose: Boolean) :
+      this(FSPRobustCal(makeInputErrorEnable(sys), env, p, deviation, verbose))
+}
+
+private fun makeInputErrorEnable(sys: String): String {
+  val sysComp = LTSACall.doCompile(sys, "SYS").doCompose()
+  val inputActions = LTSACall.menuActions("INPUT_ACTS")
+  val sysSM = StateMachine(sysComp).makeInputErrEnable(inputActions)
+  return sysSM.buildFSP("SYS")
 }

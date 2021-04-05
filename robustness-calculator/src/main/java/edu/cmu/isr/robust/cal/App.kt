@@ -65,6 +65,7 @@ different properties.
   val files by argument("FILES", help = "System description files in JSON").multiple()
   val waOnly by option("-w", help = "Generate the weakest assumption only").flag()
   val sink by option("--sink", "-s", help = "Generate the weakest assumption with sink state").flag()
+  val io by option("--io", help = "Make the system an I/O automaton which requires input-enableness").flag()
 
   override fun run() {
     val resultJson = when (mode) {
@@ -73,7 +74,7 @@ different properties.
           throw IllegalArgumentException("Need one config file for computing robustness")
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
-        val cal = createCalculator(config, verbose)
+        val cal = createCalculator(config, verbose, io)
         val result = cal.computeRobustness(waOnly = waOnly, sink = sink)
         ResultJson(
             mode = "compute",
@@ -85,8 +86,8 @@ different properties.
           throw IllegalArgumentException("Need two config files for comparing robustness")
         val config1 = jacksonObjectMapper().readValue<ConfigJson>(File(files[0]).readText())
         val config2 = jacksonObjectMapper().readValue<ConfigJson>(File(files[1]).readText())
-        val cal1 = createCalculator(config1, verbose)
-        val cal2 = createCalculator(config2, verbose)
+        val cal1 = createCalculator(config1, verbose, io)
+        val cal2 = createCalculator(config2, verbose, io)
         cal1.nameOfWA = "WA1"
         cal2.nameOfWA = "WA2"
         val result = cal1.robustnessComparedTo(cal2.getWA(sink), "WA2", sink = sink)
@@ -101,7 +102,7 @@ different properties.
           throw IllegalArgumentException("Need one config file for computing unsafe behavior")
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
-        val cal = createCalculator(config, verbose)
+        val cal = createCalculator(config, verbose, io)
         ResultJson(
             mode = "unsafe",
             traces = cal.computeUnsafeBeh().map { RepTraceJson(it.joinToString(), "") }
@@ -166,7 +167,7 @@ fun main(args: Array<String>) = App().main(args)
 /**
  * A helper function to create the corresponding AbstractRobustCal based on the JSON config file.
  */
-private fun createCalculator(config: ConfigJson, verbose: Boolean): AbstractRobustCal {
+private fun createCalculator(config: ConfigJson, verbose: Boolean, io: Boolean): RobustCal {
   val sys = File(config.sys).readText()
   val env = File(config.env).readText()
   val p = File(config.prop).readText()
@@ -175,7 +176,10 @@ private fun createCalculator(config: ConfigJson, verbose: Boolean): AbstractRobu
       if (config.deviation == null)
         throw IllegalArgumentException("Need to provide deviation model in fsp mode")
       val deviation = File(config.deviation).readText()
-      FSPRobustCal(sys, env, p, deviation, verbose)
+      if (io)
+        InputEnabledRobustCal(sys, env, p, deviation, verbose)
+      else
+        FSPRobustCal(sys, env, p, deviation, verbose)
     }
     "eofm" -> {
       if (config.eofm == null)

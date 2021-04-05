@@ -1,3 +1,5 @@
+menu INPUT_ACTS = {rec, getack}
+
 SENDER = (input -> send -> getack -> SENDER).
 RECEIVER = (rec -> output -> ack -> RECEIVER).
 ||SYS = (SENDER || RECEIVER).
