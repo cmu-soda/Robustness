@@ -227,18 +227,24 @@ class StateMachine {
   /**
    *
    */
-  fun makeInputErrEnable(inputs: List<String>): StateMachine {
+  fun makeInputErrEnable(inputs: List<String>, outputs: List<String>): StateMachine {
     assert(alphabet.containsAll(inputs))
+    assert(alphabet.containsAll(outputs))
 
     val newTrans = transitions.toMutableList()
     val indexOfStates = 0..maxIndexOfState()
     val outTrans = transitions.outTrans()
+    val io = inputs + outputs
+    val inputsIdx = inputs.map { alphabet.indexOf(it) }
+    val ioIdx = io.map { alphabet.indexOf(it) }
     for (s in indexOfStates) {
-      for (a in inputs) {
-        val i = alphabet.indexOf(a)
-        if (outTrans[s]?.find { it.second == i } == null) {
-          for (s_ in indexOfStates) {
-            newTrans.add(Transition(s, i, s_))
+      for (a in inputsIdx) {
+        if (outTrans[s]?.find { it.second == a } == null) {
+          if (outTrans[s]?.map { it.second }?.toSet()?.intersect(ioIdx)?.isNotEmpty() == true) {
+//            for (s_ in indexOfStates) {
+//              newTrans.add(Transition(s, a, s_))
+//            }
+            newTrans.add(Transition(s, a, -1))
           }
         }
       }

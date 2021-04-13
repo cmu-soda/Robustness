@@ -1,0 +1,36 @@
+menu INPUT_ACTS = {hPressX, hPressE, hPressUp, hPressEnter, hPressB, hPressUp1}
+menu OUTPUT_ACTS = {mFire}
+
+const S_InPlace = 0
+const S_OutPlace = 1
+range S_TSpreader = S_InPlace..S_OutPlace
+
+const S_XrayPower = 1
+const S_EBeamPower = 2
+range S_TPower = S_XrayPower..S_EBeamPower
+
+INTERFACE = (hPressX -> mInPlace -> mInitXray -> CONFIRM[S_InPlace][S_XrayPower] | hPressE -> mOutPlace -> mInitEBeam -> CONFIRM[S_OutPlace][S_EBeamPower]),
+EDIT[iSpreader:S_TSpreader][iPower:S_TPower] = (
+        hPressX -> mInPlace -> CONFIRM[S_InPlace][iPower] | hPressE ->mOutPlace -> CONFIRM[S_OutPlace][iPower]
+    |   mXrayLvl -> EDIT[iSpreader][S_XrayPower] | mEBeamLvl -> EDIT[iSpreader][S_EBeamPower]
+),
+CONFIRM[iSpreader:S_TSpreader][iPower:S_TPower] = (
+        hPressUp -> EDIT[iSpreader][iPower]
+    |   hPressEnter -> PREP[iSpreader][iPower]
+    |   mXrayLvl -> CONFIRM[iSpreader][S_XrayPower] | mEBeamLvl -> CONFIRM[iSpreader][S_EBeamPower]
+),
+PREP[iSpreader:S_TSpreader][iPower:S_TPower] = (
+        hPressUp1 -> CONFIRM[iSpreader][iPower]
+	|	when ((iSpreader == S_InPlace && iPower == S_XrayPower) || (iSpreader == S_OutPlace && iPower == S_EBeamPower)) hPressB -> FIRE[iSpreader][iPower]
+    |   when (!(iSpreader == S_InPlace && iPower == S_XrayPower) && !(iSpreader == S_OutPlace && iPower == S_EBeamPower)) hPressB -> PREP[iSpreader][iPower]
+    |   mXrayLvl -> PREP[iSpreader][S_XrayPower] | mEBeamLvl -> PREP[iSpreader][S_EBeamPower]
+),
+FIRE[iSpreader:S_TSpreader][iPower:S_TPower] = (mFire -> hPressEnter -> EDIT[iSpreader][iPower]).
+
+POWER = (hPressX -> mInitXray -> XRAY | hPressE -> mInitEBeam -> EBEAM),
+TOXRAY = (hPressX -> TOXRAY | hPressE -> EBEAM | mXrayLvl -> XRAY),
+TOEBEAM = (hPressX -> XRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),
+XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),
+EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY).
+
+||SYS = (INTERFACE || POWER).

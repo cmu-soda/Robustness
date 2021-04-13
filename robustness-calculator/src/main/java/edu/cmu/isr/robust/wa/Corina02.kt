@@ -52,14 +52,11 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
     println("System LTS: ${sysComposite.composition.maxStates} states and ${sysComposite.composition.ntransitions()} transitions.")
     val alphabetSYS = sysComposite.alphabetNoTau()
 
-    // The following statements follow Corina's paper to compute the alphabet for the weakest assumption.
-    // However, in our work, we simply change it to the intersection of the system and the environment.
-//    val alphabetP = LTSACall.doCompile(p, "P").alphabetSet()
-//    val alphabetC = alphabetSYS intersect alphabetENV
-//    val alphabetI = alphabetSYS - alphabetC
-//    alphabetR = (alphabetC + (alphabetP - alphabetI))
+    val alphabetP = LTSACall.doCompile(p, "P").doCompose().alphabetNoTau()
 
-    alphabetR = alphabetSYS intersect alphabetENV
+    val common = alphabetSYS intersect alphabetENV
+    val internal = alphabetSYS - common
+    alphabetR = common + (alphabetP - internal)
   }
 
   override fun alphabetOfWA(): Iterable<String> {

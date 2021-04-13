@@ -79,6 +79,7 @@ class InputEnabledRobustCal private constructor(private val cal: FSPRobustCal) :
 private fun makeInputErrorEnable(sys: String): String {
   val sysComp = LTSACall.doCompile(sys, "SYS").doCompose()
   val inputActions = LTSACall.menuActions("INPUT_ACTS")
-  val sysSM = StateMachine(sysComp).makeInputErrEnable(inputActions)
+  val outputActions = LTSACall.menuActions("OUTPUT_ACTS")
+  val sysSM = StateMachine(sysComp).makeInputErrEnable(inputActions, outputActions)
   return sysSM.buildFSP("SYS")
 }

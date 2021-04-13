@@ -70,7 +70,7 @@ different properties.
   override fun run() {
     val resultJson = when (mode) {
       Mode.COMPUTE -> {
-        if (files.size != 1)
+        if (files.isEmpty())
           throw IllegalArgumentException("Need one config file for computing robustness")
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
@@ -90,15 +90,18 @@ different properties.
         val cal2 = createCalculator(config2, verbose, io)
         cal1.nameOfWA = "WA1"
         cal2.nameOfWA = "WA2"
-        val result = cal1.robustnessComparedTo(cal2.getWA(sink), "WA2", sink = sink)
+        println("========== Compute M1 - M2 ==========")
+        val result1 = cal1.robustnessComparedTo(cal2.getWA(sink), "WA2", sink = sink)
+        println("========== Compute M2 - M1 ==========")
+        val result2 = cal2.robustnessComparedTo(cal1.getWA(sink), "WA1", sink = sink)
         ResultJson(
             mode = "compare",
-            traces = result.map { RepTraceJson(it.joinToString(), "") }
+            traces = result1.map { RepTraceJson(it.joinToString(), "") }
         )
       }
       Mode.UNSAFE -> {
         assert(files.size == 1)
-        if (files.size != 1)
+        if (files.isEmpty())
           throw IllegalArgumentException("Need one config file for computing unsafe behavior")
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
