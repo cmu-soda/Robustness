@@ -41,18 +41,25 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * The alphabet of the weakest assumption
    */
   private val alphabetR: Set<String>
+  private val nameSys: String
+  private val nameEnv: String
+  private val nameP: String
 
   init {
     // Generate alphabets for the weakest assumption
-    val envComposite = LTSACall.doCompile(env, "ENV").doCompose()
+    val envComposite = LTSACall.doCompile(env).doCompose()
+    nameEnv = envComposite.getCompositeName()
     println("Environment LTS: ${envComposite.composition.maxStates} states and ${envComposite.composition.ntransitions()} transitions.")
     val alphabetENV = envComposite.alphabetNoTau()
 
-    val sysComposite = LTSACall.doCompile(sys, "SYS").doCompose()
+    val sysComposite = LTSACall.doCompile(sys).doCompose()
+    nameSys = sysComposite.getCompositeName()
     println("System LTS: ${sysComposite.composition.maxStates} states and ${sysComposite.composition.ntransitions()} transitions.")
     val alphabetSYS = sysComposite.alphabetNoTau()
 
-    val alphabetP = LTSACall.doCompile(p, "P").doCompose().alphabetNoTau()
+    val pComposite = LTSACall.doCompile(p).doCompose()
+    nameP = pComposite.getCompositeName()
+    val alphabetP = pComposite.alphabetNoTau()
 
     val common = alphabetSYS intersect alphabetENV
     val internal = alphabetSYS - common
@@ -107,7 +114,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * system and the environment.
    */
   private fun composeSysP(): StateMachine {
-    val spec = combineSpecs(sys, p, "||C = (SYS || P)@{${alphabetR.joinToString(",")}}.")
+    val spec = combineSpecs(sys, p, "||C = ($nameSys || $nameP)@{${alphabetR.joinToString(",")}}.")
 
     // Compose and minimise
     val composite = LTSACall.doCompile(spec, "C").doCompose().minimise()
