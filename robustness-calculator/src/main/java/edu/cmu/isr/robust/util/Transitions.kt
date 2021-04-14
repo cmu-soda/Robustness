@@ -106,6 +106,11 @@ interface Transitions : Iterable<Transition> {
    * Recursively find all the transitions that can be reached starting from the given state s.
    */
   fun transFromState(s: Int): Iterable<Transition>
+
+  /**
+   * Return true if the state machine contains the error state (-1).
+   */
+  fun hasErrorState(): Boolean
 }
 
 class SimpleTransitions : Transitions {
@@ -196,6 +201,10 @@ class SimpleTransitions : Transitions {
 
   override fun iterator(): Iterator<Transition> {
     return trans.iterator()
+  }
+
+  override fun hasErrorState(): Boolean {
+    return -1 in inTrans()
   }
 
 }

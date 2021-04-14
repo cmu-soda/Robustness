@@ -25,6 +25,8 @@
 
 package edu.cmu.isr.robust.ltsa
 
+import edu.cmu.isr.robust.util.StateMachine
+import edu.cmu.isr.robust.util.Trace
 import lts.*
 import java.util.*
 
@@ -85,22 +87,27 @@ fun CompositeState.doCompose(): CompositeState {
  * to deadlock when deadlock and property violation both exist in the system. In this case, this function returns
  * null, however, it does indicate that the system does not violate the property.
  */
-fun CompositeState.propertyCheck(): List<String>? {
-  val ltsOutput = StringLTSOutput()
-  this.analyse(ltsOutput)
-  val out = ltsOutput.getText()
-  return if (out.contains("""property.*violation""".toRegex())) {
-    this.errorTrace.map { (it as String) }
-  } else {
-    null
+fun CompositeState.propertyCheck(): Trace? {
+//  val ltsOutput = StringLTSOutput()
+//  this.analyse(ltsOutput)
+//  val out = ltsOutput.getText()
+//  return if (out.contains("""property.*violation""".toRegex())) {
+//    this.errorTrace.map { (it as String) }
+//  } else {
+//    null
+//  }
+  val sm = StateMachine(this)
+  if (sm.transitions.hasErrorState()) {
+    return sm.pathFromInit(-1)
   }
+  return null
 }
 
 /**
  * This behaves the same as the Check -> Safety option in the LTSA tool.
  * @return A list of actions leading to a deadlock.
  */
-fun CompositeState.deadlockCheck(): List<String>? {
+fun CompositeState.deadlockCheck(): Trace? {
   val ltsOutput = StringLTSOutput()
   this.analyse(ltsOutput)
   val out = ltsOutput.getText()
@@ -191,6 +198,6 @@ private fun escapeEvent(e: String): String {
  * Build a trace to a process: for a trace <a, b, c>, this function returns a spec:
  * TRACE = (a -> b -> c -> ERROR). It uses ERROR state to indicate the end of the state.
  */
-fun buildTrace(t: List<String>, alphabet: Iterable<String>): String {
+fun buildTrace(t: Trace, alphabet: Iterable<String>): String {
   return "TRACE = (${t.joinToString(" -> ")} -> ERROR)+{${alphabet.joinToString(",")}}."
 }
