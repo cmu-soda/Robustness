@@ -64,6 +64,7 @@ different properties.
   val outputFile by option("--output", "-o", metavar = "OUTPUT", help = "Save the results in a JSON file")
   val files by argument("FILES", help = "System description files in JSON").multiple()
   val waOnly by option("-w", help = "Generate the weakest assumption only").flag()
+  // TODO
   val sink by option("--sink", "-s", help = "Generate the weakest assumption with sink state").flag()
   val io by option("--io", help = "Make the system an I/O automaton which requires input-enableness").flag()
 
@@ -75,7 +76,7 @@ different properties.
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
         val cal = createCalculator(config, verbose, io)
-        val result = cal.computeRobustness(waOnly = waOnly, sink = sink)
+        val result = cal.computeRobustness(waOnly = waOnly)
         ResultJson(
             mode = "compute",
             traces = result.map { RepTraceJson(it.first.joinToString(), (it.second?:emptyList()).joinToString()) }
@@ -91,9 +92,9 @@ different properties.
         cal1.nameOfWA = "WA1"
         cal2.nameOfWA = "WA2"
         println("========== Compute M1 - M2 ==========")
-        val result1 = cal1.robustnessComparedTo(cal2.getWA(sink), "WA2", sink = sink)
+        val result1 = cal1.robustnessComparedTo(cal2.getWA(), "WA2")
         println("========== Compute M2 - M1 ==========")
-        val result2 = cal2.robustnessComparedTo(cal1.getWA(sink), "WA1", sink = sink)
+        val result2 = cal2.robustnessComparedTo(cal1.getWA(), "WA1")
         ResultJson(
             mode = "compare",
             traces = result1.map { RepTraceJson(it.joinToString(), "") }
@@ -180,7 +181,7 @@ private fun createCalculator(config: ConfigJson, verbose: Boolean, io: Boolean):
         throw IllegalArgumentException("Need to provide deviation model in fsp mode")
       val deviation = File(config.deviation).readText()
       if (io)
-        InputEnabledRobustCal(sys, env, p, deviation, verbose)
+        FSPIORobustCal(sys, env, p, deviation, verbose)
       else
         FSPRobustCal(sys, env, p, deviation, verbose)
     }

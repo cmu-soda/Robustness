@@ -94,10 +94,6 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
     }
   }
 
-  override fun weakestAssumption(name: String, sink: Boolean): String {
-    return weakestAssumption(name)
-  }
-
   /**
    *
    */

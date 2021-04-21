@@ -36,7 +36,7 @@ import edu.cmu.isr.robust.util.Trace
  * verification,” in Proceedings - ASE 2002: 17th IEEE International Conference on Automated Software
  * Engineering, 2002, pp. 3–12.
  */
-class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, env, p) {
+open class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, env, p) {
   /**
    * The alphabet of the weakest assumption
    */
@@ -82,7 +82,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * the weakest assumption should include these transitions. However, we make this as an option, and by default,
    * we choose not to generate such a sink state.
    */
-  override fun weakestAssumption(name: String, sink: Boolean): String {
+  fun weakestAssumption(name: String, sink: Boolean): String {
     return composeSysP().pruneError().determinate(sink).minimize().buildFSP(name)
   }
 
@@ -172,9 +172,13 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * transition of every action. In this case, we target these transitions to the sink state. Then, we make the
    * sink state complete in the way that any action points to itself.
    */
-  private fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>): StateMachine {
-    val newTrans = this.transitions.toMutableSet()
+  protected open fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>): StateMachine {
     val alphabetIdx = this.alphabet.indices.filter { it != this.tau }
+    return this.makeSinkState(dfaStates, alphabetIdx)
+  }
+
+  protected fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>, alphabetIdx: List<Int>): StateMachine {
+    val newTrans = this.transitions.toMutableSet()
     val theta = dfaStates.size
     for (s in dfaStates.indices) {
       for (a in alphabetIdx) {

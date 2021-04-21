@@ -41,7 +41,7 @@ interface RobustCal {
   /**
    * Return the FSP spec of the weakest assumption
    */
-  fun getWA(sink: Boolean = false): String
+  fun getWA(): String
 
   /**
    * Compute the set of traces allowed by the system but would violate the safety property.
@@ -53,14 +53,14 @@ interface RobustCal {
    * representation model and compute the representative traces, and finally, match an explanation for each
    * representative trace respectively.
    */
-  fun computeRobustness(level: Int = -1, waOnly: Boolean = false, sink: Boolean = false): List<Pair<Trace, Trace?>>
+  fun computeRobustness(level: Int = -1, waOnly: Boolean = false): List<Pair<Trace, Trace?>>
 
   /**
    * The entrance function to compare the robustness of this model to another model, i.e., X = \Delta_This - \Delta_2.
    * @param wa2 the FSP spec of the weakest assumption of the other model
    * @param name2 the name of the process of the weakest assumption.
    */
-  fun robustnessComparedTo(wa2: String, name2: String, level: Int = -1, sink: Boolean = false): List<Trace>
+  fun robustnessComparedTo(wa2: String, name2: String, level: Int = -1): List<Trace>
 }
 
 abstract class AbstractRobustCal(val sys: String, val env: String, val p: String,
@@ -85,18 +85,18 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * The weakest assumption generator. By default, we are using the Corina02 paper to generate it.
    */
-  protected val waGenerator: AbstractWAGenerator = Corina02(sys, env, p)
+  protected open val waGenerator: AbstractWAGenerator = Corina02(sys, env, p)
 
   /**
    * To store the generated weakest assumption
    */
   private var wa: String? = null
 
-  override fun getWA(sink: Boolean): String {
-    return wa ?: genWeakestAssumption(sink)
+  override fun getWA(): String {
+    return wa ?: genWeakestAssumption()
   }
 
-  private fun genWeakestAssumption(sink: Boolean): String {
+  private fun genWeakestAssumption(): String {
     // Check that SYS||ENV |= P. Our tool assumes that the system should already satisfy the property under the
     // original environment model. Thus, we check this assumption here first.
     val spec = combineSpecs(sys, env, p, "||T = (SYS || ENV || P).")
@@ -107,7 +107,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
 
     println("Alphabet for weakest assumption: ${waGenerator.alphabetOfWA()}")
     println("Generating the weakest assumption...")
-    wa = waGenerator.weakestAssumption(nameOfWA, sink)
+    wa = waGenerator.weakestAssumption(nameOfWA)
     if (verbose) {
       println("Generated Weakest Assumption:")
       println(wa)
@@ -123,9 +123,9 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     return traces.values.flatten()
   }
 
-  override fun computeRobustness(level: Int, waOnly: Boolean, sink: Boolean): List<Pair<Trace, Trace?>> {
+  override fun computeRobustness(level: Int, waOnly: Boolean): List<Pair<Trace, Trace?>> {
     if (wa == null)
-      genWeakestAssumption(sink)
+      genWeakestAssumption()
 
     val traces = if (level == -1) {
       println("Generating the representation traces by equivalence classes...")
@@ -191,9 +191,9 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     }
   }
 
-  override fun robustnessComparedTo(wa2: String, name2: String, level: Int, sink: Boolean): List<Trace> {
+  override fun robustnessComparedTo(wa2: String, name2: String, level: Int): List<Trace> {
     if (wa == null)
-      genWeakestAssumption(sink)
+      genWeakestAssumption()
 
     val traces = if (level == -1) {
       println("Generating the representation traces by equivalence classes...")

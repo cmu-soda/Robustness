@@ -27,8 +27,9 @@ package edu.cmu.isr.robust.cal
 
 import edu.cmu.isr.robust.ltsa.LTSACall
 import edu.cmu.isr.robust.ltsa.doCompose
-import edu.cmu.isr.robust.util.StateMachine
 import edu.cmu.isr.robust.util.Trace
+import edu.cmu.isr.robust.wa.AbstractWAGenerator
+import edu.cmu.isr.robust.wa.Corina02WithIO
 
 /**
  * A general purpose AbstractRobustCal implementation for FSP specs. Users have to provide a fixed deviation model.
@@ -71,15 +72,14 @@ open class FSPRobustCal(sys: String, env: String, p: String, private val deviati
 
 }
 
-class InputEnabledRobustCal private constructor(private val cal: FSPRobustCal) : RobustCal by cal {
-  constructor(sys: String, env: String, p: String, deviation: String, verbose: Boolean) :
-      this(FSPRobustCal(makeInputErrorEnable(sys), env, p, deviation, verbose))
-}
+class FSPIORobustCal(sys: String, env: String, p: String,
+                     deviation: String, verbose: Boolean) : FSPRobustCal(sys, env, p, deviation, verbose) {
+  override val waGenerator: AbstractWAGenerator
 
-private fun makeInputErrorEnable(sys: String): String {
-  val sysComp = LTSACall.doCompile(sys, "SYS").doCompose()
-  val inputActions = LTSACall.menuActions("INPUT_ACTS")
-  val outputActions = LTSACall.menuActions("OUTPUT_ACTS")
-  val sysSM = StateMachine(sysComp).makeInputErrEnable(inputActions, outputActions)
-  return sysSM.buildFSP("SYS")
+  init {
+    LTSACall.doCompile(sys, "SYS").doCompose()
+    val inputActions = LTSACall.menuActions("INPUT_ACTS")
+    val outputActions = LTSACall.menuActions("OUTPUT_ACTS")
+    waGenerator = Corina02WithIO(sys, env, p, inputActions, outputActions)
+  }
 }
