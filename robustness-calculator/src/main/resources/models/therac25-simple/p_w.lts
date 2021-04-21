@@ -15,7 +15,7 @@ VAR[iSpreader:P_TSpreader][iPowerLevel:P_TPowerLevel] = (
     | when (iPowerLevel == P_XrayLevel) mEBeamLvl -> VAR[iSpreader][P_EBeamLevel]
     | when (iPowerLevel == P_NotSet) mInitXray -> VAR[iSpreader][P_XrayLevel]
     | when (iPowerLevel == P_NotSet) mInitEBeam -> VAR[iSpreader][P_EBeamLevel]
-    | when (!(iSpreader == P_OutPlace && iPowerLevel == P_XrayLevel)) mFire -> VAR[iSpreader][iPowerLevel]
+    | when (iPowerLevel != P_NotSet && !(iSpreader == P_OutPlace && iPowerLevel == P_XrayLevel)) mFire -> VAR[iSpreader][iPowerLevel]
     | when (iSpreader == P_OutPlace && iPowerLevel == P_XrayLevel) mFire -> ERROR
     | when (iPowerLevel == P_NotSet) mFire -> ERROR
 ).
