@@ -29,6 +29,7 @@ import edu.cmu.isr.robust.ltsa.*
 import edu.cmu.isr.robust.util.SimpleTransitions
 import edu.cmu.isr.robust.util.StateMachine
 import edu.cmu.isr.robust.util.Trace
+import edu.cmu.isr.robust.wa.Corina02WithIO
 
 class LStarLearner2(private val sys: String, private val dev: String, private val p: String, private val spec: String) {
 
@@ -39,8 +40,8 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
   private val nameDev: String
   private val nameP: String
   private val nameSpec: String
+  private val sysRobustness: String
   private val prunedSys: String
-//  private val errInputTraces: String
 
   init {
     val sysComp = LTSACall.doCompile(sys)
@@ -48,6 +49,7 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
     nameSys = sysComp.getCompositeName()
     alphabetInput = LTSACall.menuActions("INPUT_ACTS")
     alphabetOutput = LTSACall.menuActions("OUTPUT_ACTS")
+    sysRobustness = Corina02WithIO(sys, dev, p, alphabetInput, alphabetOutput).weakestAssumption("SYS_R")
 
     val devComp = LTSACall.doCompile(dev)
     nameDev = devComp.getCompositeName()
@@ -59,19 +61,11 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
     nameSpec = specComp.getCompositeName()
 
     val sm = StateMachine(
-//      LTSACall.doCompile("$sys$dev$p||C = ($nameSys || $nameDev || $nameP).", "C").doCompose()
       LTSACall.doCompile("$sys$p||C = ($nameSys || $nameP).", "C").doCompose()
     )
     // A pruned machine
     val trans = sm.transitions.filter { it.third != -1 }
     prunedSys = StateMachine(SimpleTransitions(trans), sm.alphabet).buildFSP("PRUNED")
-
-//    val errTraces = sm.transitions
-//      .filter { it.third == -1 && sm.alphabet[it.second] in alphabetInput }
-//      .map { sm.pathFromInit(it.first) + sm.alphabet[it.second] }
-//    errInputTraces = "ERR_INPUTS = (${
-//      errTraces.joinToString(" | ") { it.joinToString(" -> ") + " -> END" }
-//    })+{${alphabetSys.joinToString(",")}}."
   }
 
   fun synthesize(): String? {
@@ -95,6 +89,8 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
    * In membership query, we are removing traces from the hypothesis model:
    * 1. Query |= Spec, remove the trace that violates the Spec
    * 2. Query || Dev |= P, remove the trace that does not violates the Spec but violates the property under Dev
+   * 3. Query || RobustnessModel(Sys, Env, P) |= P, remove the trace that is also in the robustness of the original
+   *    system but violates P
    */
   private fun mqOracle(query: Trace): Boolean {
     for (q in queryStrings(query)) {
@@ -102,12 +98,6 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
         return false
     }
     return true
-//
-//    val oracle1 = LTSACall.doCompile("$queryTrace$spec||C = (Q || $nameSpec).", "C")
-//      .doCompose().propertyCheck() == null
-//    val oracle2 = LTSACall.doCompile("$queryTrace$dev$p||C = (Q || $nameDev || $nameP).", "C")
-//      .doCompose().propertyCheck() == null
-//    return oracle1 && oracle2
   }
 
   private fun queryStrings(query: Trace): List<String> {
@@ -117,22 +107,23 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
       "Q = (${query.joinToString(" -> ")} -> STOP)+{${alphabetSys.joinToString(", ")}}."
     return listOf(
       "$queryTrace\n$spec\n||C = (Q || $nameSpec).",
-      "$queryTrace\n$dev\n$p\n||C = (Q || $nameDev || $nameP)."
+      "$queryTrace\n$dev\n$p\n||C = (Q || $nameDev || $nameP).",
+      "$queryTrace\n$sysRobustness\n$p\n||C = (Q || SYS_R || $nameP)."
     )
   }
 
   /**
-   * The hypothesis model may be too small (e.g., an empty model). Thus, in the equivalence check, we are adding traces
-   * back to the hypothesis model by counterexamples.
-   * 1. Hypothesis |= Spec
-   * 2. Hypothesis || Dev |= P
-   * 3. PruneError(Sys || Dev || P_err) |= Hypothesis, for those traces in Sys that will not violate P under deviation
-   *    Dev, they should be in the Hypothesis model.
+   * 1. Safety: Hypothesis |= Spec
+   * 2. Safety: Hypothesis || Dev |= P
+   * 3. Safety: Hypothesis || RobustnessModel(Sys, Env, P) |= P
+   * 4. Liveness: Pruned(Sys, P) |= Hypothesis, the hypothesis should contain all the traces in the original system
+   *    that does not immediately lead to an error
    */
   private fun eqOracle(hypothesis: String): Trace? {
     val oracles = listOf(
       "$hypothesis$spec||C = (H || $nameSpec).",
       "$hypothesis$dev$p||C = (H || $nameDev || $nameP).",
+      "$hypothesis$sysRobustness$p||C = (H || SYS_R || $nameP).",
       "${prunedSys}property ${hypothesis}||C = (PRUNED || H)."
     )
 
@@ -150,19 +141,19 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
 }
 
 fun main() {
-//  val sys = "SENDER = (input -> send -> getack -> SENDER).\n" +
-//      "RECEIVER = (rec -> output -> ack -> RECEIVER).\n" +
-//      "||ENV = (SENDER || RECEIVER)."
-//
-//  val env = "CHANNEL = (in -> out -> CHANNEL).\n" +
-//      "||ENV = (trans:CHANNEL || recv:CHANNEL)/{send/trans.in, rec/trans.out, ack/recv.in, getack/recv.out}."
-//
+//  val sys = "menu INPUT_ACTS = {getack}\n" +
+//      "menu OUTPUT_ACTS = {send}\n" +
+//      "SENDER = (input -> send -> getack -> SENDER)."
+//  val env = "RECEIVER = (rec -> output -> ack -> RECEIVER).\n" +
+//      "CHANNEL = (in -> out -> CHANNEL).\n" +
+//      "||ENV = (trans:CHANNEL || recv:CHANNEL || RECEIVER)/{send/trans.in, rec/trans.out, ack/recv.in, getack/recv.out}."
 //  val envLossy = "CHANNEL = (in -> TRANSIT\n" +
 //      "         | in -> lose -> CHANNEL),\n" +
 //      "TRANSIT = (out -> CHANNEL | out -> duplicate -> TRANSIT).\n" +
 //      "||ENV = (trans:CHANNEL || recv:CHANNEL)/{send/trans.in, rec/trans.out, ack/recv.in, getack/recv.out}."
-//
 //  val p = "property P = (input -> output -> P)."
+//  val spec = "property SPEC = (dummy -> SPEC)."
+
   val sys = ClassLoader.getSystemResource("models/therac25-simple/sys.lts").readText()
   val env = "ENV = (hPressX -> ENV_1 | hPressE -> ENV_1),\n" +
       "ENV_1 = (hPressEnter -> ENV_2 | hPressUp -> ENV),\n" +
@@ -175,20 +166,11 @@ fun main() {
 
       "property SPEC4 = (hPressB -> SPEC4_1), SPEC4_1 = (hPressB -> SPEC4_1 | mFire -> SPEC4).\n" +
 
-//      "property SPEC5 = (mInitXray -> SPEC5_1 | mInitEBeam -> SPEC5_1), SPEC5_1 = (hPressX -> SPEC5_2)," +
-//      "SPEC5_2 = (hPressX -> SPEC5_2 | mXrayLvl -> SPEC5_1).\n" +
-//
-//      "property SPEC6 = (mInitXray -> SPEC6_1 | mInitEBeam -> SPEC6_1), SPEC6_1 = (hPressE -> SPEC6_2)," +
-//      "SPEC6_2 = (hPressE -> SPEC6_2 | mEBeamLvl -> SPEC6_1).\n" +
-
       "property POWER = (hPressX -> mInitXray -> XRAY | hPressE -> mInitEBeam -> EBEAM),\n" +
       "TOXRAY = (hPressX -> TOXRAY | hPressE -> EBEAM | mXrayLvl -> XRAY),\n" +
       "TOEBEAM = (hPressX -> XRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),\n" +
       "XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),\n" +
       "EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY)." +
-
-//      "property SPEC7 = (mInitXray -> mReady -> SPEC7_1 | mInitEBeam -> mReady -> SPEC7_1)," +
-//      "SPEC7_1 = (mXrayLvl -> mReady -> SPEC7_1 | mEBeamLvl -> mReady -> SPEC7_1)." +
 
       "||SPEC = (SPEC1 || SPEC2 || SPEC4 || POWER)."
   val learner = LStarLearner2(sys, env, p, spec)
