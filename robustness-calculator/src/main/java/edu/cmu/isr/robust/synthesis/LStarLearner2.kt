@@ -31,17 +31,24 @@ import edu.cmu.isr.robust.util.StateMachine
 import edu.cmu.isr.robust.util.Trace
 import edu.cmu.isr.robust.wa.Corina02WithIO
 
-class LStarLearner2(private val sys: String, private val dev: String, private val p: String, private val spec: String) {
+class LStarLearner2(
+  private val sys: String,
+  private val env: String,
+  private val dev: String,
+  private val p: String,
+  private val spec: String
+) {
 
   private val alphabetSys: Set<String>
   private val alphabetInput: List<String>
   private val alphabetOutput: List<String>
   private val nameSys: String
+  private val nameEnv: String
   private val nameDev: String
   private val nameP: String
   private val nameSpec: String
   private val sysRobustness: String
-  private val prunedSys: String
+//  private val prunedSys: String
 
   init {
     val sysComp = LTSACall.doCompile(sys)
@@ -50,6 +57,9 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
     alphabetInput = LTSACall.menuActions("INPUT_ACTS")
     alphabetOutput = LTSACall.menuActions("OUTPUT_ACTS")
     sysRobustness = Corina02WithIO(sys, dev, p, alphabetInput, alphabetOutput).weakestAssumption("SYS_R")
+
+    val envComp = LTSACall.doCompile(env)
+    nameEnv = envComp.getCompositeName()
 
     val devComp = LTSACall.doCompile(dev)
     nameDev = devComp.getCompositeName()
@@ -60,12 +70,12 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
     val specComp = LTSACall.doCompile(spec)
     nameSpec = specComp.getCompositeName()
 
-    val sm = StateMachine(
-      LTSACall.doCompile("$sys$p||C = ($nameSys || $nameP).", "C").doCompose()
-    )
-    // A pruned machine
-    val trans = sm.transitions.filter { it.third != -1 }
-    prunedSys = StateMachine(SimpleTransitions(trans), sm.alphabet).buildFSP("PRUNED")
+//    val sm = StateMachine(
+//      LTSACall.doCompile("$sys$p||C = ($nameSys || $nameP).", "C").doCompose()
+//    )
+//    // A pruned machine
+//    val trans = sm.transitions.filter { it.third != -1 }
+//    prunedSys = StateMachine(SimpleTransitions(trans), sm.alphabet).buildFSP("PRUNED")
   }
 
   fun synthesize(): String? {
@@ -116,15 +126,14 @@ class LStarLearner2(private val sys: String, private val dev: String, private va
    * 1. Safety: Hypothesis |= Spec
    * 2. Safety: Hypothesis || Dev |= P
    * 3. Safety: Hypothesis || RobustnessModel(Sys, Env, P) |= P
-   * 4. Liveness: Pruned(Sys, P) |= Hypothesis, the hypothesis should contain all the traces in the original system
-   *    that does not immediately lead to an error
+   * 4. Liveness: Sys || Env |= Hypothesis
    */
   private fun eqOracle(hypothesis: String): Trace? {
     val oracles = listOf(
       "$hypothesis$spec||C = (H || $nameSpec).",
       "$hypothesis$dev$p||C = (H || $nameDev || $nameP).",
       "$hypothesis$sysRobustness$p||C = (H || SYS_R || $nameP).",
-      "${prunedSys}property ${hypothesis}||C = (PRUNED || H)."
+      "$sys${env}property ${hypothesis}||C = ($nameSys || $nameEnv || H)."
     )
 
     for ((i, oracle) in oracles.withIndex()) {
@@ -147,17 +156,60 @@ fun main() {
 //  val env = "RECEIVER = (rec -> output -> ack -> RECEIVER).\n" +
 //      "CHANNEL = (in -> out -> CHANNEL).\n" +
 //      "||ENV = (trans:CHANNEL || recv:CHANNEL || RECEIVER)/{send/trans.in, rec/trans.out, ack/recv.in, getack/recv.out}."
-//  val envLossy = "CHANNEL = (in -> TRANSIT\n" +
+//  val dev = "CHANNEL = (in -> TRANSIT\n" +
 //      "         | in -> lose -> CHANNEL),\n" +
 //      "TRANSIT = (out -> CHANNEL | out -> duplicate -> TRANSIT).\n" +
 //      "||ENV = (trans:CHANNEL || recv:CHANNEL)/{send/trans.in, rec/trans.out, ack/recv.in, getack/recv.out}."
 //  val p = "property P = (input -> output -> P)."
 //  val spec = "property SPEC = (dummy -> SPEC)."
 
-  val sys = ClassLoader.getSystemResource("models/therac25-simple/sys.lts").readText()
+//  val sys = ClassLoader.getSystemResource("models/therac25-simple/sys.lts").readText()
+//  val env = ClassLoader.getSystemResource("models/therac25-simple/env.lts").readText()
+//  val dev = "ENV = (hPressX -> ENV_1 | hPressE -> ENV_1),\n" +
+//      "ENV_1 = (hPressEnter -> ENV_2 | hPressUp -> ENV),\n" +
+//      "ENV_2 = (hPressB -> mFire -> hPressEnter -> ENV)+{hPressUp1}."
+//  val p = ClassLoader.getSystemResource("models/therac25-simple/p_w.lts").readText()
+//  val spec = "property SPEC1 = (hPressX -> mInPlace -> SPEC1 | hPressE -> mOutPlace -> SPEC1).\n" +
+//
+//      "property SPEC2 = (hPressX -> mInitXray -> SPEC2_1 | hPressE -> mInitEBeam -> SPEC2_1)," +
+//      "SPEC2_1 = (hPressX -> SPEC2_1 | hPressE -> SPEC2_1).\n" +
+//
+//      "property SPEC4 = (hPressB -> SPEC4_1), SPEC4_1 = (hPressB -> SPEC4_1 | mFire -> SPEC4).\n" +
+//
+//      "property POWER = (hPressX -> mInitXray -> XRAY | hPressE -> mInitEBeam -> EBEAM),\n" +
+//      "TOXRAY = (hPressX -> TOXRAY | hPressE -> EBEAM | mXrayLvl -> XRAY),\n" +
+//      "TOEBEAM = (hPressX -> XRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),\n" +
+//      "XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),\n" +
+//      "EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY)." +
+//
+//      "||SPEC = (SPEC1 || SPEC2 || SPEC4 || POWER)."
+
+  val sys = "menu INPUT_ACTS = {hPressX, hPressE, hPressUp, hPressEnter, hPressB, hPressUp1}\n" +
+      "menu OUTPUT_ACTS = {mFire}\n" +
+      "\n" +
+      "INTERFACE = (hPressX -> mInPlace -> mInitXray -> CONFIRM | hPressE -> mOutPlace -> mInitEBeam -> CONFIRM),\n" +
+      "EDIT = (hPressX -> mInPlace -> CONFIRM | hPressE -> mOutPlace -> CONFIRM),\n" +
+      "CONFIRM = (hPressUp -> EDIT | hPressEnter -> PREP),\n" +
+      "PREP = (hPressB -> FIRE | hPressUp1 -> CONFIRM),\n" +
+      "FIRE = (mFire -> hPressEnter -> EDIT)."
   val env = "ENV = (hPressX -> ENV_1 | hPressE -> ENV_1),\n" +
+      "ENV_1 = (hPressEnter -> ENV_2),\n" +
+      "ENV_2 = (hPressB -> mFire -> END)+{hPressUp, hPressUp1}.\n" +
+      "POWER = (hPressX -> mInitXray -> XRAY | hPressE -> mInitEBeam -> EBEAM),\n" +
+      "TOXRAY = (hPressX -> TOXRAY | hPressE -> EBEAM | mXrayLvl -> XRAY),\n" +
+      "TOEBEAM = (hPressX -> XRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),\n" +
+      "XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),\n" +
+      "EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY).\n" +
+      "||ENV_PWR = (ENV || POWER)."
+  val dev = "ENV = (hPressX -> ENV_1 | hPressE -> ENV_1),\n" +
       "ENV_1 = (hPressEnter -> ENV_2 | hPressUp -> ENV),\n" +
-      "ENV_2 = (hPressB -> mFire -> hPressEnter -> ENV)+{hPressUp1}."
+      "ENV_2 = (hPressB -> mFire -> hPressEnter -> ENV)+{hPressUp1}.\n" +
+      "POWER = (hPressX -> mInitXray -> XRAY | hPressE -> mInitEBeam -> EBEAM),\n" +
+      "TOXRAY = (hPressX -> TOXRAY | hPressE -> EBEAM | mXrayLvl -> XRAY),\n" +
+      "TOEBEAM = (hPressX -> XRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),\n" +
+      "XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),\n" +
+      "EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY).\n" +
+      "||DEV_PWR = (ENV || POWER)."
   val p = ClassLoader.getSystemResource("models/therac25-simple/p_w.lts").readText()
   val spec = "property SPEC1 = (hPressX -> mInPlace -> SPEC1 | hPressE -> mOutPlace -> SPEC1).\n" +
 
@@ -166,13 +218,8 @@ fun main() {
 
       "property SPEC4 = (hPressB -> SPEC4_1), SPEC4_1 = (hPressB -> SPEC4_1 | mFire -> SPEC4).\n" +
 
-      "property POWER = (hPressX -> mInitXray -> XRAY | hPressE -> mInitEBeam -> EBEAM),\n" +
-      "TOXRAY = (hPressX -> TOXRAY | hPressE -> EBEAM | mXrayLvl -> XRAY),\n" +
-      "TOEBEAM = (hPressX -> XRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),\n" +
-      "XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),\n" +
-      "EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY)." +
+      "||SPEC = (SPEC1 || SPEC2 || SPEC4)."
 
-      "||SPEC = (SPEC1 || SPEC2 || SPEC4 || POWER)."
-  val learner = LStarLearner2(sys, env, p, spec)
+  val learner = LStarLearner2(sys, env, dev, p, spec)
   learner.synthesize()
 }
