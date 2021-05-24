@@ -76,25 +76,25 @@ interface Transitions : Iterable<Transition> {
    * Return a set of integers indicating all the possible states from the given state s,
    * i.e., { s' | \forall s':S, a:A . (s, a, s') \in R }
    */
-  fun nextStates(s: Int): Set<Int>
+  fun nextStates(s: Int): List<Int>
 
   /**
    * Return a set of integers indicating all the possible states from the given state s and action a,
    * i.e., { s' | \forall s':S . (s, a, s') \in R }
    */
-  fun nextStates(s: Int, a: Int): Set<Int>
+  fun nextStates(s: Int, a: Int): List<Int>
 
   /**
    * Return a set of integers indicating all the possible states that has a transition to the given state s,
    * i.e., { s' | \forall s':S, a:A . (s', a, s) \in R }
    */
-  fun prevStates(s: Int): Set<Int>
+  fun prevStates(s: Int): List<Int>
 
   /**
    * Return a set of integers indicating all the possible states that has a transition to the given state s
    * with action a, i.e., { s' | \forall s':S . (s', a, s) \in R }
    */
-  fun prevStates(s: Int, a: Int): Set<Int>
+  fun prevStates(s: Int, a: Int): List<Int>
 
   /**
    * Return the set of states which has no transitions out,
@@ -149,13 +149,19 @@ class SimpleTransitions : Transitions {
 
   override fun outTrans(): Map<Int, Iterable<Transition>> {
     if (outMap == null)
-      outMap = trans.groupBy { it.first }
+      outMap = trans
+        .groupBy { it.first }
+        .map { entry -> entry.key to entry.value.sortedBy { it.second } }
+        .toMap()
     return outMap!!
   }
 
   override fun inTrans(): Map<Int, Iterable<Transition>> {
     if (inMap == null)
-      inMap = trans.groupBy { it.third }
+      inMap = trans
+        .groupBy { it.third }
+        .map { entry -> entry.key to entry.value.sortedBy { it.second } }
+        .toMap()
     return inMap!!
   }
 
@@ -167,24 +173,24 @@ class SimpleTransitions : Transitions {
     return trans.map { it.second }.toSet()
   }
 
-  override fun nextStates(s: Int): Set<Int> {
-    return outTrans()[s]?.map { it.third }?.toSet() ?: emptySet()
+  override fun nextStates(s: Int): List<Int> {
+    return outTrans()[s]?.map { it.third } ?: emptyList()
   }
 
-  override fun nextStates(s: Int, a: Int): Set<Int> {
-    return outTrans()[s]?.filter { it.second == a }?.map { it.third }?.toSet() ?: emptySet()
+  override fun nextStates(s: Int, a: Int): List<Int> {
+    return outTrans()[s]?.filter { it.second == a }?.map { it.third } ?: emptyList()
   }
 
-  override fun prevStates(s: Int): Set<Int> {
-    return inTrans()[s]?.map { it.first }?.toSet() ?: emptySet()
+  override fun prevStates(s: Int): List<Int> {
+    return inTrans()[s]?.map { it.first } ?: emptyList()
   }
 
-  override fun prevStates(s: Int, a: Int): Set<Int> {
-    return inTrans()[s]?.filter { it.second == a }?.map { it.first }?.toSet() ?: emptySet()
+  override fun prevStates(s: Int, a: Int): List<Int> {
+    return inTrans()[s]?.filter { it.second == a }?.map { it.first } ?: emptyList()
   }
 
   override fun findEndStates(): Set<Int> {
-    return inTrans().keys - outTrans().keys
+    return inTrans().keys - outTrans().keys - setOf(-1)
   }
 
   override fun transFromState(s: Int): Iterable<Transition> {
