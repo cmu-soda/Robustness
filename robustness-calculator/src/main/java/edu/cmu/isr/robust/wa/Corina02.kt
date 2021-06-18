@@ -103,7 +103,7 @@ open class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(s
       else
         it
     }.filter { it.first != -1 }
-    val sm = StateMachine(SimpleTransitions(trans), dfa.alphabet)
+    val sm = StateMachine(SimpleTransitions(trans), dfa.alphabet, dfa.endState)
 //    println("Unsafe representation model:")
 //    println(sm.buildFSP("U"))
     return shortestDeltaTraces(sm)
@@ -151,7 +151,7 @@ open class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(s
 //    val reachable = this.getBackwardReachable(setOf(-1))
 //    trans = SimpleTransitions(trans.allTrans().filter { it.first in reachable && it.third in reachable })
 
-    return StateMachine(trans, this.alphabet)
+    return StateMachine(trans, this.alphabet, this.endState)
   }
 
   /**
@@ -190,7 +190,7 @@ open class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(s
     for (a in alphabetIdx) {
       newTrans.add(Triple(theta, a, theta))
     }
-    return StateMachine(SimpleTransitions(newTrans), this.alphabet)
+    return StateMachine(SimpleTransitions(newTrans), this.alphabet, this.endState)
   }
 
   /**
@@ -201,6 +201,6 @@ open class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(s
   private fun StateMachine.deleteErrors(dfaStates: List<Set<Int>>): StateMachine {
     val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
     val trans = this.transitions.filter { it.first !in errStates && it.third !in errStates }
-    return StateMachine(SimpleTransitions(trans), this.alphabet)
+    return StateMachine(SimpleTransitions(trans), this.alphabet, this.endState)
   }
 }
