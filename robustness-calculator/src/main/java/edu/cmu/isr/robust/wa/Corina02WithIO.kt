@@ -23,20 +23,23 @@
  *
  */
 
-package edu.cmu.isr.robust.cal
+package edu.cmu.isr.robust.wa
 
-class ABPRobustCal(sys: String, env: String, p: String) : AbstractRobustCal(sys, env, p) {
-  private val errModel = ClassLoader.getSystemResource("specs/abp/abp_env_lossy.lts").readText()
+import edu.cmu.isr.robust.util.StateMachine
 
-  override fun genErrEnvironment(t: List<String>): String? {
-    return errModel
+class Corina02WithIO(
+  sys: String, env: String, p: String,
+  private val inputActions: List<String>,
+  private val outputActions: List<String>
+  ) : Corina02(sys, env, p) {
+
+  override fun weakestAssumption(name: String): String {
+    return weakestAssumption(name, true)
   }
 
-  override fun isEnvEvent(a: String): Boolean {
-    return !a.endsWith("lose") && !a.endsWith("duplicate") && !a.endsWith("corrupt")
+  override fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>): StateMachine {
+    val alphabetIdx = this.alphabet.indices.filter { it != this.tau && this.alphabet[it] in outputActions }
+    return makeSinkState(dfaStates, alphabetIdx)
   }
 
-  override fun isErrEvent(a: String): Boolean {
-    return a.endsWith("lose") || a.endsWith("duplicate") || a.endsWith("corrupt")
-  }
 }

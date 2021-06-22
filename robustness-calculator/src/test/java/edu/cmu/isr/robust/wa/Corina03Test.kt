@@ -41,6 +41,7 @@ class Corina03Test {
     val P = "property P = (input -> output -> P)."
     val M1 = "INPUT = (input -> send -> ack -> INPUT)."
     val M2 = "OUTPUT = (send -> SENDING), SENDING = (send -> SENDING | output -> ack -> OUTPUT)."
+//    val M2 = "OUTPUT = (send -> output -> ack -> OUTPUT)."
 
     val lStar = Corina03(M1, M2, P)
     val wa = lStar.weakestAssumption("WA")

@@ -1,0 +1,6 @@
+{
+  "mode": "fsp",
+  "sys": "models/therac25-simple/sys.lts",
+  "env": "models/therac25-simple/env.lts",
+  "prop": "models/therac25-simple/p_w.lts"
+}

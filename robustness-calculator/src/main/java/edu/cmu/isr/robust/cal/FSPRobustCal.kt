@@ -26,6 +26,10 @@
 package edu.cmu.isr.robust.cal
 
 import edu.cmu.isr.robust.ltsa.LTSACall
+import edu.cmu.isr.robust.ltsa.doCompose
+import edu.cmu.isr.robust.util.Trace
+import edu.cmu.isr.robust.wa.AbstractWAGenerator
+import edu.cmu.isr.robust.wa.Corina02WithIO
 
 /**
  * A general purpose AbstractRobustCal implementation for FSP specs. Users have to provide a fixed deviation model.
@@ -36,17 +40,20 @@ import edu.cmu.isr.robust.ltsa.LTSACall
  * @param p model should be named with P
  * @param deviation model should be named with ENV, also it needs to define a menu named ERR_ACTS to specify the error actions.
  */
-class FSPRobustCal(sys: String, env: String, p: String, private val deviation: String,
-                   verbose: Boolean) : AbstractRobustCal(sys, env, p, verbose) {
-  private val errActions: List<String>
+open class FSPRobustCal(sys: String, env: String, p: String, private val deviation: String?,
+                        verbose: Boolean) : AbstractRobustCal(sys, env, p, verbose) {
+  private val errActions: List<String> = if (deviation == null) {
+    emptyList()
+  } else {
+    LTSACall.doCompile(deviation)
+    LTSACall.menuActions("ERR_ACTS")
+  }
 
   init {
     // initialize the error actions in the deviation model
-    LTSACall.doCompile(deviation)
-    errActions = LTSACall.menuActions("ERR_ACTS")
   }
 
-  override fun genErrEnvironment(t: List<String>): String {
+  override fun genErrEnvironment(t: Trace): String? {
     return deviation
   }
 
@@ -66,4 +73,16 @@ class FSPRobustCal(sys: String, env: String, p: String, private val deviation: S
     return false
   }
 
+}
+
+class FSPIORobustCal(sys: String, env: String, p: String,
+                     deviation: String?, verbose: Boolean) : FSPRobustCal(sys, env, p, deviation, verbose) {
+  override val waGenerator: AbstractWAGenerator
+
+  init {
+    LTSACall.doCompile(sys, "SYS").doCompose()
+    val inputActions = LTSACall.menuActions("INPUT_ACTS")
+    val outputActions = LTSACall.menuActions("OUTPUT_ACTS")
+    waGenerator = Corina02WithIO(sys, env, p, inputActions, outputActions)
+  }
 }

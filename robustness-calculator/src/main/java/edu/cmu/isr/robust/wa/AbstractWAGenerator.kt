@@ -30,6 +30,7 @@ import edu.cmu.isr.robust.ltsa.combineSpecs
 import edu.cmu.isr.robust.ltsa.doCompose
 import edu.cmu.isr.robust.ltsa.propertyCheck
 import edu.cmu.isr.robust.util.StateMachine
+import edu.cmu.isr.robust.util.Trace
 
 abstract class AbstractWAGenerator(val sys: String, val env: String, val p: String) {
 
@@ -98,7 +99,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
    * @param name the name of the process of the weakest assumption in the FSP spec.
    */
   @Deprecated("In the current design, we only search for the shortest trace.")
-  fun deltaTraces(wa: String, name: String, level: Int = 0): Map<EquivClass, List<List<String>>> {
+  fun deltaTraces(wa: String, name: String, level: Int = 0): Map<EquivClass, List<Trace>> {
     val sm = computeDelta(wa, name)
     return deltaTraces(sm, level)
   }
@@ -115,7 +116,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
    * @param name2 the name of the process of the weakest assumption in the FSP spec for system 2
    */
   @Deprecated("In the current design, we only search for the shortest trace.")
-  fun deltaTraces(wa1: String, name1: String, wa2: String, name2: String, level: Int = 0): Map<EquivClass, List<List<String>>> {
+  fun deltaTraces(wa1: String, name1: String, wa2: String, name2: String, level: Int = 0): Map<EquivClass, List<Trace>> {
     val sm = computeX(wa1, name1, wa2, name2)
     return deltaTraces(sm, level)
   }
@@ -124,11 +125,11 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
    * This function computes the representative traces by given a representative model. This is the actual function
    * invoked by the public interface deltaTraces(WA, Name, Level).
    */
-  private fun deltaTraces(sm: StateMachine, level: Int): Map<EquivClass, List<List<String>>> {
+  private fun deltaTraces(sm: StateMachine, level: Int): Map<EquivClass, List<Trace>> {
     if (!sm.hasError())
       return emptyMap()
 
-    val traces = mutableMapOf<EquivClass, MutableList<List<String>>>()
+    val traces = mutableMapOf<EquivClass, MutableList<Trace>>()
     val dfs = buildDFS(sm, level, traces)
     dfs(Node(0, "", null), mapOf(0 to 1))
     return traces
@@ -138,7 +139,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
    * The DFS process used to search for representative traces with level x.
    */
   private fun buildDFS(sm: StateMachine, level: Int,
-                       traces: MutableMap<EquivClass, MutableList<List<String>>>): (Node, Map<Int, Int>) -> Unit
+                       traces: MutableMap<EquivClass, MutableList<Trace>>): (Node, Map<Int, Int>) -> Unit
   {
     val outTrans = sm.transitions.outTrans()
 
@@ -179,7 +180,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
    * @param wa the FSP spec of the weakest assumption
    * @param name the name of the process of the weakest assumption in the FSP spec.
    */
-  fun shortestDeltaTraces(wa: String, name: String): Map<EquivClass, List<List<String>>> {
+  fun shortestDeltaTraces(wa: String, name: String): Map<EquivClass, List<Trace>> {
     val sm = computeDelta(wa, name)
     return shortestDeltaTraces(sm)
   }
@@ -193,7 +194,7 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
    * @param wa2 the FSP spec of the weakest assumption for system 2
    * @param name2 the name of the process of the weakest assumption in the FSP spec for system 2
    */
-  fun shortestDeltaTraces(wa1: String, name1: String, wa2: String, name2: String): Map<EquivClass, List<List<String>>> {
+  fun shortestDeltaTraces(wa1: String, name1: String, wa2: String, name2: String): Map<EquivClass, List<Trace>> {
     val sm = computeX(wa1, name1, wa2, name2)
     return shortestDeltaTraces(sm)
   }
@@ -204,11 +205,11 @@ abstract class AbstractWAGenerator(val sys: String, val env: String, val p: Stri
    * i.e., S_err = { s | \forall s:S . \exists a:A . (s, a, error) \in R }.
    * Then, we compute the shortest traces from the initial state s_0 to each state in S_err.
    */
-  fun shortestDeltaTraces(sm: StateMachine): Map<EquivClass, List<List<String>>> {
+  fun shortestDeltaTraces(sm: StateMachine): Map<EquivClass, List<Trace>> {
     if (!sm.hasError())
       return emptyMap()
 
-    val traces = mutableMapOf<EquivClass, List<List<String>>>()
+    val traces = mutableMapOf<EquivClass, List<Trace>>()
     val transToErr = sm.transitions.inTrans()[-1] ?: emptyList()
     val paths = sm.pathFromInit(transToErr.map { it.first }.toSet())
     for (t in transToErr) {

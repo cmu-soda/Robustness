@@ -27,11 +27,44 @@ package edu.cmu.isr.robust.cal
 
 import edu.cmu.isr.robust.ltsa.*
 import edu.cmu.isr.robust.util.StateMachine
+import edu.cmu.isr.robust.util.Trace
 import edu.cmu.isr.robust.wa.AbstractWAGenerator
 import edu.cmu.isr.robust.wa.Corina02
 import java.util.*
 
-abstract class AbstractRobustCal(val sys: String, val env: String, val p: String, val verbose: Boolean = true) {
+interface RobustCal {
+  /**
+   * The name of the process of the generated weakest assumption FSP model
+   */
+  var nameOfWA: String
+
+  /**
+   * Return the FSP spec of the weakest assumption
+   */
+  fun getWA(): String
+
+  /**
+   * Compute the set of traces allowed by the system but would violate the safety property.
+   */
+  fun computeUnsafeBeh(): List<Trace>
+
+  /**
+   * The entrance function to compute the robustness. It first generates the weakest assumption, and then build the
+   * representation model and compute the representative traces, and finally, match an explanation for each
+   * representative trace respectively.
+   */
+  fun computeRobustness(level: Int = -1, waOnly: Boolean = false): List<Pair<Trace, Trace?>>
+
+  /**
+   * The entrance function to compare the robustness of this model to another model, i.e., X = \Delta_This - \Delta_2.
+   * @param wa2 the FSP spec of the weakest assumption of the other model
+   * @param name2 the name of the process of the weakest assumption.
+   */
+  fun robustnessComparedTo(wa2: String, name2: String, level: Int = -1): List<Trace>
+}
+
+abstract class AbstractRobustCal(val sys: String, val env: String, val p: String,
+                                 val verbose: Boolean = true) : RobustCal {
 
   /**
    * A helper class used in BFS search.
@@ -41,10 +74,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
    */
   private class Node(val s: Int, val t: String, val pre: Node?)
 
-  /**
-   * The name of the process of the generated weakest assumption FSP model
-   */
-  var nameOfWA = "WA"
+  override var nameOfWA = "WA"
     set(value) {
       if (wa != null)
         println("WARN: The weakest assumption has already generated, cannot change its name.")
@@ -55,17 +85,14 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * The weakest assumption generator. By default, we are using the Corina02 paper to generate it.
    */
-  protected val waGenerator: AbstractWAGenerator = Corina02(sys, env, p)
+  protected open val waGenerator: AbstractWAGenerator = Corina02(sys, env, p)
 
   /**
    * To store the generated weakest assumption
    */
   private var wa: String? = null
 
-  /**
-   * Return the FSP spec of the weakest assumption
-   */
-  fun getWA(): String {
+  override fun getWA(): String {
     return wa ?: genWeakestAssumption()
   }
 
@@ -88,22 +115,15 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     return wa!!
   }
 
-  /**
-   * Compute the set of traces allowed by the system but would violate the safety property.
-   */
-  fun computeUnsafeBeh(): List<List<String>> {
+
+  override fun computeUnsafeBeh(): List<Trace> {
     val corina02 = waGenerator as? Corina02 ?: error("This function is only supported by the Corina02 approach")
     val traces = corina02.computeUnsafeBeh()
     printRepTraces(traces)
     return traces.values.flatten()
   }
 
-  /**
-   * The entrance function to compute the robustness. It first generates the weakest assumption, and then build the
-   * representation model and compute the representative traces, and finally, match an explanation for each
-   * representative trace respectively.
-   */
-  fun computeRobustness(level: Int = -1): List<Pair<List<String>, List<String>?>> {
+  override fun computeRobustness(level: Int, waOnly: Boolean): List<Pair<Trace, Trace?>> {
     if (wa == null)
       genWeakestAssumption()
 
@@ -113,6 +133,11 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     } else {
       println("Generating the level $level representation traces by equivalence classes...")
       waGenerator.deltaTraces(wa!!, nameOfWA, level = level)
+    }
+
+    if (waOnly) {
+      println("Skipped...")
+      return traces.values.flatten().map { Pair<Trace, Trace?>(it, null) }
     }
 
     if (traces.isEmpty()) {
@@ -143,7 +168,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * Helper function to print all the representative traces
    */
-  private fun printRepTraces(traces: Map<AbstractWAGenerator.EquivClass, List<List<String>>>) {
+  private fun printRepTraces(traces: Map<AbstractWAGenerator.EquivClass, List<Trace>>) {
     println("Number of equivalence classes: ${traces.size}")
     traces.values.flatten().forEachIndexed { i, v ->
       println("Representation Trace No.$i: $v")
@@ -154,7 +179,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * Helper function to print all the <representative trace, explanation> pair.
    */
-  private fun printExplanation(r: List<Pair<List<String>, List<String>?>>) {
+  private fun printExplanation(r: List<Pair<Trace, Trace?>>) {
     println("Found ${r.size} representation traces, matched ${r.filter { it.second != null }.size}/${r.size}.")
     println("Group by error types in the deviation model:")
     val grouped = r.groupBy {
@@ -166,12 +191,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
     }
   }
 
-  /**
-   * The entrance function to compare the robustness of this model to another model, i.e., X = \Delta_This - \Delta_2.
-   * @param wa2 the FSP spec of the weakest assumption of the other model
-   * @param name2 the name of the process of the weakest assumption.
-   */
-  fun robustnessComparedTo(wa2: String, name2: String, level: Int = -1): List<List<String>> {
+  override fun robustnessComparedTo(wa2: String, name2: String, level: Int): List<Trace> {
     if (wa == null)
       genWeakestAssumption()
 
@@ -198,23 +218,23 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
    * build a deviation model only contains errors related to the representative trace.
    * @param t the representative trace
    */
-  abstract fun genErrEnvironment(t: List<String>): String
+  protected abstract fun genErrEnvironment(t: Trace): String?
 
   /**
    * Returns True when the given action is an environmental action.
    */
-  abstract fun isEnvEvent(a: String): Boolean
+  protected abstract fun isEnvEvent(a: String): Boolean
 
   /**
    * Returns True when the given action is an error/deviation action.
    */
-  abstract fun isErrEvent(a: String): Boolean
+  protected abstract fun isErrEvent(a: String): Boolean
 
   /**
    * The entrance function to match the representative trace to the shortest explanation in the deviation model.
    */
-  private fun matchMinimalErr(trace: List<String>): List<String>? {
-    val errEnv = genErrEnvironment(trace)
+  private fun matchMinimalErr(trace: Trace): Trace? {
+    val errEnv = genErrEnvironment(trace) ?: return null
     val tSpec = buildTrace(trace, waGenerator.alphabetOfWA())
     val spec = combineSpecs(sys, errEnv, tSpec, "||T = (SYS || ENV || TRACE).")
     val composite = LTSACall.doCompile(spec, "T").doCompose()
@@ -225,7 +245,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
   /**
    * Using BFS to search for the shortest trace in the deviation model which matches the representative trace.
    */
-  private fun bfs(sm: StateMachine, trace: List<String>): List<String>? {
+  private fun bfs(sm: StateMachine, trace: Trace): Trace? {
     val q: Queue<Node> = LinkedList()
     val visited = mutableSetOf<Int>()
     val outTrans = sm.transitions.outTrans()

@@ -44,7 +44,6 @@ enum class Mode { COMPUTE, COMPARE, UNSAFE }
 /**
  * This private class defines the command line options.
  * TODO: Add feature to do tau elimination and subset construction
- * TODO: Add feature to just compute the weakest assumption
  * TODO: Add feature to just output the EOFM translation and EOFM concise translation model
  * TODO: Optimize the error message
  */
@@ -54,25 +53,30 @@ and a safety property P. Also, it takes a deviation model D to generate explanat
 system robustness. In addition, it can compare the robustness of two systems or a system under
 different properties.
 """) {
-  val verbose by option("--verbose", "-v", help = "enable verbose mode").flag()
-  val mode by option(help = "operation mode").switch(
+  val verbose by option("--verbose", "-v", help = "Enable verbose mode").flag()
+  val mode by option(help = "Operation mode: --compute compute the robustness of a given system w.r.t an environment" +
+      "and a safety property; --compare compare the robustness of two; --unsafe compute the unsafe behaviors of a" +
+      "given system w.r.t a safety property").switch(
       "--compute" to Mode.COMPUTE,
       "--compare" to Mode.COMPARE,
       "--unsafe" to Mode.UNSAFE
   )
-  val outputFile by option("--output", "-o", metavar = "OUTPUT", help = "save the results in a JSON file")
-  val files by argument("FILES", help = "system description files in JSON").multiple()
+  val outputFile by option("--output", "-o", metavar = "OUTPUT", help = "Save the results in a JSON file")
+  val files by argument("FILES", help = "System description files in JSON").multiple()
+  val waOnly by option("-w", help = "Generate the weakest assumption only").flag()
+  // TODO
+  val sink by option("--sink", "-s", help = "Generate the weakest assumption with sink state").flag()
+  val io by option("--io", help = "Make the system an I/O automaton which requires input-enableness").flag()
 
   override fun run() {
     val resultJson = when (mode) {
       Mode.COMPUTE -> {
-        assert(files.size == 1)
-        if (files.size != 1)
+        if (files.isEmpty())
           throw IllegalArgumentException("Need one config file for computing robustness")
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
-        val cal = createCalculator(config, verbose)
-        val result = cal.computeRobustness()
+        val cal = createCalculator(config, verbose, io)
+        val result = cal.computeRobustness(waOnly = waOnly)
         ResultJson(
             mode = "compute",
             traces = result.map { RepTraceJson(it.first.joinToString(), (it.second?:emptyList()).joinToString()) }
@@ -83,23 +87,26 @@ different properties.
           throw IllegalArgumentException("Need two config files for comparing robustness")
         val config1 = jacksonObjectMapper().readValue<ConfigJson>(File(files[0]).readText())
         val config2 = jacksonObjectMapper().readValue<ConfigJson>(File(files[1]).readText())
-        val cal1 = createCalculator(config1, verbose)
-        val cal2 = createCalculator(config2, verbose)
+        val cal1 = createCalculator(config1, verbose, io)
+        val cal2 = createCalculator(config2, verbose, io)
         cal1.nameOfWA = "WA1"
         cal2.nameOfWA = "WA2"
-        val result = cal1.robustnessComparedTo(cal2.getWA(), "WA2")
+        println("========== Compute M1 - M2 ==========")
+        val result1 = cal1.robustnessComparedTo(cal2.getWA(), "WA2")
+        println("========== Compute M2 - M1 ==========")
+        val result2 = cal2.robustnessComparedTo(cal1.getWA(), "WA1")
         ResultJson(
             mode = "compare",
-            traces = result.map { RepTraceJson(it.joinToString(), "") }
+            traces = result1.map { RepTraceJson(it.joinToString(), "") }
         )
       }
       Mode.UNSAFE -> {
         assert(files.size == 1)
-        if (files.size != 1)
+        if (files.isEmpty())
           throw IllegalArgumentException("Need one config file for computing unsafe behavior")
         val configFile = files[0]
         val config = jacksonObjectMapper().readValue<ConfigJson>(File(configFile).readText())
-        val cal = createCalculator(config, verbose)
+        val cal = createCalculator(config, verbose, io)
         ResultJson(
             mode = "unsafe",
             traces = cal.computeUnsafeBeh().map { RepTraceJson(it.joinToString(), "") }
@@ -164,16 +171,17 @@ fun main(args: Array<String>) = App().main(args)
 /**
  * A helper function to create the corresponding AbstractRobustCal based on the JSON config file.
  */
-private fun createCalculator(config: ConfigJson, verbose: Boolean): AbstractRobustCal {
+private fun createCalculator(config: ConfigJson, verbose: Boolean, io: Boolean): RobustCal {
   val sys = File(config.sys).readText()
   val env = File(config.env).readText()
   val p = File(config.prop).readText()
   return when (config.mode) {
     "fsp" -> {
-      if (config.deviation == null)
-        throw IllegalArgumentException("Need to provide deviation model in fsp mode")
-      val deviation = File(config.deviation).readText()
-      FSPRobustCal(sys, env, p, deviation, verbose)
+      val deviation = if (config.deviation == null) null else File(config.deviation).readText()
+      if (io)
+        FSPIORobustCal(sys, env, p, deviation, verbose)
+      else
+        FSPRobustCal(sys, env, p, deviation, verbose)
     }
     "eofm" -> {
       if (config.eofm == null)

@@ -25,10 +25,7 @@
 
 package edu.cmu.isr.robust.wa
 
-import edu.cmu.isr.robust.ltsa.LTSACall
-import edu.cmu.isr.robust.ltsa.alphabetNoTau
-import edu.cmu.isr.robust.ltsa.getCompositeName
-import edu.cmu.isr.robust.ltsa.propertyCheck
+import edu.cmu.isr.robust.ltsa.*
 
 /**
  * This class implements the algorithm to generate weakest assumption described in:
@@ -76,7 +73,7 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
       println("========== Validate conjecture assumption with the environment M2 ==========")
       val counterExample = LTSACall.doCompile(
         "$M2\nproperty $A_fsp\n||Composite = ($nameM2 || $name).", "Composite"
-      ).propertyCheck()
+      ).doCompose().propertyCheck()
       if (counterExample == null) {
         println("========== Find the weakest assumption for M1 ==========\n$A_fsp")
         return A_fsp
@@ -86,7 +83,7 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
         val A_c = "AC = (${projected.joinToString(" -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
         val check = LTSACall.doCompile(
           "$A_c\n$M1\n$p\n||Composite = (AC || $nameM1 || $nameP).", "Composite"
-        ).propertyCheck()
+        ).doCompose().propertyCheck()
         if (check == null) {
           println("========== Weaken the assumption for M1 ==========")
           witnessOfCounterExample(A, projected)
@@ -151,7 +148,7 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
     val fsp = conjectureToFSP(C)
     return LTSACall.doCompile(
       "$fsp\n$M1\n$p\n||Composite = (C || $nameM1 || $nameP).", "Composite"
-    ).propertyCheck()
+    ).doCompose().propertyCheck()
   }
 
   private fun buildConjecture(): Set<Triple<String, String, String>> {
@@ -256,7 +253,7 @@ class Corina03(val M1: String, val M2: String, p: String) : AbstractWAGenerator(
     val fsp = "A = (${σ.replace(",", " -> ")} -> STOP) + {${Σ.joinToString(", ")}}."
     return LTSACall.doCompile(
       "$fsp\n$M1\n$p\n||Composite = (A || $nameM1 || $nameP).", "Composite"
-    ).propertyCheck() == null
+    ).doCompose().propertyCheck() == null
   }
 
   private fun concat(vararg words: String): String {

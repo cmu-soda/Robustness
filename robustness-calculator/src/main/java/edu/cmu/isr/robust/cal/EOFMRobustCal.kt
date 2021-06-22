@@ -34,6 +34,7 @@ import edu.cmu.isr.robust.eofm.EOFMS
 import edu.cmu.isr.robust.eofm.EOFMTranslator
 import edu.cmu.isr.robust.ltsa.buildTrace
 import edu.cmu.isr.robust.util.StateMachine
+import edu.cmu.isr.robust.util.Trace
 
 class EOFMRobustCal private constructor(
     sys: String,
@@ -108,7 +109,7 @@ class EOFMRobustCal private constructor(
     }
   }
 
-  override fun genErrEnvironment(t: List<String>): String {
+  override fun genErrEnvironment(t: Trace): String? {
     // Match the normative prefix with the human model to get activity states
     val normPrefix = t.subList(0, t.size - 1)
     val activityStates = if (normPrefix.isNotEmpty())
@@ -129,7 +130,7 @@ class EOFMRobustCal private constructor(
     return a.startsWith("omission") || a.startsWith("commission") || a.startsWith("repetition")
   }
 
-  private fun matchNormTrace(t: List<String>): List<String> {
+  private fun matchNormTrace(t: Trace): Trace {
     val tSpec = buildTrace(t, waGenerator.alphabetOfWA())
     val spec = combineSpecs(rawHumanModel, sys, tSpec, "||T = (SYS || ENV || TRACE).")
     val composite = LTSACall.doCompile(spec, "T").doCompose()

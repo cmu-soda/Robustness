@@ -28,6 +28,7 @@ package edu.cmu.isr.robust.wa
 import edu.cmu.isr.robust.ltsa.*
 import edu.cmu.isr.robust.util.SimpleTransitions
 import edu.cmu.isr.robust.util.StateMachine
+import edu.cmu.isr.robust.util.Trace
 
 /**
  * This class implements the algorithm to generate weakest assumption described in:
@@ -35,30 +36,34 @@ import edu.cmu.isr.robust.util.StateMachine
  * verification,” in Proceedings - ASE 2002: 17th IEEE International Conference on Automated Software
  * Engineering, 2002, pp. 3–12.
  */
-class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, env, p) {
+open class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, env, p) {
   /**
    * The alphabet of the weakest assumption
    */
   private val alphabetR: Set<String>
+  private val nameSys: String
+  private val nameEnv: String
+  private val nameP: String
 
   init {
     // Generate alphabets for the weakest assumption
-    val envComposite = LTSACall.doCompile(env, "ENV").doCompose()
+    val envComposite = LTSACall.doCompile(env).doCompose()
+    nameEnv = envComposite.getCompositeName()
     println("Environment LTS: ${envComposite.composition.maxStates} states and ${envComposite.composition.ntransitions()} transitions.")
     val alphabetENV = envComposite.alphabetNoTau()
 
-    val sysComposite = LTSACall.doCompile(sys, "SYS").doCompose()
+    val sysComposite = LTSACall.doCompile(sys).doCompose()
+    nameSys = sysComposite.getCompositeName()
     println("System LTS: ${sysComposite.composition.maxStates} states and ${sysComposite.composition.ntransitions()} transitions.")
     val alphabetSYS = sysComposite.alphabetNoTau()
 
-    // The following statements follow Corina's paper to compute the alphabet for the weakest assumption.
-    // However, in our work, we simply change it to the intersection of the system and the environment.
-//    val alphabetP = LTSACall.doCompile(p, "P").alphabetSet()
-//    val alphabetC = alphabetSYS intersect alphabetENV
-//    val alphabetI = alphabetSYS - alphabetC
-//    alphabetR = (alphabetC + (alphabetP - alphabetI))
+    val pComposite = LTSACall.doCompile(p).doCompose()
+    nameP = pComposite.getCompositeName()
+    val alphabetP = pComposite.alphabetNoTau()
 
-    alphabetR = alphabetSYS intersect alphabetENV
+    val common = alphabetSYS intersect alphabetENV
+    val internal = alphabetSYS - common
+    alphabetR = common + (alphabetP - internal)
   }
 
   override fun alphabetOfWA(): Iterable<String> {
@@ -87,7 +92,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * error state from one or more tau transitions. Then, we generate the representation counterexamples (the
    * same method as we generate robustness representation trace).
    */
-  fun computeUnsafeBeh(): Map<EquivClass, List<List<String>>> {
+  fun computeUnsafeBeh(): Map<EquivClass, List<Trace>> {
     val (dfa, states) = composeSysP().pruneError().tauElmAndSubsetConstr()
     val errStates = states.indices.filter { states[it].contains(-1) }
     val trans = dfa.transitions.map {
@@ -98,7 +103,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
       else
         it
     }.filter { it.first != -1 }
-    val sm = StateMachine(SimpleTransitions(trans), dfa.alphabet)
+    val sm = StateMachine(SimpleTransitions(trans), dfa.alphabet, dfa.endState)
 //    println("Unsafe representation model:")
 //    println(sm.buildFSP("U"))
     return shortestDeltaTraces(sm)
@@ -109,7 +114,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * system and the environment.
    */
   private fun composeSysP(): StateMachine {
-    val spec = combineSpecs(sys, p, "||C = (SYS || P)@{${alphabetR.joinToString(",")}}.")
+    val spec = combineSpecs(sys, p, "||C = ($nameSys || $nameP)@{${alphabetR.joinToString(",")}}.")
 
     // Compose and minimise
     val composite = LTSACall.doCompile(spec, "C").doCompose().minimise()
@@ -146,7 +151,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
 //    val reachable = this.getBackwardReachable(setOf(-1))
 //    trans = SimpleTransitions(trans.allTrans().filter { it.first in reachable && it.third in reachable })
 
-    return StateMachine(trans, this.alphabet)
+    return StateMachine(trans, this.alphabet, this.endState)
   }
 
   /**
@@ -167,9 +172,13 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
    * transition of every action. In this case, we target these transitions to the sink state. Then, we make the
    * sink state complete in the way that any action points to itself.
    */
-  private fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>): StateMachine {
-    val newTrans = this.transitions.toMutableSet()
+  protected open fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>): StateMachine {
     val alphabetIdx = this.alphabet.indices.filter { it != this.tau }
+    return this.makeSinkState(dfaStates, alphabetIdx)
+  }
+
+  protected fun StateMachine.makeSinkState(dfaStates: List<Set<Int>>, alphabetIdx: List<Int>): StateMachine {
+    val newTrans = this.transitions.toMutableSet()
     val theta = dfaStates.size
     for (s in dfaStates.indices) {
       for (a in alphabetIdx) {
@@ -181,7 +190,7 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
     for (a in alphabetIdx) {
       newTrans.add(Triple(theta, a, theta))
     }
-    return StateMachine(SimpleTransitions(newTrans), this.alphabet)
+    return StateMachine(SimpleTransitions(newTrans), this.alphabet, this.endState)
   }
 
   /**
@@ -192,6 +201,6 @@ class Corina02(sys: String, env: String, p: String) : AbstractWAGenerator(sys, e
   private fun StateMachine.deleteErrors(dfaStates: List<Set<Int>>): StateMachine {
     val errStates = dfaStates.indices.filter { dfaStates[it].contains(-1) }
     val trans = this.transitions.filter { it.first !in errStates && it.third !in errStates }
-    return StateMachine(SimpleTransitions(trans), this.alphabet)
+    return StateMachine(SimpleTransitions(trans), this.alphabet, this.endState)
   }
 }
