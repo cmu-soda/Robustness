@@ -40,17 +40,20 @@ import edu.cmu.isr.robust.wa.Corina02WithIO
  * @param p model should be named with P
  * @param deviation model should be named with ENV, also it needs to define a menu named ERR_ACTS to specify the error actions.
  */
-open class FSPRobustCal(sys: String, env: String, p: String, private val deviation: String,
+open class FSPRobustCal(sys: String, env: String, p: String, private val deviation: String?,
                         verbose: Boolean) : AbstractRobustCal(sys, env, p, verbose) {
-  private val errActions: List<String>
+  private val errActions: List<String> = if (deviation == null) {
+    emptyList()
+  } else {
+    LTSACall.doCompile(deviation)
+    LTSACall.menuActions("ERR_ACTS")
+  }
 
   init {
     // initialize the error actions in the deviation model
-    LTSACall.doCompile(deviation)
-    errActions = LTSACall.menuActions("ERR_ACTS")
   }
 
-  override fun genErrEnvironment(t: Trace): String {
+  override fun genErrEnvironment(t: Trace): String? {
     return deviation
   }
 
@@ -73,7 +76,7 @@ open class FSPRobustCal(sys: String, env: String, p: String, private val deviati
 }
 
 class FSPIORobustCal(sys: String, env: String, p: String,
-                     deviation: String, verbose: Boolean) : FSPRobustCal(sys, env, p, deviation, verbose) {
+                     deviation: String?, verbose: Boolean) : FSPRobustCal(sys, env, p, deviation, verbose) {
   override val waGenerator: AbstractWAGenerator
 
   init {

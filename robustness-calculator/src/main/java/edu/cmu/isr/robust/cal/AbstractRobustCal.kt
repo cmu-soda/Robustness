@@ -218,7 +218,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
    * build a deviation model only contains errors related to the representative trace.
    * @param t the representative trace
    */
-  protected abstract fun genErrEnvironment(t: Trace): String
+  protected abstract fun genErrEnvironment(t: Trace): String?
 
   /**
    * Returns True when the given action is an environmental action.
@@ -234,7 +234,7 @@ abstract class AbstractRobustCal(val sys: String, val env: String, val p: String
    * The entrance function to match the representative trace to the shortest explanation in the deviation model.
    */
   private fun matchMinimalErr(trace: Trace): Trace? {
-    val errEnv = genErrEnvironment(trace)
+    val errEnv = genErrEnvironment(trace) ?: return null
     val tSpec = buildTrace(trace, waGenerator.alphabetOfWA())
     val spec = combineSpecs(sys, errEnv, tSpec, "||T = (SYS || ENV || TRACE).")
     val composite = LTSACall.doCompile(spec, "T").doCompose()

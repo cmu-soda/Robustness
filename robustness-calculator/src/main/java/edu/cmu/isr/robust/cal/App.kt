@@ -177,9 +177,7 @@ private fun createCalculator(config: ConfigJson, verbose: Boolean, io: Boolean):
   val p = File(config.prop).readText()
   return when (config.mode) {
     "fsp" -> {
-      if (config.deviation == null)
-        throw IllegalArgumentException("Need to provide deviation model in fsp mode")
-      val deviation = File(config.deviation).readText()
+      val deviation = if (config.deviation == null) null else File(config.deviation).readText()
       if (io)
         FSPIORobustCal(sys, env, p, deviation, verbose)
       else

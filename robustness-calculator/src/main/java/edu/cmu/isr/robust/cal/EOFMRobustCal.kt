@@ -109,7 +109,7 @@ class EOFMRobustCal private constructor(
     }
   }
 
-  override fun genErrEnvironment(t: Trace): String {
+  override fun genErrEnvironment(t: Trace): String? {
     // Match the normative prefix with the human model to get activity states
     val normPrefix = t.subList(0, t.size - 1)
     val activityStates = if (normPrefix.isNotEmpty())
