@@ -79,7 +79,7 @@ class LTSAHelper : CliktCommand(name = "LTSAHelper", help = "Provides useful fun
       if (s in visited)
         continue
       visited.add(s)
-      outTrans[s]!!.forEach {
+      outTrans[s]?.forEach {
         reachable.add(arrayOf(it.first, it.second, it.third))
         q.offer(it.third)
       }

@@ -7,7 +7,7 @@ const P_XrayLevel = 1
 const P_EBeamLevel = 2
 range P_TPowerLevel = P_NotSet..P_EBeamLevel
 
-P = VAR[P_OutPlace][P_NotSet],
+property P = VAR[P_OutPlace][P_NotSet],
 VAR[iSpreader:P_TSpreader][iPowerLevel:P_TPowerLevel] = (
       mInPlace -> VAR[P_InPlace][iPowerLevel]
     | mOutPlace -> VAR[P_OutPlace][iPowerLevel]
@@ -16,6 +16,6 @@ VAR[iSpreader:P_TSpreader][iPowerLevel:P_TPowerLevel] = (
     | when (iPowerLevel == P_NotSet) mInitXray -> VAR[iSpreader][P_XrayLevel]
     | when (iPowerLevel == P_NotSet) mInitEBeam -> VAR[iSpreader][P_EBeamLevel]
     | when (iPowerLevel != P_NotSet && !(iSpreader == P_OutPlace && iPowerLevel == P_XrayLevel)) mFire -> VAR[iSpreader][iPowerLevel]
-    | when (iSpreader == P_OutPlace && iPowerLevel == P_XrayLevel) mFire -> ERROR
-    | when (iPowerLevel == P_NotSet) mFire -> ERROR
+//    | when (iSpreader == P_OutPlace && iPowerLevel == P_XrayLevel) mFire -> ERROR
+//    | when (iPowerLevel == P_NotSet) mFire -> ERROR
 ).
