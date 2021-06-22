@@ -27,19 +27,42 @@ package edu.cmu.isr.robust.ltsa
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.switch
+import edu.cmu.isr.robust.util.SimpleTransitions
 import edu.cmu.isr.robust.util.StateMachine
+import edu.cmu.isr.robust.util.Transition
 import java.io.File
 import java.util.*
 
 class LTSAHelper : CliktCommand(name = "LTSAHelper", help = "Provides useful functions for LTSA.") {
 
-  val name by option(help = "The name of the process to compose")
-  val file by argument(help = "LTSA files")
+  enum class Type { LTS, JSON }
+
+  val type by option(help = "File type of the input file").switch("--lts" to Type.LTS, "--json" to Type.JSON)
+  val name by option(help = "The name of the process to compose. Only works for LTS mode.")
+  val file by argument(help = "Input file")
 
   override fun run() {
+    when (type) {
+      Type.LTS -> lts2json()
+      Type.JSON -> json2lts()
+      else -> throw PrintMessage("Please specify the file type.")
+    }
+  }
+
+  private fun json2lts() {
+    val obj = jacksonObjectMapper().readValue<StateMachineJson>(File(file).readText())
+    val trans = obj.transitions.map { Transition(it[0], it[1], it[2]) }
+    val m = StateMachine(SimpleTransitions(trans), obj.alphabet, emptySet())
+    println(m.buildFSP(obj.process))
+  }
+
+  private fun lts2json() {
     val f = File(file)
     val spec = f.readText()
     val comp = name?.let { LTSACall.doCompile(spec, it).doCompose() } ?: LTSACall.doCompile(spec).doCompose()
