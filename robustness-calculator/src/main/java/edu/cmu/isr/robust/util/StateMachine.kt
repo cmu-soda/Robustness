@@ -110,7 +110,7 @@ class StateMachine {
    */
   fun buildFSP(name: String = "A", unused: Boolean = true): String {
     if (transitions.isEmpty()) {
-      return "$name = END."
+      return "$name = END+{${alphabet.filter { it != "_tau_" }.joinToString(", ")}}."
     }
 
     // Escaped event names
