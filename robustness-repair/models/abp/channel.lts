@@ -1,0 +1,2 @@
+CHANNEL = (in -> out -> CHANNEL).
+||ENV = (trans:CHANNEL || recv:CHANNEL)/{send/trans.in, rec/trans.out, ack/recv.in, getack/recv.out}.

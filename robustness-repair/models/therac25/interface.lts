@@ -1,0 +1,5 @@
+INTERFACE = (hPressX -> mInPlace -> mInitXray -> CONFIRM | hPressE -> mOutPlace -> mInitEBeam -> CONFIRM),
+EDIT = (hPressX -> mInPlace -> CONFIRM | hPressE -> mOutPlace -> CONFIRM),
+CONFIRM = (hPressUp -> EDIT | hPressEnter -> PREP),
+PREP = (hPressB -> FIRE | hPressUp1 -> CONFIRM),
+FIRE = (mFire -> hPressEnter -> EDIT).

@@ -1,0 +1,1 @@
+REC = (rec -> output -> ack -> REC).

@@ -1,0 +1,8 @@
+menu INPUT_ACTS = {hPressX, hPressE, hPressUp, hPressEnter, hPressB, hPressUp1}
+menu OUTPUT_ACTS = {mFire}
+
+POWER = (hPressX -> mInitXray -> XRAY | hPressE -> mInitEBeam -> EBEAM),
+TOXRAY = (hPressX -> TOXRAY | hPressE -> EBEAM | mXrayLvl -> XRAY),
+TOEBEAM = (hPressX -> XRAY | hPressE -> TOEBEAM | mEBeamLvl -> EBEAM),
+XRAY = (hPressX -> XRAY | hPressE -> TOEBEAM),
+EBEAM = (hPressE -> EBEAM | hPressX -> TOXRAY).

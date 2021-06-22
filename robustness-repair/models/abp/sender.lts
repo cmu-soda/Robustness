@@ -1,0 +1,1 @@
+SENDER = (input -> send -> getack -> SENDER).
