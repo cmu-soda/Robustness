@@ -7,6 +7,16 @@ class StateMachine:
         self.transitions = transitions
         self.alphabet = alphabet
     
+    def extend_alphabet(self, alphabet):
+        new_trans = self.transitions.copy()
+        new_alphabet = self.alphabet.copy()
+        for a in set(alphabet) - set(self.alphabet):
+            new_alphabet.append(a)
+        for s in self.all_states():
+            for a in range(len(self.alphabet), len(new_alphabet)):
+                new_trans.append([s, a, s])
+        return StateMachine(self.name, new_trans, new_alphabet)
+    
     @staticmethod
     def from_json(file):
         with open(file) as f:
@@ -15,7 +25,8 @@ class StateMachine:
 
     @staticmethod
     def from_fsm(file, alphabet):
-        alphabet = ["_tau_"] + alphabet
+        assert "_tau_" not in alphabet, "Tau should not be in the alphabet of FSM"
+        alphabet = ["_tau_"] + list(alphabet)
         with open(file) as f:
             states = []
             transitions = []
@@ -31,7 +42,7 @@ class StateMachine:
                 if t in alphabet:
                     return alphabet.index(t)
                 else:
-                    assert("ERROR! All alphabet should be included already.")
+                    assert False, "ERROR! All alphabet should be included already."
                     alphabet.append(t)
                     return len(alphabet) - 1
 
