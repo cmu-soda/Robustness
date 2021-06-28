@@ -72,7 +72,7 @@ class StateMachine:
         return out
     
     def all_states(self):
-        states = set()
+        states = set([0])
         for t in self.transitions:
             states.add(t[0])
             states.add(t[2])
