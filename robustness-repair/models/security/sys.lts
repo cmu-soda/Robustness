@@ -1,0 +1,37 @@
+// Platform process -- this is insecure and how the adversary can send messages 
+
+PLATFORM = (password -> PLATFORM
+		   |gibberish -> PLATFORM
+		   |select_server -> server_platform_connect -> get_server -> (reject_server -> PLATFORM | accept_server -> CONNECTED_PLATFORM)), 
+CONNECTED_PLATFORM = (encr_device_to_platform -> encr_platform_to_server -> encr_entity_to_platform -> encr_platform_to_device -> (success -> CONNECTED_SERVER_PLATFORM | reject -> CONNECTED_PLATFORM)
+					 |exit -> PLATFORM), 
+CONNECTED_SERVER_PLATFORM = (msg_device_to_platform -> msg_platform_to_server -> CONNECTED_SERVER_PLATFORM_RECEIVING
+							|exit -> PLATFORM), 
+CONNECTED_SERVER_PLATFORM_RECEIVING = (encr_msg_entity_to_platform -> encr_msg_platform_to_device  -> CONNECTED_SERVER_PLATFORM
+									  |exit -> PLATFORM).
+
+
+// Does encryption and decryption and interfaces with the user -- device process
+
+DEVICE = (get_server -> (reject_server -> DEVICE | enter_id_password -> accept_server -> CONNECTED_DEVICE)), 
+CONNECTED_DEVICE = (encr_device_to_platform -> encr_platform_to_device -> check_info -> (success -> CONNECTED_SERVER_DEVICE | reject -> CONNECTED_DEVICE)
+				   |exit -> DEVICE), 
+CONNECTED_SERVER_DEVICE = (send_message -> msg_device_to_platform -> encr_msg_platform_to_device -> receive_message -> CONNECTED_SERVER_DEVICE
+						  |exit -> DEVICE). 
+
+
+//Server process is authenticated if device deems successs
+
+SERVER = (server_platform_connect -> (reject_server -> SERVER| accept_server -> CONNECTED_SERVER)), 
+CONNECTED_SERVER = (encr_platform_to_server -> encr_entity_to_platform -> check_info -> (success -> SERVER_AUTH | reject -> CONNECTED_SERVER)
+				   |exit -> SERVER), 
+SERVER_AUTH = (msg_platform_to_server -> encr_msg_entity_to_platform -> SERVER_AUTH
+			  |exit -> SERVER). 
+
+
+//adversay can infilitrate through password being entered early on, a bad message being given success, or a bad message being approved by the user
+ 
+ADVERSARY = (password -> adversary_attacks -> ADVERSARY
+			|encr_msg_entity_to_platform -> (server -> SAFE2 | hoax -> UNSAFE2)),
+SAFE2 = (verify_message -> ADVERSARY | reject_message -> ADVERSARY), 
+UNSAFE2 = (verify_message -> adversary_attacks -> ADVERSARY | reject_message -> ADVERSARY).
