@@ -6,4 +6,4 @@ VP = (v.exit -> P | vote -> VPE | select -> VP),
 VPE = (v.enter -> VPE | v.exit -> VPE | eo.enter -> VPEE | select -> VPE | vote -> VPE),
 VPEE = (eo.enter -> VPEE | eo.exit -> VPE | vote -> VPEE). 
 
-||PROP = (S||P). 
+||PROP = (P).

@@ -1,0 +1,12 @@
+const NoBody = 0
+const Voter = 1
+const EO = 2
+range WHO = NoBody..EO
+
+P = VOTE[NoBody][NoBody][0],
+VOTE[user:WHO][v:WHO][voted:0..1] = (
+      vo.enter -> VOTE[Voter][v][voted] | eo.enter -> VOTE[EO][v][voted]
+    | vote -> VOTE[user][v][1]
+    | when (voted == 1 && user == v) select -> VOTE[user][user][voted]
+    | when (voted == 0) select -> VOTE[user][user][voted]
+).

@@ -28,7 +28,7 @@ class Repair:
         L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=True, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
         L = d.composition.observer(L)
         if len(L.vs) != 0:
-            self.fsm2lts(L, "sup")
+            self.fsm2lts(L, "sup", self.observable)
         else:
             print("Cannot find a controller")
 
@@ -52,10 +52,10 @@ class Repair:
         m.to_fsm(self.controllable, self.observable, tmp_fsm)
         return d.read_fsm(tmp_fsm)
 
-    def fsm2lts(self, fsm, name):
+    def fsm2lts(self, fsm, name, alphabet):
         fsm_file = f"tmp/{name}.fsm"
         d.write_fsm(fsm_file, fsm)
-        m = StateMachine.from_fsm(fsm_file, self.alphabet)
+        m = StateMachine.from_fsm(fsm_file, alphabet)
         json_file = f"tmp/{name}.json"
         m.to_json(json_file)
         lts = subprocess.check_output([
