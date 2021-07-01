@@ -10,7 +10,7 @@ alphabet = set(["back", "confirm", "password", "select", "vote",
 
 r = Repair(
     plant=["sys.lts", "env.lts"],
-    property = ["p2.lts"], 
+    property = ["p2.lts", "confirm.fsm"], 
     alphabet = alphabet,
     controllable = set(["back", "confirm", "password", "select", "vote"]),
     observable = alphabet-set(["eo.enter", "eo.exit", "v.enter", "v.exit"])

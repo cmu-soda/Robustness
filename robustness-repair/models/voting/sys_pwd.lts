@@ -1,0 +1,7 @@
+EM = (select -> P2),
+P2 = (vote -> P3 | back -> EM),
+P3 = (confirm -> END | back -> P2).
+
+PWD = (password -> END).
+
+||SYS = (EM || PWD).

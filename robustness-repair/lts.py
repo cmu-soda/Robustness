@@ -2,10 +2,11 @@ import json
 from os import path
 
 class StateMachine:
-    def __init__(self, name, transitions, alphabet):
+    def __init__(self, name, transitions, alphabet, accept=None):
         self.name = name
         self.transitions = transitions
         self.alphabet = alphabet
+        self.accept = set() if accept == None else accept
     
     def extend_alphabet(self, alphabet):
         new_trans = self.transitions.copy()
@@ -15,21 +16,27 @@ class StateMachine:
         for s in self.all_states():
             for a in range(len(self.alphabet), len(new_alphabet)):
                 new_trans.append([s, a, s])
-        return StateMachine(self.name, new_trans, new_alphabet)
+        return StateMachine(self.name, new_trans, new_alphabet, self.accept)
     
     @staticmethod
     def from_json(file):
         with open(file) as f:
             obj = json.load(f)
-            return StateMachine(obj["process"], obj["transitions"], obj["alphabet"])
+            m = StateMachine(obj["process"], obj["transitions"], obj["alphabet"])
+            m.accept = m.all_states()
+            return m
 
     @staticmethod
-    def from_fsm(file, alphabet):
-        assert "_tau_" not in alphabet, "Tau should not be in the alphabet of FSM"
-        alphabet = ["_tau_"] + list(alphabet)
+    def from_fsm(file, alphabet=None):
+        if alphabet == None:
+            alphabet = ["_tau_"]
+        else:
+            assert "_tau_" not in alphabet, "Tau should not be in the alphabet of FSM"
+            alphabet = ["_tau_"] + list(alphabet)
         with open(file) as f:
             states = []
             transitions = []
+            accept = set()
 
             def state_idx(s):
                 if s in states:
@@ -42,7 +49,7 @@ class StateMachine:
                 if t in alphabet:
                     return alphabet.index(t)
                 else:
-                    assert False, "ERROR! All alphabet should be included already."
+                    # assert False, "ERROR! All alphabet should be included already."
                     alphabet.append(t)
                     return len(alphabet) - 1
 
@@ -51,6 +58,8 @@ class StateMachine:
             while i < len(lines):
                 line_state = lines[i].strip().split("\t")
                 s = state_idx(line_state[0])
+                if line_state[1] == "1": # marked
+                    accept.add(s)
                 for _ in range(int(line_state[2])):
                     i += 1
                     line_t = lines[i].strip().split("\t")
@@ -61,7 +70,7 @@ class StateMachine:
 
             name = path.basename(file)
             name = name[:name.index(".")]
-            return StateMachine(name, transitions, alphabet)
+            return StateMachine(name, transitions, alphabet, accept)
 
     def out_trans(self):
         out = {}
@@ -88,12 +97,12 @@ class StateMachine:
         for s in out_trans:
             fsm += "\n"
             trans = out_trans[s]
-            fsm += f"State{s}\t0\t{len(trans)}\n"
+            fsm += f"State{s}\t{1 if s in self.accept else 0}\t{len(trans)}\n"
             for t in trans:
                 fsm += f"{self.alphabet[t[1]]}\tState{t[2]}\t{c[t[1]]}\t{o[t[1]]}\n"
         
         for s in all_states - out_trans.keys():
-            fsm += f"\nState{s}\t0\t0\n"
+            fsm += f"\nState{s}\t{1 if s in self.accept else 0}\t0\n"
         
         if file != None:
             with open(file, "w") as f:

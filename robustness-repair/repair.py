@@ -20,17 +20,32 @@ class Repair:
     def synthesize(self):
         if not path.exists("tmp"):
             os.mkdir("tmp")
-        plant = list(map(lambda x: self.lts2fsm(x), self.plant))
+        plant = list(map(lambda x: self.to_fsm(x), self.plant))
         plant = plant[0] if len(plant) == 1 else d.composition.parallel(*plant)
-        p = list(map(lambda x: self.lts2fsm(x, extend_alphabet=True), self.property))
+        p = list(map(lambda x: self.to_fsm(x, extend_alphabet=True), self.property))
         p = p[0] if len(p) == 1 else d.composition.parallel(*p)
 
-        L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=True, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
+        L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
         L = d.composition.observer(L)
         if len(L.vs) != 0:
             self.fsm2lts(L, "sup", self.observable)
         else:
             print("Cannot find a controller")
+    
+    def to_fsm(self, file, extend_alphabet=False):
+        if file.endswith(".lts"):
+            return self.lts2fsm(file, extend_alphabet)
+        elif file.endswith(".fsm"):
+            if extend_alphabet:
+                m = StateMachine.from_fsm(file)
+                m = m.extend_alphabet(self.alphabet)
+                tmp_fsm = f"tmp/{path.basename(file)}.fsm"
+                m.to_fsm(self.controllable, self.observable, tmp_fsm)
+                return d.read_fsm(tmp_fsm)
+            else:
+                return d.read_fsm(file)
+        else:
+            raise Exception("Unknown input file type")
 
     def lts2fsm(self, file, extend_alphabet=False):
         print("Convert", file, "to fsm model")
