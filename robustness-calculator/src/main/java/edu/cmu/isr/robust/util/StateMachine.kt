@@ -230,8 +230,12 @@ class StateMachine {
         dfaTrans.add(Triple(i_s, a, i_n))
       }
     }
-    val dfaEndState = dfaStates.indices.filter { i -> endState.containsAll(dfaStates[i]) }
-    return Pair(StateMachine(SimpleTransitions(dfaTrans), alphabet, dfaEndState.toSet()), dfaStates)
+
+    val dfaSimpleTrans = SimpleTransitions(dfaTrans)
+    val dfaEndState = dfaStates.indices.filter { i ->
+      i !in dfaSimpleTrans.outTrans() && (dfaStates[i] intersect endState).isNotEmpty()
+    }
+    return Pair(StateMachine(dfaSimpleTrans, alphabet, dfaEndState.toSet()), dfaStates)
   }
 
   /**

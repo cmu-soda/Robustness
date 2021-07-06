@@ -30,8 +30,12 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.PrintMessage
+import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.multiple
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.switch
 import edu.cmu.isr.robust.util.SimpleTransitions
 import edu.cmu.isr.robust.util.StateMachine
@@ -40,11 +44,15 @@ import java.io.File
 import java.util.*
 
 class LTSAHelper : CliktCommand(name = "LTSAHelper", help = "Provides useful functions for LTSA.") {
+  override fun run() { }
+}
+
+class Convert : CliktCommand(help = "Convert between FSP files and JSON") {
 
   enum class Type { LTS, JSON }
 
   val type by option(help = "File type of the input file").switch("--lts" to Type.LTS, "--json" to Type.JSON)
-  val name by option(help = "The name of the process to compose. Only works for LTS mode.")
+  val name by option("--name", "-n", help = "The name of the process to compose. Only works for LTS mode.")
   val file by argument(help = "Input file")
 
   override fun run() {
@@ -106,4 +114,54 @@ private data class StateMachineJson(
   val transitions: List<Array<Int>>
 )
 
-fun main(args: Array<String>) = LTSAHelper().main(args)
+class Abstract : CliktCommand(help = "Abstract a LTS by a given set of alphabets") {
+
+  val model by option("--model", "-m", help = "The model file").required()
+  val name by option("--name", "-n", help = "The name of the process to compose.")
+  val format by option("--format", "-f", help = "Output format, either 'lts' or 'json'").default("lts")
+  val events by argument(help = "The list of events that need to be abstracted").multiple()
+
+  override fun run() {
+    if (events.isEmpty())
+      throw PrintMessage("Should provide at least one event to be abstracted.")
+
+    val f = File(model)
+    val spec = f.readText()
+    val comp = name?.let { LTSACall.doCompile(spec, it).doCompose() } ?: LTSACall.doCompile(spec).doCompose()
+    val m = StateMachine(comp)
+
+    val abs = StringBuilder()
+    abs.append(m.buildFSP("A"))
+    abs.setLength(abs.length - 2) // remove ".\n"
+    abs.append("\\{${events.joinToString(", ")}}.")
+    abs.append("\n\n")
+
+    abs.append(m.buildFSP("B"))
+    abs.setLength(abs.length - 2) // remove ".\n"
+    abs.append("@{${events.joinToString(", ")}}.")
+    abs.append("\n\n")
+
+    abs.append("||ABS = (A || B).")
+
+    val absComp = LTSACall.doCompile(abs.toString(), "ABS").doCompose()
+    val absModel = StateMachine(absComp)
+    val (absDFA, _) = absModel.tauElmAndSubsetConstr()
+
+    when (format) {
+      "lts" -> println(absDFA.buildFSP("ABS"))
+      "json" -> {
+        val json = StateMachineJson(
+          filename = "",
+          process = "ABS",
+          alphabet = absDFA.alphabet,
+          transitions = absDFA.transitions.map { arrayOf(it.first, it.second, it.third) }
+        )
+        jacksonObjectMapper().writerWithDefaultPrettyPrinter().writeValue(System.out, json)
+      }
+      else -> throw PrintMessage("Unknown output format.")
+    }
+  }
+
+}
+
+fun main(args: Array<String>) = LTSAHelper().subcommands(Convert(), Abstract()).main(args)
