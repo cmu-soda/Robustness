@@ -44,6 +44,8 @@ class Repair:
                 return d.read_fsm(tmp_fsm)
             else:
                 return d.read_fsm(file)
+        elif file.endswith(".json"):
+            return self.json2fsm(file, extend_alphabet)
         else:
             raise Exception("Unknown input file type")
 
@@ -57,13 +59,17 @@ class Repair:
                 "-cp",
                 path.join(this_file, "../bin/robustness-calculator.jar"),
                 "edu.cmu.isr.robust.ltsa.LTSAHelperKt",
+                "convert",
                 "--lts",
                 file,
             ], stdout=f)
-        m = StateMachine.from_json(tmp_json)
+        return self.json2fsm(tmp_json, extend_alphabet)
+    
+    def json2fsm(self, file, extend_alphabet=False):
+        m = StateMachine.from_json(file)
         if extend_alphabet:
             m = m.extend_alphabet(self.alphabet)
-        tmp_fsm = f"tmp/{name}.fsm"
+        tmp_fsm = f"tmp/{path.basename(file)}.fsm"
         m.to_fsm(self.controllable, self.observable, tmp_fsm)
         return d.read_fsm(tmp_fsm)
 
@@ -78,9 +84,30 @@ class Repair:
             "-cp",
             path.join(this_file, "../bin/robustness-calculator.jar"),
             "edu.cmu.isr.robust.ltsa.LTSAHelperKt",
+            "convert",
             "--json",
             json_file,
         ], text=True)
         print("=============================")
         print("Synthesized Controller:")
         print(lts)
+    
+    @staticmethod
+    def abstract(file, abs_set):
+        print("Abstract", file, "by", abs_set)
+        name = path.basename(file)
+        tmp_json = f"tmp/abs_{name}.json"
+        with open(tmp_json, "w") as f:
+            subprocess.run([
+                "java",
+                "-cp",
+                path.join(this_file, "../bin/robustness-calculator.jar"),
+                "edu.cmu.isr.robust.ltsa.LTSAHelperKt",
+                "abstract",
+                "-m",
+                file,
+                "-f",
+                "json",
+                *abs_set
+            ], stdout=f)
+        return tmp_json
