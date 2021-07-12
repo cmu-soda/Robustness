@@ -9,47 +9,83 @@ from lts import StateMachine
 this_file = path.dirname(path.abspath(__file__))
 
 
+# Definition of priority
+HIGH = 0
+MEDIUM = 1
+LOW = 3
+
 class Repair:
-    def __init__(self, plant, property, alphabet, controllable, observable):
+    def __init__(self, plant, safety, desired, alphabet, controllable, observable):
+        # the model files of the plant, type: list(str)
         self.plant = plant
-        self.property = property
-        self.controllable = controllable
-        self.observable = observable
+        # the model files of the safety property, type: list(str)
+        self.safety = safety
+        # a map from importance to model files of the desired behavior, type: Priority -> list(str)
+        self.desired = desired
+        # a list of events for \alpha M \cup \alpha E, type: list(str)
         self.alphabet = alphabet
+        # a map from cost to list of controllable events, type: Priority -> list(str)
+        self.controllable = controllable
+        # a map from cost to list of observable events, type: Priority -> list(str)
+        self.observable = observable
+        # TODO:
+        # assert controllable should be a subset of observable
+        # assert False, "Controllable should be a subset of observable"
+        # assert observable is a subset of alphabet
+        # assert False, "Observable events should be a subset of the alphabet"
     
-    def synthesize(self):
+    def _synthesize(self, desired, controllable, observable):
+        """
+        Given a set of desired behavior, controllable events, and observable events,
+        this function returns a controller by invoking DESops. None is returned when
+        no such controller can be found.
+        """
         if not path.exists("tmp"):
             os.mkdir("tmp")
-        plant = list(map(lambda x: self.to_fsm(x), self.plant))
+        plant = list(map(lambda x: self.to_fsm(x, controllable, observable), self.plant))
         plant = plant[0] if len(plant) == 1 else d.composition.parallel(*plant)
-        p = list(map(lambda x: self.to_fsm(x, extend_alphabet=True), self.property))
+        p = list(map(lambda x: self.to_fsm(x, controllable, observable, extend_alphabet=True), self.safety + desired))
         p = p[0] if len(p) == 1 else d.composition.parallel(*p)
 
         L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
         L = d.composition.observer(L)
         if len(L.vs) != 0:
-            self.fsm2lts(L, "sup", self.observable)
+            # return self.fsm2lts(L, "sup", observable)
+            return L
         else:
-            print("Cannot find a controller")
+            return None
     
-    def to_fsm(self, file, extend_alphabet=False):
+    def _minimize_controller(self, plant, sup, controllable, observable):
+        """
+        Given a plant, controller, controllable events, and observable events, remove unnecessary
+        controllable/observable events to minimize its cost.
+        """
+        # TODO:
+    
+    def synthesize(self, n):
+        """
+        Given maximum number of solutions n, return a list of n solutions.
+        """
+        # TODO:
+    
+    def to_fsm(self, file, controllable, observable, extend_alphabet=False):
         if file.endswith(".lts"):
-            return self.lts2fsm(file, extend_alphabet)
+            return self.lts2fsm(file, controllable, observable, extend_alphabet)
         elif file.endswith(".fsm"):
             if extend_alphabet:
                 m = StateMachine.from_fsm(file)
                 m = m.extend_alphabet(self.alphabet)
                 tmp_fsm = f"tmp/{path.basename(file)}.fsm"
-                m.to_fsm(self.controllable, self.observable, tmp_fsm)
+                m.to_fsm(controllable, observable, tmp_fsm)
                 return d.read_fsm(tmp_fsm)
             else:
                 return d.read_fsm(file)
         elif file.endswith(".json"):
-            return self.json2fsm(file, extend_alphabet)
+            return self.json2fsm(file, controllable, observable, extend_alphabet)
         else:
             raise Exception("Unknown input file type")
 
-    def lts2fsm(self, file, extend_alphabet=False):
+    def lts2fsm(self, file, controllable, observable, extend_alphabet=False):
         print("Convert", file, "to fsm model")
         name = path.basename(file)
         tmp_json = f"tmp/{name}.json"
@@ -63,14 +99,14 @@ class Repair:
                 "--lts",
                 file,
             ], stdout=f)
-        return self.json2fsm(tmp_json, extend_alphabet)
+        return self.json2fsm(tmp_json, controllable, observable, extend_alphabet)
     
-    def json2fsm(self, file, extend_alphabet=False):
+    def json2fsm(self, file, controllable, observable, extend_alphabet=False):
         m = StateMachine.from_json(file)
         if extend_alphabet:
             m = m.extend_alphabet(self.alphabet)
         tmp_fsm = f"tmp/{path.basename(file)}.fsm"
-        m.to_fsm(self.controllable, self.observable, tmp_fsm)
+        m.to_fsm(controllable, observable, tmp_fsm)
         return d.read_fsm(tmp_fsm)
 
     def fsm2lts(self, fsm, name, alphabet):
@@ -88,9 +124,7 @@ class Repair:
             "--json",
             json_file,
         ], text=True)
-        print("=============================")
-        print("Synthesized Controller:")
-        print(lts)
+        return lts
     
     @staticmethod
     def abstract(file, abs_set):
