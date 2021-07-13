@@ -3,20 +3,21 @@ from os import path
 
 sys.path.append(path.dirname(path.dirname(path.dirname(path.abspath(__file__)))))
 
-from repair import Repair, HIGH, MEDIUM, LOW
+from repair import *
 
 alphabet = ["back", "confirm", "password", "select", "vote",
             "eo.enter", "eo.exit", "v.enter", "v.exit"]
 
 r = Repair(
-    plant=["sys.lts", "env.lts"],
+    sys=["sys.lts"],
+    env_p=["env.lts"],
     safety=["p2.lts"],
     desired={   # rank the desired behavior by importance
         HIGH: ["confirm.fsm"],
         MEDIUM: [],
         LOW: [] 
     },
-    alphabet=alphabet,
+    alphabet=alphabet,  # \alpha M \union \alpha E
     controllable={  # rank the controllable events by cost
         HIGH: ["eo.enter", "eo.exit", "v.enter", "v.exit"],
         MEDIUM: [],

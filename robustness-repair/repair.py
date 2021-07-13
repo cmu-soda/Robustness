@@ -15,9 +15,11 @@ MEDIUM = 1
 LOW = 3
 
 class Repair:
-    def __init__(self, plant, safety, desired, alphabet, controllable, observable):
-        # the model files of the plant, type: list(str)
-        self.plant = plant
+    def __init__(self, sys, env_p, safety, desired, alphabet, controllable, observable):
+        # the model files of the system, type: list(str)
+        self.sys = sys
+        # the model files of the deviated environment model, type: list(str)
+        self.env_p = env_p
         # the model files of the safety property, type: list(str)
         self.safety = safety
         # a map from importance to model files of the desired behavior, type: Priority -> list(str)
@@ -42,7 +44,7 @@ class Repair:
         """
         if not path.exists("tmp"):
             os.mkdir("tmp")
-        plant = list(map(lambda x: self.to_fsm(x, controllable, observable), self.plant))
+        plant = list(map(lambda x: self.to_fsm(x, controllable, observable), self.sys + self.env_p))
         plant = plant[0] if len(plant) == 1 else d.composition.parallel(*plant)
         p = list(map(lambda x: self.to_fsm(x, controllable, observable, extend_alphabet=True), self.safety + desired))
         p = p[0] if len(p) == 1 else d.composition.parallel(*p)
@@ -51,23 +53,56 @@ class Repair:
         L = d.composition.observer(L)
         if len(L.vs) != 0:
             # return self.fsm2lts(L, "sup", observable)
-            return L
+            return L, plant, p  # return the supervisor, the plant, and the property model
         else:
             return None
     
-    def _minimize_controller(self, plant, sup, controllable, observable):
+    def minimize_controller(self, plant, sup, controllable, observable):
         """
         Given a plant, controller, controllable events, and observable events, remove unnecessary
         controllable/observable events to minimize its cost.
         """
         # TODO:
+        # plant and sup are DESops objects
     
     def synthesize(self, n):
         """
         Given maximum number of solutions n, return a list of n solutions.
         """
         # TODO:
+        # desired = self.nextMaxDesiredBeh(desired)
+        # sup, plant, _ = self._synthesize(desired, max_controllable, max_observable)
+        # sup, controllable, observable = self.minimize_controller(plant, sup, max_controllable, max_observable)
+        # utility = self.compute_utility(desired, controllable, observable)
+        # result = {
+        #     "M_prime": self.compose_M_prime(sup),
+        #     "controllable": controllable,
+        #     "observable": observable,
+        #     "utility": utility
+        # }
+        # yield result
     
+    def nextMaxDesiredBeh(self, desired):
+        """
+        Given the current desired behavior that are used to compute a controller, returns the
+        next best set of desired behavior that minimizes the lost in utility.
+        """
+    
+    def compute_utility(self, desired, controllable, observable):
+        """
+        Given the desired behavior that are satisfied, the controllable events needed, and
+        the observable events needed, return the utility value.
+        """
+    
+    def compose_M_prime(self, sup):
+        """
+        Given a controller, compose it with the original system M to get the new design M'
+        """
+    
+    # def tmp_file_suffix(self, controllable, observable):
+    #     s = set(controllable).union(set(observable))
+    #     return f"{hash(tuple(s)):X}"
+
     def to_fsm(self, file, controllable, observable, extend_alphabet=False):
         if file.endswith(".lts"):
             return self.lts2fsm(file, controllable, observable, extend_alphabet)
