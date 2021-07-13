@@ -57,32 +57,45 @@ class Repair:
         else:
             return None
     
-    def minimize_controller(self, plant, sup, controllable, observable):
+    def minimize_controller(self, plant, C, controllable, observable):
         """
         Given a plant, controller, controllable events, and observable events, remove unnecessary
         controllable/observable events to minimize its cost.
         """
         # TODO:
-        # plant and sup are DESops objects
+        # Convert C to a StateMachine object
+        # print(self.fsm2lts(C, "C", observable))
+        d.write_fsm("tmp/C.fsm", C)
+        C = StateMachine.from_fsm("tmp/C.fsm", observable)
+        # Hide the unobservable events in the plant and convert it to StateMachine object
+        plant = d.composition.observer(plant)
+        d.write_fsm("tmp/G.fsm", plant)
+        plant = StateMachine.from_fsm("tmp/G.fsm", observable)
+
+        # BFS
+
     
     def synthesize(self, n):
         """
         Given maximum number of solutions n, return a list of n solutions.
         """
         # TODO:
-        # desired = self.nextMaxDesiredBeh(desired)
-        # sup, plant, _ = self._synthesize(desired, max_controllable, max_observable)
-        # sup, controllable, observable = self.minimize_controller(plant, sup, max_controllable, max_observable)
-        # utility = self.compute_utility(desired, controllable, observable)
-        # result = {
-        #     "M_prime": self.compose_M_prime(sup),
-        #     "controllable": controllable,
-        #     "observable": observable,
-        #     "utility": utility
-        # }
-        # yield result
+        # initialization (computing weights)
+        for _ in range(n):
+            pass
+            # desired = self.nextBestDesiredBeh(desired)
+            # C, plant, _ = self._synthesize(desired, max_controllable, max_observable)
+            # sup, controllable, observable = self.minimize_controller(plant, C, max_controllable, max_observable)
+            # utility = self.compute_utility(desired, controllable, observable)
+            # result = {
+            #     "M_prime": self.compose_M_prime(sup),
+            #     "controllable": controllable,
+            #     "observable": observable,
+            #     "utility": utility
+            # }
+            # yield result
     
-    def nextMaxDesiredBeh(self, desired):
+    def nextBestDesiredBeh(self, desired):
         """
         Given the current desired behavior that are used to compute a controller, returns the
         next best set of desired behavior that minimizes the lost in utility.
