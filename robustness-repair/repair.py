@@ -85,9 +85,12 @@ class Repair:
             for a in can_uo.copy():
                 if [s, sup.alphabet.index(a), s] not in out_trans[s]:
                     can_uo.remove(a)
-        # Hide unobservable events in minimized controller
         min_controllable = set(controllable) - set(can_uc)
         min_observable = set(observable) - set(can_uo)
+
+        # Remove all the self-loops for uncontrollable events
+        sup.transitions = list(filter(lambda x: x[0] != x[2] or sup.alphabet[x[1]] in min_controllable, sup.transitions))
+        # Hide unobservable events
         sup.to_fsm(min_controllable, min_observable, "tmp/sup.fsm")
         sup = d.read_fsm("tmp/sup.fsm")
         sup = d.composition.observer(sup)
@@ -127,6 +130,7 @@ class Repair:
         for _ in range(n):
             pass
             # desired = self.nextBestDesiredBeh(desired)
+            # TODO: Is Sup || G already the M' that minimize the difference?
             # C, plant, _ = self._synthesize(desired, max_controllable, max_observable)
             # sup, controllable, observable = self.minimize_controller(plant, C, max_controllable, max_observable)
             # utility = self.compute_utility(desired, controllable, observable)
