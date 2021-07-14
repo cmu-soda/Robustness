@@ -31,7 +31,7 @@ r = Repair(
 )
 # for s in r.synthesize(n=3): # generate maximum 3 solutions
 #     print(s)
-controllable = ["back", "confirm", "password", "select", "vote"]
-observable = ["back", "confirm", "password", "select", "vote"]
+controllable = alphabet
+observable = alphabet
 C, plant, _ = r._synthesize([], controllable, observable)
 r.minimize_controller(plant, C, controllable, observable)

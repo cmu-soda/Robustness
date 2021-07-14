@@ -62,7 +62,6 @@ class Repair:
         Given a plant, controller, controllable events, and observable events, remove unnecessary
         controllable/observable events to minimize its cost.
         """
-        # TODO:
         # Convert C to a StateMachine object
         # print(self.fsm2lts(C, "C", observable))
         d.write_fsm("tmp/C.fsm", C)
@@ -72,8 +71,52 @@ class Repair:
         d.write_fsm("tmp/G.fsm", plant)
         plant = StateMachine.from_fsm("tmp/G.fsm", observable)
 
-        # BFS
+        sup = self.construct_supervisor(plant, C, controllable, observable)
+        all_states = sup.all_states()
+        out_trans = sup.out_trans()
 
+        can_uc = observable.copy()
+        for s in all_states:
+            for a in can_uc.copy():
+                if sup.next_state(s, a) == None:
+                    can_uc.remove(a)
+        can_uo = can_uc.copy()
+        for s in all_states:
+            for a in can_uo.copy():
+                if [s, sup.alphabet.index(a), s] not in out_trans[s]:
+                    can_uo.remove(a)
+        # Hide unobservable events in minimized controller
+        min_controllable = set(controllable) - set(can_uc)
+        min_observable = set(observable) - set(can_uo)
+        sup.to_fsm(min_controllable, min_observable, "tmp/sup.fsm")
+        sup = d.read_fsm("tmp/sup.fsm")
+        sup = d.composition.observer(sup)
+        
+        print("Ec:", min_controllable)
+        print("Eo:", min_observable)
+        print(self.fsm2lts(sup, "sup", min_observable))
+        return sup, min_controllable, min_observable
+
+    def construct_supervisor(self, plant, C, controllable, observable):
+        qc, qg = [0], [0]
+        new_trans = C.transitions.copy()
+        visited = set()
+        while len(qc) > 0:
+            sc, sg = qc.pop(0), qg.pop(0)
+            if sc in visited:
+                continue
+            visited.add(sc)
+            for a in observable:
+                sc_p = C.next_state(sc, a) # assuming C and plant are deterministic
+                sg_p = plant.next_state(sg, a)
+                if sc_p != None:
+                    qc.append(sc_p)
+                    qg.append(sg_p)
+                elif a not in controllable: # uncontrollable event
+                    new_trans.append([sc, C.alphabet.index(a), sc])
+                elif sg_p == None: # controllable but not defined in G
+                    new_trans.append([sc, C.alphabet.index(a), sc])
+        return StateMachine("sup", new_trans, C.alphabet, C.accept)
     
     def synthesize(self, n):
         """
@@ -163,6 +206,9 @@ class Repair:
         m = StateMachine.from_fsm(fsm_file, alphabet)
         json_file = f"tmp/{name}.json"
         m.to_json(json_file)
+        return self.json2lts(json_file)
+    
+    def json2lts(self, file):
         lts = subprocess.check_output([
             "java",
             "-cp",
@@ -170,7 +216,7 @@ class Repair:
             "edu.cmu.isr.robust.ltsa.LTSAHelperKt",
             "convert",
             "--json",
-            json_file,
+            file,
         ], text=True)
         return lts
     

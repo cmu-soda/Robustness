@@ -18,6 +18,14 @@ class StateMachine:
                 new_trans.append([s, a, s])
         return StateMachine(self.name, new_trans, new_alphabet, self.accept)
     
+    def next_state(self, s, a):
+        out_trans = self.out_trans()
+        i = self.alphabet.index(a)
+        for t in out_trans[s]:
+            if t[1] == i:
+                return t[2]
+        return None
+    
     @staticmethod
     def from_json(file):
         with open(file) as f:
