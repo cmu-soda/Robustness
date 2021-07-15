@@ -1,7 +1,8 @@
 import subprocess
 import os
 from os import path
-import sys
+from random import random
+import shutil
 import DESops as d
 from lts import StateMachine
 
@@ -35,6 +36,10 @@ class Repair:
         # assert False, "Controllable should be a subset of observable"
         # assert observable is a subset of alphabet
         # assert False, "Observable events should be a subset of the alphabet"
+
+        if path.exists("tmp"):
+            shutil.rmtree("tmp")
+        os.mkdir("tmp")
     
     def _synthesize(self, desired, controllable, observable):
         """
@@ -42,17 +47,14 @@ class Repair:
         this function returns a controller by invoking DESops. None is returned when
         no such controller can be found.
         """
-        if not path.exists("tmp"):
-            os.mkdir("tmp")
-        plant = list(map(lambda x: self.to_fsm(x, controllable, observable), self.sys + self.env_p))
+        plant = list(map(lambda x: self.file2fsm(x, controllable, observable), self.sys + self.env_p))
         plant = plant[0] if len(plant) == 1 else d.composition.parallel(*plant)
-        p = list(map(lambda x: self.to_fsm(x, controllable, observable, extend_alphabet=True), self.safety + desired))
+        p = list(map(lambda x: self.file2fsm(x, controllable, observable, extend_alphabet=True), self.safety + desired))
         p = p[0] if len(p) == 1 else d.composition.parallel(*p)
 
         L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
         L = d.composition.observer(L)
         if len(L.vs) != 0:
-            # return self.fsm2lts(L, "sup", observable)
             return L, plant, p  # return the supervisor, the plant, and the property model
         else:
             return None
@@ -63,13 +65,10 @@ class Repair:
         controllable/observable events to minimize its cost.
         """
         # Convert C to a StateMachine object
-        # print(self.fsm2lts(C, "C", observable))
-        d.write_fsm("tmp/C.fsm", C)
-        C = StateMachine.from_fsm("tmp/C.fsm", observable)
+        C = self.fsm2lts(C, observable, name="C")
         # Hide the unobservable events in the plant and convert it to StateMachine object
         plant = d.composition.observer(plant)
-        d.write_fsm("tmp/G.fsm", plant)
-        plant = StateMachine.from_fsm("tmp/G.fsm", observable)
+        plant = self.fsm2lts(plant, observable, name="G")
 
         sup = self.construct_supervisor(plant, C, controllable, observable)
         all_states = sup.all_states()
@@ -88,16 +87,15 @@ class Repair:
         min_controllable = set(controllable) - set(can_uc)
         min_observable = set(observable) - set(can_uo)
 
-        # Remove all the self-loops for uncontrollable events
+        # FIXME: Remove all the self-loops for uncontrollable events
         sup.transitions = list(filter(lambda x: x[0] != x[2] or sup.alphabet[x[1]] in min_controllable, sup.transitions))
         # Hide unobservable events
-        sup.to_fsm(min_controllable, min_observable, "tmp/sup.fsm")
-        sup = d.read_fsm("tmp/sup.fsm")
+        sup = self.lts2fsm(sup, min_controllable, min_observable, name="sup")
         sup = d.composition.observer(sup)
         
         print("Ec:", min_controllable)
         print("Eo:", min_observable)
-        print(self.fsm2lts(sup, "sup", min_observable))
+        print(self.fsm2fsp(sup, min_observable, name="min_sup"))
         return sup, min_controllable, min_observable
 
     def construct_supervisor(self, plant, C, controllable, observable):
@@ -163,25 +161,31 @@ class Repair:
     #     s = set(controllable).union(set(observable))
     #     return f"{hash(tuple(s)):X}"
 
-    def to_fsm(self, file, controllable, observable, extend_alphabet=False):
+    def file2fsm(self, file, controllable, observable, extend_alphabet=False):
+        name = path.basename(file)
+        print(f"Convert {file} to fsm model...")
         if file.endswith(".lts"):
-            return self.lts2fsm(file, controllable, observable, extend_alphabet)
+            return self.fsp2fsm(file, controllable, observable, extend_alphabet)
         elif file.endswith(".fsm"):
             if extend_alphabet:
                 m = StateMachine.from_fsm(file)
-                m = m.extend_alphabet(self.alphabet)
-                tmp_fsm = f"tmp/{path.basename(file)}.fsm"
-                m.to_fsm(controllable, observable, tmp_fsm)
-                return d.read_fsm(tmp_fsm)
+                return self.lts2fsm(m, controllable, observable, extend_alphabet=extend_alphabet, name=name)
             else:
                 return d.read_fsm(file)
         elif file.endswith(".json"):
-            return self.json2fsm(file, controllable, observable, extend_alphabet)
+            m = StateMachine.from_json(file)
+            return self.lts2fsm(m, controllable, observable, extend_alphabet=extend_alphabet, name=name)
         else:
             raise Exception("Unknown input file type")
+    
+    def lts2fsm(self, m, controllable, observable, name=None, extend_alphabet=False):
+        if extend_alphabet:
+            m = m.extend_alphabet(self.alphabet)
+        tmp = f"tmp/{name}.fsm" if name != None else f"tmp/tmp.{random() * 1000_000}.fsm"
+        m.to_fsm(controllable, observable, tmp)
+        return d.read_fsm(tmp)
 
-    def lts2fsm(self, file, controllable, observable, extend_alphabet=False):
-        print("Convert", file, "to fsm model")
+    def fsp2fsm(self, file, controllable, observable, extend_alphabet=False):
         name = path.basename(file)
         tmp_json = f"tmp/{name}.json"
         with open(tmp_json, "w") as f:
@@ -194,25 +198,21 @@ class Repair:
                 "--lts",
                 file,
             ], stdout=f)
-        return self.json2fsm(tmp_json, controllable, observable, extend_alphabet)
+        m = StateMachine.from_json(tmp_json)
+        return self.lts2fsm(m, controllable, observable, extend_alphabet=extend_alphabet, name=name)
     
-    def json2fsm(self, file, controllable, observable, extend_alphabet=False):
-        m = StateMachine.from_json(file)
+    def fsm2lts(self, obj, alphabet=None, name=None, extend_alphabet=False):
+        tmp = f"tmp/{name}.fsm" if name != None else f"tmp/tmp.{random() * 1000_000}.fsm"
+        d.write_fsm(tmp, obj)
+        m = StateMachine.from_fsm(tmp, alphabet)
         if extend_alphabet:
             m = m.extend_alphabet(self.alphabet)
-        tmp_fsm = f"tmp/{path.basename(file)}.fsm"
-        m.to_fsm(controllable, observable, tmp_fsm)
-        return d.read_fsm(tmp_fsm)
-
-    def fsm2lts(self, fsm, name, alphabet):
-        fsm_file = f"tmp/{name}.fsm"
-        d.write_fsm(fsm_file, fsm)
-        m = StateMachine.from_fsm(fsm_file, alphabet)
-        json_file = f"tmp/{name}.json"
-        m.to_json(json_file)
-        return self.json2lts(json_file)
+        return m
     
-    def json2lts(self, file):
+    def fsm2fsp(self, obj, alphabet=None, name=None):
+        m = self.fsm2lts(obj, alphabet, name)
+        tmp = f"tmp/{name}.json" if name != None else f"tmp/tmp.{random() * 1000_000}.json"
+        m.to_json(tmp)
         lts = subprocess.check_output([
             "java",
             "-cp",
@@ -220,7 +220,7 @@ class Repair:
             "edu.cmu.isr.robust.ltsa.LTSAHelperKt",
             "convert",
             "--json",
-            file,
+            tmp,
         ], text=True)
         return lts
     
