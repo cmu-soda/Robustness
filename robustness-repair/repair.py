@@ -55,14 +55,14 @@ class Repair:
         p = list(map(lambda x: self.file2fsm(x, controllable, observable, extend_alphabet=True), self.safety))
         p = p[0] if len(p) == 1 else d.composition.parallel(*p)
 
-        L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
+        L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=True, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
         L = d.composition.observer(L)
         if len(L.vs) != 0:
             return L, plant, p  # return the supervisor, the plant, and the property model
         else:
             return None
     
-    def minimize_controller(self, plant, C, controllable, observable):
+    def remove_unnecessary(self, plant, C, controllable, observable):
         """
         Given a plant, controller, controllable events, and observable events, remove unnecessary
         controllable/observable events to minimize its cost.
@@ -91,7 +91,7 @@ class Repair:
         min_observable = set(observable) - set(can_uo)
 
         # FIXME: Remove all the self-loops for uncontrollable events
-        sup.transitions = list(filter(lambda x: x[0] != x[2] or sup.alphabet[x[1]] in min_controllable, sup.transitions))
+        # sup.transitions = list(filter(lambda x: x[0] != x[2] or sup.alphabet[x[1]] in min_controllable, sup.transitions))
         # Hide unobservable events
         sup = self.lts2fsm(sup, min_controllable, min_observable, name="sup")
         sup = d.composition.observer(sup)
@@ -116,13 +116,13 @@ class Repair:
                 if sc_p != None:
                     qc.append(sc_p)
                     qg.append(sg_p)
-                elif a not in controllable: # uncontrollable event
+                elif a not in controllable: # uncontrollable event, make admissible
                     new_trans.append([sc, C.alphabet.index(a), sc])
-                elif sg_p == None: # controllable but not defined in G
+                elif sg_p == None: # controllable but not defined in G, make redundant
                     new_trans.append([sc, C.alphabet.index(a), sc])
         return StateMachine("sup", new_trans, C.alphabet, C.accept)
     
-    def computeWeights(self):
+    def compute_weights(self):
         """
         Given the priority ranking that the user provides, compute the positive utilities for desired behavior
         and the negative cost for making certain events controllable and/or observable. Return dictionary with this information
@@ -187,7 +187,7 @@ class Repair:
         #return weight_dict, weight_list
         return weight_dict, weight_list
     
-    def computeCost(self, preferred_behavior, min_controllable, min_observable, weight_dict):
+    def compute_cost(self, preferred_behavior, min_controllable, min_observable, weight_dict):
         """
         Given preferred behaviors, minimum list of observable behavior, minimum list of controllable behavior, 
         and the weight dictionary, compute the total utility of a program. 
@@ -204,20 +204,14 @@ class Repair:
         
         return utility 
     
-    def checkPreferred(self, minS, controllable, observable, desired):
+    def check_preferred(self, minS, controllable, observable, preferred):
         """
         Given some minimum supervisor, a set of controllable events, a set of observable events, 
-        and a set of desired behavior, checks how much desired behavior is satisfied
+        and a set of preferred behavior, checks how much preferred behavior is satisfied
         """
-        fulfilled_desired = []
+        fulfilled_preferred = []
 
-        #add all the stuff in
-
-        return fulfilled_desired
-
-    
-    
-
+        return fulfilled_preferred
     
     def synthesize(self, n):
         """
@@ -232,8 +226,8 @@ class Repair:
         #alphabet = self.alphabet
         #C, plant, _ = self._synthesize(alphabet, alphabet)
         #S = self.construct_supervisor(plant, C, alphabet, alphabet)
-        #minS = self.minimize_controller(plant, S, alphabet, alphabet)
-        #DF = self.checkPreferred(minS, alphabet, alphabet, desired)
+        #minS = self.remove_unnecessary(plant, S, alphabet, alphabet)
+        #DF = self.check_preferred(minS, alphabet, alphabet, desired)
 
         return DF
 
@@ -248,7 +242,7 @@ class Repair:
             # desired = self.nextBestDesiredBeh(desired)
             # TODO: Is Sup || G already the M' that minimize the difference?
             # C, plant, _ = self._synthesize(desired, max_controllable, max_observable)
-            # sup, controllable, observable = self.minimize_controller(plant, C, max_controllable, max_observable)
+            # sup, controllable, observable = self.remove_unnecessary(plant, C, max_controllable, max_observable)
             # utility = self.compute_utility(desired, controllable, observable)
             # result = {
             #     "M_prime": self.compose_M_prime(sup),
@@ -261,14 +255,14 @@ class Repair:
 
 
     
-    def compose_M_prime(self, sup):
+    def compose_M_prime(self, sup, controllable, observable):
         """
         Given a controller, compose it with the original system M to get the new design M'
         """
-    
-    # def tmp_file_suffix(self, controllable, observable):
-    #     s = set(controllable).union(set(observable))
-    #     return f"{hash(tuple(s)):X}"
+        M = list(map(lambda x: self.file2fsm(x, controllable, observable), self.sys))
+        M = M[0] if len(M) == 1 else d.composition.parallel(*M)
+        M_prime = d.composition.parallel(M, sup)
+        return M_prime
 
     def file2fsm(self, file, controllable, observable, extend_alphabet=False):
         name = path.basename(file)
@@ -300,9 +294,8 @@ class Repair:
         with open(tmp_json, "w") as f:
             subprocess.run([
                 "java",
-                "-cp",
-                path.join(this_file, "../bin/robustness-calculator.jar"),
-                "edu.cmu.isr.robust.ltsa.LTSAHelperKt",
+                "-jar",
+                path.join(this_file, "../bin/ltsa-helper.jar"),
                 "convert",
                 "--lts",
                 file,
@@ -324,9 +317,8 @@ class Repair:
         m.to_json(tmp)
         lts = subprocess.check_output([
             "java",
-            "-cp",
-            path.join(this_file, "../bin/robustness-calculator.jar"),
-            "edu.cmu.isr.robust.ltsa.LTSAHelperKt",
+            "-jar",
+            path.join(this_file, "../bin/ltsa-helper.jar"),
             "convert",
             "--json",
             tmp,
@@ -341,9 +333,8 @@ class Repair:
         with open(tmp_json, "w") as f:
             subprocess.run([
                 "java",
-                "-cp",
-                path.join(this_file, "../bin/robustness-calculator.jar"),
-                "edu.cmu.isr.robust.ltsa.LTSAHelperKt",
+                "-jar",
+                path.join(this_file, "../bin/ltsa-helper.jar"),
                 "abstract",
                 "-m",
                 file,
