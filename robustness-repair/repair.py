@@ -204,7 +204,7 @@ class Repair:
         
         return utility 
     
-    def checkPreferred(minS, controllable, observable, desired):
+    def checkPreferred(self, minS, controllable, observable, desired):
         """
         Given some minimum supervisor, a set of controllable events, a set of observable events, 
         and a set of desired behavior, checks how much desired behavior is satisfied
