@@ -17,15 +17,15 @@ PRIORITY2 = 2
 PRIORITY3 = 3
 
 class Repair:
-    def __init__(self, sys, env_p, safety, desired, alphabet, controllable, observable):
+    def __init__(self, sys, env_p, safety, preferred, alphabet, controllable, observable):
         # the model files of the system, type: list(str)
         self.sys = sys
         # the model files of the deviated environment model, type: list(str)
         self.env_p = env_p
         # the model files of the safety property, type: list(str)
         self.safety = safety
-        # a map from importance to model files of the desired behavior, type: Priority -> list(str)
-        self.desired = desired
+        # a map from importance to model files of the preferred behavior, type: Priority -> list(str)
+        self.preferred = preferred
         # a list of events for \alpha M \cup \alpha E, type: list(str)
         self.alphabet = alphabet
         # a map from cost to list of controllable events, type: Priority -> list(str)
@@ -46,7 +46,7 @@ class Repair:
     
     def _synthesize(self, controllable, observable):
         """
-        Given a set of desired behavior, controllable events, and observable events,
+        Given a set of preferred behavior, controllable events, and observable events,
         this function returns a controller by invoking DESops. None is returned when
         no such controller can be found.
         """
@@ -62,18 +62,18 @@ class Repair:
         else:
             return None
     
-    def remove_unnecessary(self, plant, C, controllable, observable):
+    def remove_unnecessary(self, plant, sup_plant, controllable, observable):
         """
         Given a plant, controller, controllable events, and observable events, remove unnecessary
         controllable/observable events to minimize its cost.
         """
-        # Convert C to a StateMachine object
-        C = self.fsm2lts(C, observable, name="C")
+        # Convert Sp/G to a StateMachine object
+        sup_plant = self.fsm2lts(sup_plant, observable)
         # Hide the unobservable events in the plant and convert it to StateMachine object
         plant = d.composition.observer(plant)
-        plant = self.fsm2lts(plant, observable, name="G")
+        plant = self.fsm2lts(plant, observable)
 
-        sup = self.construct_supervisor(plant, C, controllable, observable)
+        sup = self.construct_supervisor(plant, sup_plant, controllable, observable)
         all_states = sup.all_states()
         out_trans = sup.out_trans()
 
@@ -98,12 +98,12 @@ class Repair:
         
         print("Ec:", min_controllable)
         print("Eo:", min_observable)
-        print(self.fsm2fsp(sup, min_observable, name="min_sup"))
+        # print(self.fsm2fsp(sup, min_observable, name="min_sup"))
         return sup, min_controllable, min_observable
 
-    def construct_supervisor(self, plant, C, controllable, observable):
+    def construct_supervisor(self, plant, sup_plant, controllable, observable):
         qc, qg = [0], [0]
-        new_trans = C.transitions.copy()
+        new_trans = sup_plant.transitions.copy()
         visited = set()
         while len(qc) > 0:
             sc, sg = qc.pop(0), qg.pop(0)
@@ -111,40 +111,40 @@ class Repair:
                 continue
             visited.add(sc)
             for a in observable:
-                sc_p = C.next_state(sc, a) # assuming C and plant are deterministic
+                sc_p = sup_plant.next_state(sc, a) # assuming Sp/G and plant are deterministic
                 sg_p = plant.next_state(sg, a)
                 if sc_p != None:
                     qc.append(sc_p)
                     qg.append(sg_p)
                 elif a not in controllable: # uncontrollable event, make admissible
-                    new_trans.append([sc, C.alphabet.index(a), sc])
+                    new_trans.append([sc, sup_plant.alphabet.index(a), sc])
                 elif sg_p == None: # controllable but not defined in G, make redundant
-                    new_trans.append([sc, C.alphabet.index(a), sc])
-        return StateMachine("sup", new_trans, C.alphabet, C.accept)
+                    new_trans.append([sc, sup_plant.alphabet.index(a), sc])
+        return StateMachine("sup", new_trans, sup_plant.alphabet, sup_plant.accept)
     
     def compute_weights(self):
         """
-        Given the priority ranking that the user provides, compute the positive utilities for desired behavior
+        Given the priority ranking that the user provides, compute the positive utilities for preferred behavior
         and the negative cost for making certain events controllable and/or observable. Return dictionary with this information
         and also returns list of weights for future reference. (DONE)
         """
 
-        #maintain dictionary for desired, controllable, and observable
-        desired_dict = self.desired
+        #maintain dictionary for preferred, controllable, and observable
+        preferred_dict = self.preferred
         controllable_dict = self.controllable
         observable_dict = self.observable
         alphabet = self.alphabet
-        desired = []
-        for key in self.desired:
-            for beh in self.desired[key]:
-                desired.append(beh)
+        preferred = []
+        for key in self.preferred:
+            for beh in self.preferred[key]:
+                preferred.append(beh)
 
 
         #initialize weight dictionary
         weight_dict = {} 
         for i in alphabet:
             weight_dict[i] = ["c", "o"]
-        for i in desired:
+        for i in preferred:
             weight_dict[i] = "d"
 
         #insert behaviors that have no cost into dictionary of weights
@@ -155,9 +155,9 @@ class Repair:
         
         #intialize list of pairs with polar opposite costs
         category_list = []
-        category_list.append([desired_dict[PRIORITY1], controllable_dict[PRIORITY1], observable_dict[PRIORITY1]]) #first category
-        category_list.append([desired_dict[PRIORITY2], controllable_dict[PRIORITY2], observable_dict[PRIORITY2]]) #second category
-        category_list.append([desired_dict[PRIORITY3], controllable_dict[PRIORITY3], observable_dict[PRIORITY3]]) #third category
+        category_list.append([preferred_dict[PRIORITY1], controllable_dict[PRIORITY1], observable_dict[PRIORITY1]]) #first category
+        category_list.append([preferred_dict[PRIORITY2], controllable_dict[PRIORITY2], observable_dict[PRIORITY2]]) #second category
+        category_list.append([preferred_dict[PRIORITY3], controllable_dict[PRIORITY3], observable_dict[PRIORITY3]]) #third category
 
 
         #initialize weights for tiers and list of weight absolute values that are assigned
@@ -211,23 +211,32 @@ class Repair:
         """
         fulfilled_preferred = []
 
+        M_prime = self.compose_M_prime(minS, controllable, observable)
+        for p in preferred:
+            p_fsm = self.fsp2fsm(p, controllable, observable)
+            M_prime.Euo = p_fsm.Euo.union(M_prime.events - p_fsm.events)
+            M_prime.Euc = p_fsm.Euc.union(M_prime.events - p_fsm.events)
+            M_prime_observed = d.composition.observer(M_prime) # seems to have performance issue :C
+            if d.compare_language(d.composition.parallel(M_prime_observed, p_fsm), p_fsm):
+                fulfilled_preferred.append(p)
+
         return fulfilled_preferred
     
     def synthesize(self, n):
         """
         Given maximum number of solutions n, return a list of up to k solutions, prioritizng fulfillment of preferred behavior.
         """
-        desired = []
-        for key in self.desired:
-            for beh in self.desired[key]:
-                desired.append(beh)
+        preferred = []
+        for key in self.preferred:
+            for beh in self.preferred[key]:
+                preferred.append(beh)
 
 
         #alphabet = self.alphabet
         #C, plant, _ = self._synthesize(alphabet, alphabet)
         #S = self.construct_supervisor(plant, C, alphabet, alphabet)
         #minS = self.remove_unnecessary(plant, S, alphabet, alphabet)
-        #DF = self.check_preferred(minS, alphabet, alphabet, desired)
+        #DF = self.check_preferred(minS, alphabet, alphabet, preferred)
 
         return DF
 
@@ -239,11 +248,11 @@ class Repair:
         # initialization (computing weights)
         for _ in range(n):
             pass
-            # desired = self.nextBestDesiredBeh(desired)
+            # preferred = self.nextBestpreferredBeh(preferred)
             # TODO: Is Sup || G already the M' that minimize the difference?
-            # C, plant, _ = self._synthesize(desired, max_controllable, max_observable)
+            # C, plant, _ = self._synthesize(preferred, max_controllable, max_observable)
             # sup, controllable, observable = self.remove_unnecessary(plant, C, max_controllable, max_observable)
-            # utility = self.compute_utility(desired, controllable, observable)
+            # utility = self.compute_utility(preferred, controllable, observable)
             # result = {
             #     "M_prime": self.compose_M_prime(sup),
             #     "controllable": controllable,
@@ -290,17 +299,7 @@ class Repair:
 
     def fsp2fsm(self, file, controllable, observable, extend_alphabet=False):
         name = path.basename(file)
-        tmp_json = f"tmp/{name}.json"
-        with open(tmp_json, "w") as f:
-            subprocess.run([
-                "java",
-                "-jar",
-                path.join(this_file, "../bin/ltsa-helper.jar"),
-                "convert",
-                "--lts",
-                file,
-            ], stdout=f)
-        m = StateMachine.from_json(tmp_json)
+        m = self.fsp2lts(file)
         return self.lts2fsm(m, controllable, observable, extend_alphabet=extend_alphabet, name=name)
     
     def fsm2lts(self, obj, alphabet=None, name=None, extend_alphabet=False):
@@ -318,12 +317,26 @@ class Repair:
         lts = subprocess.check_output([
             "java",
             "-jar",
-            path.join(this_file, "../bin/ltsa-helper.jar"),
+            path.join(this_file, "./bin/ltsa-helper.jar"),
             "convert",
             "--json",
             tmp,
         ], text=True)
         return lts
+    
+    def fsp2lts(self, file):
+        name = path.basename(file)
+        tmp_json = f"tmp/{name}.json"
+        with open(tmp_json, "w") as f:
+            subprocess.run([
+                "java",
+                "-jar",
+                path.join(this_file, "./bin/ltsa-helper.jar"),
+                "convert",
+                "--lts",
+                file,
+            ], stdout=f)
+        return StateMachine.from_json(tmp_json)
     
     @staticmethod
     def abstract(file, abs_set):
@@ -334,7 +347,7 @@ class Repair:
             subprocess.run([
                 "java",
                 "-jar",
-                path.join(this_file, "../bin/ltsa-helper.jar"),
+                path.join(this_file, "./bin/ltsa-helper.jar"),
                 "abstract",
                 "-m",
                 file,

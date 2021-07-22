@@ -13,7 +13,7 @@ r = Repair(
     sys=["sys.lts"],
     env_p=["env.lts"],
     safety=["p2.lts"],
-    desired={   # rank the desired behavior by importance
+    preferred={   # rank the preferred behavior by importance
         PRIORITY3: ["confirm.lts"],
         PRIORITY2: [],
         PRIORITY1: [],  
@@ -37,21 +37,21 @@ r = Repair(
 weight_dict, weight_list = r.compute_weights()
 print(weight_dict)
 print(weight_list)
-utility = r.compute_cost(["confirm.fsm"], ["back", "confirm", "password", "select", "vote"], [], weight_dict)
+utility = r.compute_cost(["confirm.lts"], ["back", "confirm", "password", "select", "vote"], [], weight_dict)
 print(utility)
 result = r.synthesize(5)
 print(result)
 
 #weight_dict, weight_list = r.computeWeights()
-#subsets, troll = r.computeDesiredSubsets(6, weight_list)
+#subsets, troll = r.computepreferredSubsets(6, weight_list)
 #print(subsets)
 #result = r.synthesize(6)
 #print(result)
 
 # for s in r.synthesize(n=3): # generate maximum 3 solutions
 #     print(s)
-# controllable = alphabet
-# observable = alphabet
-# C, plant, _ = r._synthesize(controllable, observable)
-# sup, min_controllable, min_observable = r.remove_unnecessary(plant, C, controllable, observable)
-# print(r.check_preferred(sup, min_controllable, min_observable, ["confirm.lts"]))
+controllable = ["back", "confirm", "password", "select", "vote"]
+observable = ["back", "confirm", "password", "select", "vote"]
+C, plant, _ = r._synthesize(controllable, observable)
+sup, min_controllable, min_observable = r.remove_unnecessary(plant, C, controllable, observable)
+print(r.check_preferred(sup, min_controllable, min_observable, ["confirm.lts", "vote.lts"]))
