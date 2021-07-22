@@ -11,9 +11,10 @@ this_file = path.dirname(path.abspath(__file__))
 
 
 # Definition of priority
-HIGH = 0
-MEDIUM = 1
-LOW = 3
+PRIORITY0 = 0
+PRIORITY1 = 1
+PRIORITY2 = 2
+PRIORITY3 = 3
 
 class Repair:
     def __init__(self, sys, env_p, safety, desired, alphabet, controllable, observable):
@@ -31,6 +32,8 @@ class Repair:
         self.controllable = controllable
         # a map from cost to list of observable events, type: Priority -> list(str)
         self.observable = observable
+
+
         # TODO:
         # assert controllable should be a subset of observable
         # assert False, "Controllable should be a subset of observable"
@@ -41,7 +44,7 @@ class Repair:
             shutil.rmtree("tmp")
         os.mkdir("tmp")
     
-    def _synthesize(self, desired, controllable, observable):
+    def _synthesize(self, controllable, observable):
         """
         Given a set of desired behavior, controllable events, and observable events,
         this function returns a controller by invoking DESops. None is returned when
@@ -49,7 +52,7 @@ class Repair:
         """
         plant = list(map(lambda x: self.file2fsm(x, controllable, observable), self.sys + self.env_p))
         plant = plant[0] if len(plant) == 1 else d.composition.parallel(*plant)
-        p = list(map(lambda x: self.file2fsm(x, controllable, observable, extend_alphabet=True), self.safety + desired))
+        p = list(map(lambda x: self.file2fsm(x, controllable, observable, extend_alphabet=True), self.safety))
         p = p[0] if len(p) == 1 else d.composition.parallel(*p)
 
         L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
@@ -119,10 +122,125 @@ class Repair:
                     new_trans.append([sc, C.alphabet.index(a), sc])
         return StateMachine("sup", new_trans, C.alphabet, C.accept)
     
+    def computeWeights(self):
+        """
+        Given the priority ranking that the user provides, compute the positive utilities for desired behavior
+        and the negative cost for making certain events controllable and/or observable. Return dictionary with this information
+        and also returns list of weights for future reference. (DONE)
+        """
+
+        #maintain dictionary for desired, controllable, and observable
+        desired_dict = self.desired
+        controllable_dict = self.controllable
+        observable_dict = self.observable
+        alphabet = self.alphabet
+        desired = []
+        for key in self.desired:
+            for beh in self.desired[key]:
+                desired.append(beh)
+
+
+        #initialize weight dictionary
+        weight_dict = {} 
+        for i in alphabet:
+            weight_dict[i] = ["c", "o"]
+        for i in desired:
+            weight_dict[i] = "d"
+
+        #insert behaviors that have no cost into dictionary of weights
+        for i in controllable_dict[PRIORITY0]:
+            weight_dict[i][0] = 0
+        for i in observable_dict[PRIORITY0]:
+            weight_dict[i][1] = 0
+        
+        #intialize list of pairs with polar opposite costs
+        category_list = []
+        category_list.append([desired_dict[PRIORITY1], controllable_dict[PRIORITY1], observable_dict[PRIORITY1]]) #first category
+        category_list.append([desired_dict[PRIORITY2], controllable_dict[PRIORITY2], observable_dict[PRIORITY2]]) #second category
+        category_list.append([desired_dict[PRIORITY3], controllable_dict[PRIORITY3], observable_dict[PRIORITY3]]) #third category
+
+
+        #initialize weights for tiers and list of weight absolute values that are assigned
+        total_weight = 0
+        weight_list = []
+
+        #assign weights and grow the weight list
+        #give poistive weights to first list in category and negative weights to second list in category
+        #compute new weight in order to maintain hierarchy by storing absolute value sum of previous weights
+        for i in category_list:
+            curr_weight = total_weight + 1
+            for j in range(len(i)):
+                if j == 0:
+                    for k in i[j]:
+                        weight_dict[k] = curr_weight
+                        total_weight += curr_weight
+                elif j == 1:
+                    for k in i[j]:
+                        weight_dict[k][0] = -1*curr_weight
+                        total_weight += curr_weight
+                else:
+                    for k in i[j]:
+                        weight_dict[k][1] = -1*curr_weight
+                        total_weight += curr_weight
+            weight_list.append(curr_weight)
+    
+        #return weight_dict, weight_list
+        return weight_dict, weight_list
+    
+    def computeCost(self, preferred_behavior, min_controllable, min_observable, weight_dict):
+        """
+        Given preferred behaviors, minimum list of observable behavior, minimum list of controllable behavior, 
+        and the weight dictionary, compute the total utility of a program. 
+        """
+        utility = 0
+        for i in preferred_behavior:
+            utility += weight_dict[i]
+        
+        for i in min_controllable:
+            utility += weight_dict[i][0]
+        
+        for i in min_observable:
+            utility += weight_dict[i][1]
+        
+        return utility 
+    
+    def checkPreferred(self, minS, controllable, observable, desired):
+        """
+        Given some minimum supervisor, a set of controllable events, a set of observable events, 
+        and a set of desired behavior, checks how much desired behavior is satisfied
+        """
+        fulfilled_desired = []
+
+        #add all the stuff in
+
+        return fulfilled_desired
+
+    
+    
+
+    
     def synthesize(self, n):
         """
-        Given maximum number of solutions n, return a list of n solutions.
+        Given maximum number of solutions n, return a list of up to k solutions, prioritizng fulfillment of preferred behavior.
         """
+        desired = []
+        for key in self.desired:
+            for beh in self.desired[key]:
+                desired.append(beh)
+
+
+        #alphabet = self.alphabet
+        #C, plant, _ = self._synthesize(alphabet, alphabet)
+        #S = self.construct_supervisor(plant, C, alphabet, alphabet)
+        #minS = self.minimize_controller(plant, S, alphabet, alphabet)
+        #DF = self.checkPreferred(minS, alphabet, alphabet, desired)
+
+        return DF
+
+
+
+
+
         # TODO:
         # initialization (computing weights)
         for _ in range(n):
@@ -140,17 +258,8 @@ class Repair:
             # }
             # yield result
     
-    def nextBestDesiredBeh(self, desired):
-        """
-        Given the current desired behavior that are used to compute a controller, returns the
-        next best set of desired behavior that minimizes the lost in utility.
-        """
-    
-    def compute_utility(self, desired, controllable, observable):
-        """
-        Given the desired behavior that are satisfied, the controllable events needed, and
-        the observable events needed, return the utility value.
-        """
+
+
     
     def compose_M_prime(self, sup):
         """
