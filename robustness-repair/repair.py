@@ -19,19 +19,21 @@ PRIORITY3 = 3
 class Repair:
     def __init__(self, sys, env_p, safety, preferred, alphabet, controllable, observable):
         # the model files of the system, type: list(str)
-        self.sys = sys
+        self.sys = list(map(lambda x: self.fsp2lts(x), sys))
         # the model files of the deviated environment model, type: list(str)
-        self.env_p = env_p
+        self.env_p = list(map(lambda x: self.fsp2lts(x), env_p))
         # the model files of the safety property, type: list(str)
-        self.safety = safety
+        self.safety = list(map(lambda x: self.fsp2lts(x), safety))
         # a map from importance to model files of the preferred behavior, type: Priority -> list(str)
-        self.preferred = preferred
+        self.preferred = preferred # list(map(lambda x: self.fsp2lts(x), preferred))
         # a list of events for \alpha M \cup \alpha E, type: list(str)
         self.alphabet = alphabet
         # a map from cost to list of controllable events, type: Priority -> list(str)
         self.controllable = controllable
         # a map from cost to list of observable events, type: Priority -> list(str)
         self.observable = observable
+
+        self.check_preferred_cache = {}
 
 
         # TODO:
@@ -50,9 +52,9 @@ class Repair:
         this function returns a controller by invoking DESops. None is returned when
         no such controller can be found.
         """
-        plant = list(map(lambda x: self.file2fsm(x, controllable, observable), self.sys + self.env_p))
+        plant = list(map(lambda x: self.lts2fsm(x, controllable, observable), self.sys + self.env_p))
         plant = plant[0] if len(plant) == 1 else d.composition.parallel(*plant)
-        p = list(map(lambda x: self.file2fsm(x, controllable, observable, extend_alphabet=True), self.safety))
+        p = list(map(lambda x: self.lts2fsm(x, controllable, observable, extend_alphabet=True), self.safety))
         p = p[0] if len(p) == 1 else d.composition.parallel(*p)
 
         L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=True, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
@@ -213,12 +215,21 @@ class Repair:
 
         M_prime = self.compose_M_prime(minS, controllable, observable)
         for p in preferred:
+            key = (tuple(controllable), tuple(observable), p)
+            if key in self.check_preferred_cache:
+                if self.check_preferred_cache[key]:
+                    fulfilled_preferred.append(p)
+                    print("Cache hit for:", key)
+                continue
+            self.check_preferred_cache[key] = False
+
             p_fsm = self.fsp2fsm(p, controllable, observable)
             M_prime.Euo = p_fsm.Euo.union(M_prime.events - p_fsm.events)
             M_prime.Euc = p_fsm.Euc.union(M_prime.events - p_fsm.events)
             M_prime_observed = d.composition.observer(M_prime) # seems to have performance issue :C
             if d.compare_language(d.composition.parallel(M_prime_observed, p_fsm), p_fsm):
                 fulfilled_preferred.append(p)
+                self.check_preferred_cache[key] = True
 
         return fulfilled_preferred
     
@@ -268,14 +279,13 @@ class Repair:
         """
         Given a controller, compose it with the original system M to get the new design M'
         """
-        M = list(map(lambda x: self.file2fsm(x, controllable, observable), self.sys))
+        M = list(map(lambda x: self.lts2fsm(x, controllable, observable), self.sys))
         M = M[0] if len(M) == 1 else d.composition.parallel(*M)
         M_prime = d.composition.parallel(M, sup)
         return M_prime
 
     def file2fsm(self, file, controllable, observable, extend_alphabet=False):
         name = path.basename(file)
-        print(f"Convert {file} to fsm model...")
         if file.endswith(".lts"):
             return self.fsp2fsm(file, controllable, observable, extend_alphabet)
         elif file.endswith(".fsm"):
@@ -325,6 +335,7 @@ class Repair:
         return lts
     
     def fsp2lts(self, file):
+        print(f"Read {file}...")
         name = path.basename(file)
         tmp_json = f"tmp/{name}.json"
         with open(tmp_json, "w") as f:
