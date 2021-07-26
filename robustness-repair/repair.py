@@ -34,6 +34,7 @@ class Repair:
         self.observable = observable
 
         self.check_preferred_cache = {}
+        self.synthesize_cache = {}
 
 
         # TODO:
@@ -52,6 +53,11 @@ class Repair:
         this function returns a controller by invoking DESops. None is returned when
         no such controller can be found.
         """
+        key = (tuple(controllable), tuple(observable))
+        if key in self.synthesize_cache:
+            print("Synthesize cache hit: ", key)
+            return self.synthesize_cache[key]
+
         plant = list(map(lambda x: self.lts2fsm(x, controllable, observable), self.sys + self.env_p))
         plant = plant[0] if len(plant) == 1 else d.composition.parallel(*plant)
         p = list(map(lambda x: self.lts2fsm(x, controllable, observable, extend_alphabet=True), self.safety))
@@ -59,10 +65,10 @@ class Repair:
 
         L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=True, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
         L = d.composition.observer(L)
-        if len(L.vs) != 0:
-            return L, plant, p  # return the supervisor, the plant, and the property model
-        else:
-            return None
+
+        # return the supervisor, the plant, and the property model
+        self.synthesize_cache[key] = (L, plant, p) if len(L.vs) != 0 else None
+        return self.synthesize_cache[key]
     
     def remove_unnecessary(self, plant, sup_plant, controllable, observable):
         """
@@ -219,7 +225,7 @@ class Repair:
             if key in self.check_preferred_cache:
                 if self.check_preferred_cache[key]:
                     fulfilled_preferred.append(p)
-                    print("Cache hit for:", key)
+                    print("Check preferred cache hit:", key)
                 continue
             self.check_preferred_cache[key] = False
 
