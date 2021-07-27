@@ -21,9 +21,10 @@ class StateMachine:
     def next_state(self, s, a):
         out_trans = self.out_trans()
         i = self.alphabet.index(a)
-        for t in out_trans[s]:
-            if t[1] == i:
-                return t[2]
+        if s in out_trans:
+            for t in out_trans[s]:
+                if t[1] == i:
+                    return t[2]
         return None
     
     @staticmethod

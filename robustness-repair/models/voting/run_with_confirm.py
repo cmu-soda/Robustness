@@ -45,12 +45,10 @@ r = Repair(
 #weight_dict, weight_list = r.computeWeights()
 #subsets, troll = r.computepreferredSubsets(6, weight_list)
 #print(subsets)
-#result = r.synthesize(6)
-#print(result)
+result = r.synthesize(6)
+print(result)
 
-# for s in r.synthesize(n=3): # generate maximum 3 solutions
-#     print(s)
-#controllable = alphabet
+# controllable = alphabet
 # observable = alphabet
 # C, plant, _ = r._synthesize(controllable, observable)
 # sup, min_controllable, min_observable = r.remove_unnecessary(plant, C, controllable, observable)

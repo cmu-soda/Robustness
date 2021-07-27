@@ -4,6 +4,7 @@ from os import path
 from random import random
 import shutil
 import DESops as d
+import igraph
 from lts import StateMachine
 import itertools
 
@@ -18,10 +19,13 @@ PRIORITY3 = 3
 
 class Repair:
     def __init__(self, sys, env_p, safety, preferred, alphabet, controllable, observable):
-
         if path.exists("tmp"):
             shutil.rmtree("tmp")
         os.mkdir("tmp")
+
+        self.fsp_cache = {}
+        self.check_preferred_cache = {}
+        self.synthesize_cache = {}
 
         # the model files of the system, type: list(str)
         self.sys = list(map(lambda x: self.fsp2lts(x), sys))
@@ -36,11 +40,7 @@ class Repair:
         # a map from cost to list of controllable events, type: Priority -> list(str)
         self.controllable = controllable
         # a map from cost to list of observable events, type: Priority -> list(str)
-        self.observable = observable
-
-        self.check_preferred_cache = {}
-        self.synthesize_cache = {}
-
+        self.observable = observable        
 
         # TODO:
         # assert controllable should be a subset of observable
@@ -71,18 +71,11 @@ class Repair:
         self.synthesize_cache[key] = (L, plant, p) if len(L.vs) != 0 else None
         return self.synthesize_cache[key]
     
-    def remove_unnecessary(self, plant, sup_plant, controllable, observable):
+    def remove_unnecessary(self, sup, controllable, observable):
         """
         Given a plant, controller, controllable events, and observable events, remove unnecessary
         controllable/observable events to minimize its cost.
         """
-        # Convert Sp/G to a StateMachine object
-        sup_plant = self.fsm2lts(sup_plant, observable)
-        # Hide the unobservable events in the plant and convert it to StateMachine object
-        plant = d.composition.observer(plant)
-        plant = self.fsm2lts(plant, observable)
-
-        sup = self.construct_supervisor(plant, sup_plant, controllable, observable)
         all_states = sup.all_states()
         out_trans = sup.out_trans()
 
@@ -105,6 +98,7 @@ class Repair:
         sup = self.lts2fsm(sup, min_controllable, min_observable, name="sup")
         sup = d.composition.observer(sup)
         
+        print("Remove unnecessary events...")
         print("Ec:", min_controllable)
         print("Eo:", min_observable)
         # print(self.fsm2fsp(sup, min_observable, name="min_sup"))
@@ -115,9 +109,7 @@ class Repair:
         Given some set of controllable and observable events and supervisor,
         minimize the supervisor and returns the smallest set of controllable and observable
         events needed for some level of preferred behavior
-        """
-
-        
+        """        
         #parition all events that cane be made controllable and/or observable into lists by priority
         high_priority_controllable = [c for c in controllable if c in self.controllable[PRIORITY3]] #High Priority controllable events
         medium_priority_controllable = [c for c in controllable if c in self.controllable[PRIORITY2]] #Medium Priority controllable events
@@ -146,7 +138,7 @@ class Repair:
                     p_list = [] #start the new list of possibilities
                     for event_dict in save: #iterate through good possibilities from last iteration
                         for c in actions_dict[i][0]: #look at all controllable actions in the priority and remove when possible to create new minimization
-                            if c in event_dict["c"]:
+                            if c in event_dict["c"] and len(event_dict["c"]) > 1:
                                 controllable_set = event_dict["c"].copy()
                                 controllable_set.remove(c)
                                 new_event_dict = {"c": controllable_set, "o": event_dict["o"]}
@@ -157,23 +149,27 @@ class Repair:
                                 observable_set.remove(o)
                                 new_event_dict = {"c": event_dict["c"], "o": observable_set}
                                 p_list.append(new_event_dict)
-                
 
                     #remove duplicates
                     cp_list = []
                     for event_dict in p_list:
                         if event_dict not in cp_list:
                             cp_list.append(event_dict)
-                
-                    
                    
                     gp_list = [] #initialize gp_list
 
                     #keep only the minimizations which work
                     for event_dict in cp_list:
-                        C, plant, _ = self._synthesize(event_dict["c"], event_dict["o"]) #synthesize with the appropriate controllable/observable events
+                        print("Minimizing with...")
+                        print("Ec:", event_dict["c"])
+                        print("Eo:", event_dict["o"])
+                        r = self._synthesize(event_dict["c"], event_dict["o"]) #synthesize with the appropriate controllable/observable events
+                        if r == None:
+                            continue
+                        C, plant, _ = r
                         minS = self.construct_supervisor(plant, C, event_dict["c"], event_dict["o"]) #get just the supervisor
-                        if self.check_preferred(minS, event_dict["c"],event_dict["o"], preferred) == preferred: #add minimization if preferred behavior maintained
+                        minS = self.lts2fsm(minS, event_dict["c"], event_dict["o"])
+                        if set(self.check_preferred(minS, event_dict["c"], event_dict["o"], preferred)) == preferred: #add minimization if preferred behavior maintained
                             event_dict["minS"] = minS #update the minS
                             gp_list.append(event_dict) 
 
@@ -184,12 +180,15 @@ class Repair:
                 gp_list = save 
 
         best_minimization = gp_list.pop() #take one randomly once out of while loop
-
         return best_minimization["minS"], list(best_minimization["c"]), list(best_minimization["o"]) #return the appropriate information
-    
-
 
     def construct_supervisor(self, plant, sup_plant, controllable, observable):
+        # Convert Sp/G to a StateMachine object
+        sup_plant = self.fsm2lts(sup_plant, observable)
+        # Hide the unobservable events in the plant and convert it to StateMachine object
+        plant = d.composition.observer(plant)
+        plant = self.fsm2lts(plant, observable)
+
         qc, qg = [0], [0]
         new_trans = sup_plant.transitions.copy()
         visited = set()
@@ -216,7 +215,6 @@ class Repair:
         and the negative cost for making certain events controllable and/or observable. Return dictionary with this information
         and also returns list of weights for future reference. (DONE)
         """
-
         #maintain dictionary for preferred, controllable, and observable
         preferred_dict = self.preferred
         controllable_dict = self.controllable
@@ -226,7 +224,6 @@ class Repair:
         for key in self.preferred:
             for beh in self.preferred[key]:
                 preferred.append(beh)
-
 
         #initialize weight dictionary
         weight_dict = {} 
@@ -246,7 +243,6 @@ class Repair:
         category_list.append([preferred_dict[PRIORITY1], controllable_dict[PRIORITY1], observable_dict[PRIORITY1]]) #first category
         category_list.append([preferred_dict[PRIORITY2], controllable_dict[PRIORITY2], observable_dict[PRIORITY2]]) #second category
         category_list.append([preferred_dict[PRIORITY3], controllable_dict[PRIORITY3], observable_dict[PRIORITY3]]) #third category
-
 
         #initialize weights for tiers and list of weight absolute values that are assigned
         total_weight = 0
@@ -276,28 +272,13 @@ class Repair:
     def compute_util_cost(self, preferred_behavior, min_controllable, min_observable, weight_dict):
         """
         Given preferred behaviors, minimum list of observable behavior, minimum list of controllable behavior, 
-        and the weight dictionary, compute the total utility of a program and return the cost separately. 
+        and the weight dictionary, compute the utility of the preferred behavior and the cost separately. 
         """
-
         #initialize cost and utility
-        utility = 0
-        cost = 0
-
-        #do computations for preferred behavior, controllable, and observable
-        for i in preferred_behavior:
-            utility += weight_dict[i]
-        
-        for i in min_controllable:
-            utility += weight_dict[i][0]
-            cost += weight_dict[i][0]
-        
-        for i in min_observable:
-            utility += weight_dict[i][1]
-            cost =+ weight_dict[i][1]
-        
-        return utility, cost 
-    
-    
+        preferred = sum(map(lambda x: weight_dict[x], preferred_behavior))
+        cost = sum(map(lambda x: weight_dict[x][0], min_controllable)) +\
+               sum(map(lambda x: weight_dict[x][1], min_observable))        
+        return preferred, cost 
     
     def check_preferred(self, minS, controllable, observable, preferred):
         """
@@ -337,22 +318,20 @@ class Repair:
             for beh in self.preferred[key]:
                 preferred.append(beh)
 
-        
         #find dictionary of weights by actions, preferred behavior and weights assigned by tiers
         weight_dict =  self.compute_weights()
-
 
         #first synthesize with all aphabet, then find supervisor, then remove unecessary actions, and check which preferred behavior are satisfied
         alphabet = self.alphabet
         C, plant, _ = self._synthesize(alphabet, alphabet)
-        minS, controllable, observable = self.remove_unnecessary(plant, C, alphabet, alphabet)
-        DF = self.check_preferred(minS, controllable, observable, preferred)
-
+        sup = self.construct_supervisor(plant, C, alphabet, alphabet)
+        minS, controllable, observable = self.remove_unnecessary(sup, alphabet, alphabet)
+        D_max = self.check_preferred(minS, controllable, observable, preferred)
 
         #trim out the preferred behaviors that could never be satisfied
-        l1 = [action for action in self.preferred[PRIORITY1] if action in DF]
-        l2 = [action for action in self.preferred[PRIORITY2] if action in  DF]
-        l3 = [action for action in self.preferred[PRIORITY3] if action in DF]
+        l1 = [action for action in self.preferred[PRIORITY1] if action in D_max]
+        l2 = [action for action in self.preferred[PRIORITY2] if action in D_max]
+        l3 = [action for action in self.preferred[PRIORITY3] if action in D_max]
 
         #initialize list of controllers
         controllers = []
@@ -361,8 +340,7 @@ class Repair:
         t = 0
 
         #initialize the least cost experienced overall as a very negative cost, this stands for -infinity
-        min_cost = -444444444444
-
+        min_cost = -1_000_000_000
 
         #increase behavior that won't be satisfied in the lexicographic order
         while t < n:
@@ -377,47 +355,47 @@ class Repair:
                         beh_3_subsets = list(itertools.combinations(l3, i))
 
                         #initialize the best cost for this amount of preferred behaviornot satisfied to be a very negative cost, this stands for -infinity
-                        best_cost = -44444444444444
+                        min_cost_bracket = -1_000_000_000
                         #find all combos of preferred behaviors that are going to be removed with this cost
+                        t += 1
                         for l in beh_1_subsets:
                             for m in beh_2_subsets:
                                 for o in beh_3_subsets:
                                     #remove behavior that we don't care about anymore
                                     remove_behavior = l + m + o
-                                    DF_subset = DF
-                                    for p in remove_behavior:
-                                        DF_subset.remove(p)
+                                    D_max_subset = set(D_max) - set(remove_behavior)
+                                    print("D_prime:", D_max_subset)
                                 
                                     #find result that is found by minimizing
-                                    sup, min_controllable, min_observable = self.minimize(minS, controllable, observable, DF_subset)
+                                    sup, min_controllable, min_observable = self.minimize(minS, controllable, observable, D_max_subset)
                                     #compute the total utility and the cost of such a minimization
-                                    total_utility, cost = self.compute_util_cost(DF_subset, min_controllable, min_observable, weight_dict)
-                                    t += 1
-                            
-
+                                    utility_preferred, cost = self.compute_util_cost(D_max_subset, min_controllable, min_observable, weight_dict)
+                                
                                     #check how cost of of this set of removed preferred behavior compares with the best cost thus far
-                                    if cost < best_cost: #if cost is worse than best, then ignore it
+                                    if cost < min_cost_bracket: #if cost is worse than best, then ignore it
                                         continue
                                     else:
                                         result = {
-                                        "M_prime": sup,
-                                        "controllable": min_controllable,
-                                        "observable": min_observable, 
-                                        "utility": total_utility
+                                            "M_prime": sup,
+                                            "controllable": min_controllable,
+                                            "observable": min_observable, 
+                                            "preferred": utility_preferred,
+                                            "cost": cost
                                         }
-                                        if cost > best_cost: #if cost is better, then clear out all others, update best cost and then start a new list
-                                            best_cost =cost
+                                        if cost > min_cost_bracket: #if cost is better, then clear out all others, update best cost and then start a new list
+                                            min_cost_bracket = cost
                                             possible_controllers = [result]
-                                        else: #if cost is sam as best, then add to list
+                                        else: #if cost is same as best, then add to list
                                             possible_controllers.append(result)
                     
-                             
                         #if the best cost among these subsets exceeds prior best cost add to controllers 
-                        if best_cost > min_cost:
-                            min_cost = best_cost
+                        if min_cost_bracket > min_cost:
+                            min_cost = min_cost_bracket
+                            print("New pareto optimal:")
+                            print(possible_controllers)
                             controllers.extend(possible_controllers)
 
-        #composes Mprimefor all once we know that these are what we want and updates
+        #composes Mprime for all once we know that these are what we want and updates
         for controller in controllers:
             controller["M_prime"] = self.compose_M_prime(controller["M_prime"], controller["controllable"], controller["observable"])
 
@@ -430,6 +408,13 @@ class Repair:
         """
         M = list(map(lambda x: self.lts2fsm(x, controllable, observable), self.sys))
         M = M[0] if len(M) == 1 else d.composition.parallel(*M)
+        # FIXME: when sup is an empty controller, it returns a Graph object instead of DFA
+        if type(sup) == igraph.Graph:
+            M_prime = d.DFA()
+            M_prime.events = M.events.copy()
+            M_prime.Euc = M.Euc.copy()
+            M_prime.Euo = M.Euo.copy()
+            return M_prime
         M_prime = d.composition.parallel(M, sup)
         return M_prime
 
@@ -484,6 +469,9 @@ class Repair:
         return lts
     
     def fsp2lts(self, file):
+        if file in self.fsp_cache:
+            return self.fsp_cache[file]
+
         print(f"Read {file}...")
         name = path.basename(file)
         tmp_json = f"tmp/{name}.json"
@@ -496,7 +484,8 @@ class Repair:
                 "--lts",
                 file,
             ], stdout=f)
-        return StateMachine.from_json(tmp_json)
+        self.fsp_cache[file] = StateMachine.from_json(tmp_json)
+        return self.fsp_cache[file]
     
     @staticmethod
     def abstract(file, abs_set):
@@ -516,7 +505,3 @@ class Repair:
                 *abs_set
             ], stdout=f)
         return tmp_json
-
-
-
-
