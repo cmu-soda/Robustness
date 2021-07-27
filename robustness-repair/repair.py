@@ -18,35 +18,40 @@ PRIORITY2 = 2
 PRIORITY3 = 3
 
 class Repair:
-    def __init__(self, sys, env_p, safety, preferred, alphabet, controllable, observable):
+    def __init__(self, sys, env_p, safety, preferred, alphabet, controllable, observable, verbose=False):
+        self.verbose = verbose
         if path.exists("tmp"):
             shutil.rmtree("tmp")
         os.mkdir("tmp")
 
+        # cache for fsp to lts
         self.fsp_cache = {}
+        # cache for satisfied preferred behavior w.r.t some controllable and observable events
         self.check_preferred_cache = {}
+        # cache for controller synthesis result w.r.t some controllable and observable events
         self.synthesize_cache = {}
 
-        # the model files of the system, type: list(str)
+        # the model files of the system
         self.sys = list(map(lambda x: self.fsp2lts(x), sys))
-        # the model files of the deviated environment model, type: list(str)
+        # the model files of the deviated environment model
         self.env_p = list(map(lambda x: self.fsp2lts(x), env_p))
-        # the model files of the safety property, type: list(str)
+        # the model files of the safety property
         self.safety = list(map(lambda x: self.fsp2lts(x), safety))
-        # a map from importance to model files of the preferred behavior, type: Priority -> list(str)
-        self.preferred = preferred # list(map(lambda x: self.fsp2lts(x), preferred))
-        # a list of events for \alpha M \cup \alpha E, type: list(str)
+        # a map from priority to model files of the preferred behavior
+        self.preferred = preferred
+        # a list of events for \alpha M \cup \alpha E
         self.alphabet = alphabet
-        # a map from cost to list of controllable events, type: Priority -> list(str)
+        # a map from cost to list of controllable events
         self.controllable = controllable
-        # a map from cost to list of observable events, type: Priority -> list(str)
-        self.observable = observable        
+        # a map from cost to list of observable events
+        self.observable = observable
 
         # TODO:
         # assert controllable should be a subset of observable
         # assert False, "Controllable should be a subset of observable"
         # assert observable is a subset of alphabet
         # assert False, "Observable events should be a subset of the alphabet
+        # assert False, "For the same event e, cost of Ac(a) > cost of Ao(a)"
     
     def _synthesize(self, controllable, observable):
         """
@@ -56,7 +61,8 @@ class Repair:
         """
         key = (tuple(controllable), tuple(observable))
         if key in self.synthesize_cache:
-            print("Synthesize cache hit: ", key)
+            if self.verbose:
+                print("Synthesize cache hit: ", key)
             return self.synthesize_cache[key]
 
         plant = list(map(lambda x: self.lts2fsm(x, controllable, observable), self.sys + self.env_p))
@@ -67,8 +73,8 @@ class Repair:
         L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=True, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
         L = d.composition.observer(L)
 
-        # return the supervisor, the plant, and the property model
-        self.synthesize_cache[key] = (L, plant, p) if len(L.vs) != 0 else None
+        # return the constructed controller which is admissible and redundant
+        self.synthesize_cache[key] = self.construct_supervisor(plant, L, controllable, observable) if len(L.vs) != 0 else None
         return self.synthesize_cache[key]
     
     def remove_unnecessary(self, sup, controllable, observable):
@@ -92,95 +98,106 @@ class Repair:
         min_controllable = set(controllable) - set(can_uc)
         min_observable = set(observable) - set(can_uo)
 
-        # FIXME: Remove all the self-loops for uncontrollable events
-        # sup.transitions = list(filter(lambda x: x[0] != x[2] or sup.alphabet[x[1]] in min_controllable, sup.transitions))
         # Hide unobservable events
         sup = self.lts2fsm(sup, min_controllable, min_observable, name="sup")
         sup = d.composition.observer(sup)
-        
-        print("Remove unnecessary events...")
-        print("Ec:", min_controllable)
-        print("Eo:", min_observable)
-        # print(self.fsm2fsp(sup, min_observable, name="min_sup"))
+
         return sup, min_controllable, min_observable
+    
+    def next_possible_min_events(self, last_gp_list, controllable_rm, observable_rm):
+        p_list = [] # start the new list of possibilities
+        # iterate through good possibilities from last iteration
+        for event_dict in last_gp_list:
+            # look at all controllable actions in the priority and remove when possible to create new minimization
+            for c in controllable_rm:
+                if c in event_dict["c"] and len(event_dict["c"]) > 1: # avoid removing all controllable
+                    new_controllable = event_dict["c"].copy()
+                    new_controllable.remove(c)
+                    new_event_dict = {"c": new_controllable, "o": event_dict["o"]}
+                    p_list.append(new_event_dict)
+            # look at all observable actions in the priority and remove when possible to create minimization
+            for o in observable_rm:
+                if o in event_dict["o"] and o not in event_dict["c"]:
+                    new_observable = event_dict["o"].copy()
+                    new_observable.remove(o)
+                    new_event_dict = {"c": event_dict["c"], "o": new_observable}
+                    p_list.append(new_event_dict)
+
+        # remove duplicates
+        cp_list = []
+        for event_dict in p_list:
+            if event_dict not in cp_list:
+                cp_list.append(event_dict)
+        
+        return cp_list
     
     def minimize(self, minS, controllable, observable, preferred):
         """
         Given some set of controllable and observable events and supervisor,
-        minimize the supervisor and returns the smallest set of controllable and observable
-        events needed for some level of preferred behavior
+        minimize the supervisor and returns the set of controllable and observable
+        events with the minimal cost, needed for the given preferred behavior
         """        
-        #parition all events that cane be made controllable and/or observable into lists by priority
-        high_priority_controllable = [c for c in controllable if c in self.controllable[PRIORITY3]] #High Priority controllable events
-        medium_priority_controllable = [c for c in controllable if c in self.controllable[PRIORITY2]] #Medium Priority controllable events
-        low_priority_controllable = [c for c in controllable if c in self.controllable[PRIORITY1]] #Low Priority controllable events
-        high_priority_observable = [o for o in observable if o in self.observable[PRIORITY3]] #High Priority Observable Events
-        medium_priority_observable = [o for o in observable if o in self.observable[PRIORITY2]] #Medium Priority Observable Events
-        low_priority_observable = [o for o in observable if o in self.observable[PRIORITY1]] #Low Priority Observable Events
-
-        #Dictionary where events are separated according to priority
-        #Key is 0, 1, or 2 where 0 is high priortiy, 1 is medium priority, and 2 is low priority
-        #Value is a list where first list is controllable events andthe second list is observable events 
-        actions_dict = {0: [high_priority_controllable, high_priority_observable], 1 : [medium_priority_controllable, medium_priority_observable], 
-                        2: [low_priority_controllable, low_priority_observable]}
+        # parition all events that can be made controllable and/or observable into lists by priority (cost)
+        high_cost_controllable = [c for c in controllable if c in self.controllable[PRIORITY3]] # High cost controllable events
+        medium_cost_controllable = [c for c in controllable if c in self.controllable[PRIORITY2]] # Medium cost controllable events
+        low_cost_controllable = [c for c in controllable if c in self.controllable[PRIORITY1]] # Low cost controllable events
         
-      
-        #initialize save
-        #save is a placeholder which saves the last set of possible minimizations that passed if at some interation there are no minimizations that pass
-        save = []
-        gp_list = [{"c": set(controllable), "o": set(observable), "minS": minS}] #gp_list is the est of good possibilities, initialize with nothing removed as a good possibility
+        high_priority_observable = [o for o in observable if o in self.observable[PRIORITY3]] # High cost Observable Events
+        medium_priority_observable = [o for o in observable if o in self.observable[PRIORITY2]] # Medium cost Observable Events
+        low_priority_observable = [o for o in observable if o in self.observable[PRIORITY1]] # Low cost Observable Events
 
-        #By iterating i in range(3) we examine first the high priority events, then medium priority events and then low priority events
+        # Dictionary where events are separated according to priority
+        # Key is 0, 1, or 2 where 0 is high cost, 1 is medium cost, and 2 is low cost
+        # Value is a list of list where first list is controllable events and the second list is observable events 
+        actions_dict = {
+            0: [high_cost_controllable, high_priority_observable],
+            1: [medium_cost_controllable, medium_priority_observable], 
+            2: [low_cost_controllable, low_priority_observable]
+        }
+
+        # initialize last_gp_list, it is a placeholder which saves the last set of possible minimizations
+        # that passed if at some interation there are no minimizations that pass
+        last_gp_list = []
+        # gp_list is the set of good possibilities, initialize with nothing removed as a good possibility
+        gp_list = [{"c": set(controllable), "o": set(observable), "minS": minS}]
+
+        # By iterating i in range(3) we examine first the high cost events, then medium cost events, and then low cost events
         for i in range(3):
-            j = 0 #initialize the number of iterations when dealing with a priority group
-            while (len(gp_list) != 0 and j < (len(actions_dict[i][0]) + len(actions_dict[i][1]))): #continue adding events of a priority until it provides to be futile or it isimpossible to add more
-                    save = gp_list #save the gp_list, the list of good possibilities from the last iteration
-                    p_list = [] #start the new list of possibilities
-                    for event_dict in save: #iterate through good possibilities from last iteration
-                        for c in actions_dict[i][0]: #look at all controllable actions in the priority and remove when possible to create new minimization
-                            if c in event_dict["c"] and len(event_dict["c"]) > 1:
-                                controllable_set = event_dict["c"].copy()
-                                controllable_set.remove(c)
-                                new_event_dict = {"c": controllable_set, "o": event_dict["o"]}
-                                p_list.append(new_event_dict)
-                        for o in actions_dict[i][1]: #look at all observable actions in the priority and remove when possible to create minimization
-                            if (o in event_dict["o"]) and (o not in event_dict["c"]):
-                                observable_set = event_dict["o"].copy()
-                                observable_set.remove(o)
-                                new_event_dict = {"c": event_dict["c"], "o": observable_set}
-                                p_list.append(new_event_dict)
+            # initialize the number of iterations when dealing with a priority group
+            j = 0
+            # continue adding events of a priority until it provides to be futile or it is impossible to add more
+            while (len(gp_list) != 0 and j < (len(actions_dict[i][0]) + len(actions_dict[i][1]))):
+                j = j + 1 # iterate the counter for how many events have been removed of the current priority
 
-                    #remove duplicates
-                    cp_list = []
-                    for event_dict in p_list:
-                        if event_dict not in cp_list:
-                            cp_list.append(event_dict)
-                   
-                    gp_list = [] #initialize gp_list
-
-                    #keep only the minimizations which work
-                    for event_dict in cp_list:
+                last_gp_list = gp_list # save the gp_list, the list of good possibilities from the last iteration
+                p_list = self.next_possible_min_events(last_gp_list, actions_dict[i][0], actions_dict[i][1])    
+                gp_list = [] # initialize gp_list
+                # keep only the minimizations which work
+                for event_dict in p_list:
+                    if self.verbose:
                         print("Minimizing with...")
-                        print("Ec:", event_dict["c"])
-                        print("Eo:", event_dict["o"])
-                        r = self._synthesize(event_dict["c"], event_dict["o"]) #synthesize with the appropriate controllable/observable events
-                        if r == None:
-                            continue
-                        C, plant, _ = r
-                        minS = self.construct_supervisor(plant, C, event_dict["c"], event_dict["o"]) #get just the supervisor
-                        minS = self.lts2fsm(minS, event_dict["c"], event_dict["o"])
-                        if set(self.check_preferred(minS, event_dict["c"], event_dict["o"], preferred)) == preferred: #add minimization if preferred behavior maintained
-                            event_dict["minS"] = minS #update the minS
-                            gp_list.append(event_dict) 
+                        print("\tEc:", event_dict["c"])
+                        print("\tEo:", event_dict["o"])
+                    # synthesize with the appropriate controllable/observable events
+                    minS = self._synthesize(event_dict["c"], event_dict["o"]) 
+                    if minS == None:
+                        continue
+                    minS = self.lts2fsm(minS, event_dict["c"], event_dict["o"])
+                    # add minimization if preferred behavior maintained
+                    if set(self.check_preferred(minS, event_dict["c"], event_dict["o"], preferred)) == preferred:
+                        event_dict["minS"] = minS #update the minS
+                        gp_list.append(event_dict) 
 
-                    j = j + 1 #iterate the counter for how many events of the priority have been considered
-
-            #if while loop was broken because no permissible minimization happened, then use the saved minimizations as the best previous
+            # if while loop was broken because no permissible minimization happened,
+            # then use the saved minimizations as the best previous
             if len(gp_list) == 0:
-                gp_list = save 
+                gp_list = last_gp_list
 
-        best_minimization = gp_list.pop() #take one randomly once out of while loop
-        return best_minimization["minS"], list(best_minimization["c"]), list(best_minimization["o"]) #return the appropriate information
+        return map(lambda x: (x["minS"], x["c"], x["o"]), gp_list)
+        # # take one randomly once out of while loop
+        # best_minimization = gp_list.pop()
+        # # return the appropriate information
+        # return best_minimization["minS"], list(best_minimization["c"]), list(best_minimization["o"])
 
     def construct_supervisor(self, plant, sup_plant, controllable, observable):
         # Convert Sp/G to a StateMachine object
@@ -213,7 +230,7 @@ class Repair:
         """
         Given the priority ranking that the user provides, compute the positive utilities for preferred behavior
         and the negative cost for making certain events controllable and/or observable. Return dictionary with this information
-        and also returns list of weights for future reference. (DONE)
+        and also returns list of weights for future reference.
         """
         #maintain dictionary for preferred, controllable, and observable
         preferred_dict = self.preferred
@@ -293,7 +310,8 @@ class Repair:
             if key in self.check_preferred_cache:
                 if self.check_preferred_cache[key]:
                     fulfilled_preferred.append(p)
-                    print("Check preferred cache hit:", key)
+                    if self.verbose:
+                        print("Check preferred cache hit:", key)
                 continue
             self.check_preferred_cache[key] = False
 
@@ -306,105 +324,108 @@ class Repair:
                 self.check_preferred_cache[key] = True
 
         return fulfilled_preferred
+    
+    def next_least_to_remove(self, D_max):
+        # trim out the preferred behaviors that could never be satisfied
+        l1 = [d for d in self.preferred[PRIORITY1] if d in D_max]
+        l2 = [d for d in self.preferred[PRIORITY2] if d in D_max]
+        l3 = [d for d in self.preferred[PRIORITY3] if d in D_max]
+        for i in range(len(l3) + 1):
+            for j in range(len(l2) + 1):
+                for k in range(len(l1) + 1):
+                    print(f"Weaken the preferred behavior by {i} Essential, {j} Important, and {k} Minor...")
+                    D_rm_set = []
+                    # for this partition of lost behavior, find all possible subsets from each category
+                    beh_1_subsets = itertools.combinations(l1, k)
+                    beh_2_subsets = itertools.combinations(l2, j)
+                    beh_3_subsets = itertools.combinations(l3, i)
+                    for l in beh_1_subsets:
+                        for m in beh_2_subsets:
+                            for o in beh_3_subsets:
+                                D_rm_set.append(l + m + o)
+                    yield D_rm_set
             
     def synthesize(self, n):
         """
-        Given maximum number of solutions n, return a list of up to k solutions, prioritizng fulfillment of preferred behavior.
+        Given maximum number n of depth to search, return a list of solutions, prioritizng fulfillment of preferred behavior.
         """
-
-        #collect all preferred behavior
+        # collect all preferred behavior
         preferred = []
         for key in self.preferred:
-            for beh in self.preferred[key]:
-                preferred.append(beh)
+            preferred.extend(self.preferred[key])
 
-        #find dictionary of weights by actions, preferred behavior and weights assigned by tiers
-        weight_dict =  self.compute_weights()
+        # find dictionary of weights by actions, preferred behavior and weights assigned by tiers
+        weight_dict = self.compute_weights()
 
-        #first synthesize with all aphabet, then find supervisor, then remove unecessary actions, and check which preferred behavior are satisfied
+        # first synthesize with all aphabet, then find supervisor, then remove unecessary actions, and check which preferred behavior are satisfied
         alphabet = self.alphabet
-        C, plant, _ = self._synthesize(alphabet, alphabet)
-        sup = self.construct_supervisor(plant, C, alphabet, alphabet)
+        sup = self._synthesize(alphabet, alphabet)
         minS, controllable, observable = self.remove_unnecessary(sup, alphabet, alphabet)
         D_max = self.check_preferred(minS, controllable, observable, preferred)
+        print("Maximum fulfilled preferred behavior:", D_max)
 
-        #trim out the preferred behaviors that could never be satisfied
-        l1 = [action for action in self.preferred[PRIORITY1] if action in D_max]
-        l2 = [action for action in self.preferred[PRIORITY2] if action in D_max]
-        l3 = [action for action in self.preferred[PRIORITY3] if action in D_max]
-
-        #initialize list of controllers
+        # initialize list of controllers
         controllers = []
-
-        #intialize number of controllers considered
-        t = 0
-
-        #initialize the least cost experienced overall as a very negative cost, this stands for -infinity
+        # initialize the least cost experienced overall as a very negative cost, this stands for -infinity
         min_cost = -1_000_000_000
+        # intialize number of controllers considered
+        t = 0
+        for D_rm_sets in self.next_least_to_remove(D_max):
+            if t >= n:
+                break
+            t += 1
+            # initialize the best cost for this amount of preferred behaviornot satisfied to be a very negative cost, this stands for -infinity
+            min_cost_bracket = -1_000_000_000
+            possible_controllers = []
+            for remove_behavior in D_rm_sets:
+                # remove behavior that we don't care about anymore
+                D_max_subset = set(D_max) - set(remove_behavior)
+                # find result that is found by minimizing
+                for sup, min_controllable, min_observable in self.minimize(minS, controllable, observable, D_max_subset):
+                    # compute the total utility and the cost of such a minimization
+                    # FIXME: cost only need to compute once
+                    utility_preferred, cost = self.compute_util_cost(D_max_subset, min_controllable, min_observable, weight_dict)
+                    # check how cost of of this set of removed preferred behavior compares with the best cost thus far
+                    if cost < min_cost_bracket: # if cost is worse than best, then ignore it
+                        continue
+                    else:
+                        result = {
+                            "M_prime": sup,
+                            "controllable": min_controllable,
+                            "observable": min_observable, 
+                            "preferred": D_max_subset,
+                            "preferred_utility": utility_preferred,
+                            "cost": cost
+                        }
+                        if cost > min_cost_bracket: # if cost is better, then clear out all others, update best cost and then start a new list
+                            min_cost_bracket = cost
+                            possible_controllers = [result]
+                        else: # if cost is same as best, then add to list
+                            possible_controllers.append(result)
+            # if the best cost among these subsets exceeds prior best cost add to controllers 
+            if min_cost_bracket > min_cost:
+                min_cost = min_cost_bracket
+                controllers.extend(possible_controllers)
+                for c in possible_controllers:
+                    print("New pareto-optimal found:")
+                    print("\tEc:", c["controllable"])
+                    print("\tEo:", c["observable"])
+                    print("\tPreferred:", c["preferred"])
+                    print("\tPreferred Utility:", c["preferred_utility"])
+                    print("\tCost:", c["cost"])
+            else:
+                print("No new pareto-optimal solution found.")
 
-        #increase behavior that won't be satisfied in the lexicographic order
-        while t < n:
-            for i in range(len(l3) + 1):
-                for j in range(len(l2) + 1):
-                    for k in range(len(l1) + 1):
-                        possible_controllers = []
-
-                        #for this partition of lost behavior, find all possible subsets from each category
-                        beh_1_subsets = list(itertools.combinations(l1, k))
-                        beh_2_subsets = list(itertools.combinations(l2, j))
-                        beh_3_subsets = list(itertools.combinations(l3, i))
-
-                        #initialize the best cost for this amount of preferred behaviornot satisfied to be a very negative cost, this stands for -infinity
-                        min_cost_bracket = -1_000_000_000
-                        #find all combos of preferred behaviors that are going to be removed with this cost
-                        t += 1
-                        for l in beh_1_subsets:
-                            for m in beh_2_subsets:
-                                for o in beh_3_subsets:
-                                    #remove behavior that we don't care about anymore
-                                    remove_behavior = l + m + o
-                                    D_max_subset = set(D_max) - set(remove_behavior)
-                                    print("D_prime:", D_max_subset)
-                                
-                                    #find result that is found by minimizing
-                                    sup, min_controllable, min_observable = self.minimize(minS, controllable, observable, D_max_subset)
-                                    #compute the total utility and the cost of such a minimization
-                                    utility_preferred, cost = self.compute_util_cost(D_max_subset, min_controllable, min_observable, weight_dict)
-                                
-                                    #check how cost of of this set of removed preferred behavior compares with the best cost thus far
-                                    if cost < min_cost_bracket: #if cost is worse than best, then ignore it
-                                        continue
-                                    else:
-                                        result = {
-                                            "M_prime": sup,
-                                            "controllable": min_controllable,
-                                            "observable": min_observable, 
-                                            "preferred": utility_preferred,
-                                            "cost": cost
-                                        }
-                                        if cost > min_cost_bracket: #if cost is better, then clear out all others, update best cost and then start a new list
-                                            min_cost_bracket = cost
-                                            possible_controllers = [result]
-                                        else: #if cost is same as best, then add to list
-                                            possible_controllers.append(result)
-                    
-                        #if the best cost among these subsets exceeds prior best cost add to controllers 
-                        if min_cost_bracket > min_cost:
-                            min_cost = min_cost_bracket
-                            print("New pareto optimal:")
-                            print(possible_controllers)
-                            controllers.extend(possible_controllers)
-
-        #composes Mprime for all once we know that these are what we want and updates
+        # composes Mprime for all once we know that these are what we want and updates
         for controller in controllers:
             controller["M_prime"] = self.compose_M_prime(controller["M_prime"], controller["controllable"], controller["observable"])
 
-        #returns all controllers
+        # returns all controllers
         return controllers
 
     def compose_M_prime(self, sup, controllable, observable):
         """
-        Given a controller, compose it with the original system M to get the new design M'
+        Given a controller in fsm object, compose it with the original system M to get the new design M'
         """
         M = list(map(lambda x: self.lts2fsm(x, controllable, observable), self.sys))
         M = M[0] if len(M) == 1 else d.composition.parallel(*M)
