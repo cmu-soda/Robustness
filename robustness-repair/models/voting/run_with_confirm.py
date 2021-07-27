@@ -50,14 +50,16 @@ r = Repair(
 
 # for s in r.synthesize(n=3): # generate maximum 3 solutions
 #     print(s)
-controllable = alphabet
-observable = alphabet
-C, plant, _ = r._synthesize(controllable, observable)
-sup, min_controllable, min_observable = r.remove_unnecessary(plant, C, controllable, observable)
-print(r.check_preferred(sup, min_controllable, min_observable, ["confirm.lts", "vote.lts"]))
+#controllable = alphabet
+# observable = alphabet
+# C, plant, _ = r._synthesize(controllable, observable)
+# sup, min_controllable, min_observable = r.remove_unnecessary(plant, C, controllable, observable)
+# print(r.check_preferred(sup, min_controllable, min_observable, ["confirm.lts", "vote.lts"]))
 
-controllable = ["back", "confirm", "password", "select", "vote"]
-observable = ["back", "confirm", "password", "select", "vote"]
-C, plant, _ = r._synthesize(controllable, observable)
-sup, min_controllable, min_observable = r.remove_unnecessary(plant, C, controllable, observable)
-print(r.check_preferred(sup, min_controllable, min_observable, ["confirm.lts", "vote.lts"]))
+# controllable = ["back", "confirm", "password", "select", "vote"]
+# observable = ["back", "confirm", "password", "select", "vote"]
+# C, plant, _ = r._synthesize(controllable, observable)
+# sup, min_controllable, min_observable = r.remove_unnecessary(plant, C, controllable, observable)
+# print(r.check_preferred(sup, min_controllable, min_observable, ["confirm.lts", "vote.lts"]))
+
+
