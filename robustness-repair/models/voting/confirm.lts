@@ -1,1 +1,2 @@
-CONFIRM = (confirm -> END).
+CONFIRM = (v.enter -> V_CONFIRM),
+V_CONFIRM = (confirm -> END | v.exit -> CONFIRM).

@@ -18,7 +18,7 @@ PRIORITY2 = 2
 PRIORITY3 = 3
 
 class Repair:
-    def __init__(self, sys, env_p, safety, preferred, alphabet, controllable, observable, verbose=False):
+    def __init__(self, sys, env_p, safety, preferred, progress, alphabet, controllable, observable, verbose=False):
         self.verbose = verbose
         if path.exists("tmp"):
             shutil.rmtree("tmp")
@@ -39,6 +39,8 @@ class Repair:
         self.safety = list(map(lambda x: self.fsp2lts(x), safety))
         # a map from priority to model files of the preferred behavior
         self.preferred = preferred
+        # a list of events as progress property
+        self.progress = list(map(lambda x: self.make_progress_prop(x), progress))
         # a list of events for \alpha M \cup \alpha E
         self.alphabet = alphabet
         # a map from cost to list of controllable events
@@ -66,11 +68,11 @@ class Repair:
             return self.synthesize_cache[key]
 
         plant = list(map(lambda x: self.lts2fsm(x, controllable, observable), self.sys + self.env_p))
-        plant = plant[0] if len(plant) == 1 else d.composition.parallel(*plant)
+        plant = d.composition.parallel(*plant)
         p = list(map(lambda x: self.lts2fsm(x, controllable, observable, extend_alphabet=True), self.safety))
-        p = p[0] if len(p) == 1 else d.composition.parallel(*p)
+        p = d.composition.parallel(*p, *self.progress)
 
-        L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=True, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
+        L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
         L = d.composition.observer(L)
 
         # return the constructed controller which is admissible and redundant
@@ -305,6 +307,11 @@ class Repair:
         fulfilled_preferred = []
 
         M_prime = self.compose_M_prime(minS, controllable, observable)
+
+        env = list(map(lambda x: self.lts2fsm(x, controllable, observable), self.env_p))
+        env = env[0] if len(env) == 1 else d.composition.parallel(*env)
+        M_prime = d.composition.parallel(M_prime, env)
+
         for p in preferred:
             key = (tuple(controllable), tuple(observable), p)
             if key in self.check_preferred_cache:
@@ -360,6 +367,9 @@ class Repair:
         # first synthesize with all aphabet, then find supervisor, then remove unecessary actions, and check which preferred behavior are satisfied
         alphabet = self.alphabet
         sup = self._synthesize(alphabet, alphabet)
+        if sup == None:
+            print("Warning: Hard constraint progress property cannot be satisfied.")
+            return []
         minS, controllable, observable = self.remove_unnecessary(sup, alphabet, alphabet)
         D_max = self.check_preferred(minS, controllable, observable, preferred)
         print("Maximum fulfilled preferred behavior:", D_max)
@@ -438,6 +448,16 @@ class Repair:
             return M_prime
         M_prime = d.composition.parallel(M, sup)
         return M_prime
+    
+    def make_progress_prop(self, e):
+        fsm = "2\n\n" +\
+              "State0\t0\t1\n" +\
+              f"{e}\tState1\tc\to\n\n" +\
+              "State1\t1\t1\n" +\
+              f"{e}\tState1\tc\to\n"
+        with open(f"tmp/{e}.fsm", "w") as f:
+            f.write(fsm)
+        return d.read_fsm(f"tmp/{e}.fsm")
 
     def file2fsm(self, file, controllable, observable, extend_alphabet=False):
         name = path.basename(file)
