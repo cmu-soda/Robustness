@@ -70,7 +70,8 @@ class Repair:
         plant = list(map(lambda x: self.lts2fsm(x, controllable, observable), self.sys + self.env_p))
         plant = d.composition.parallel(*plant)
         p = list(map(lambda x: self.lts2fsm(x, controllable, observable, extend_alphabet=True), self.safety))
-        p = d.composition.parallel(*p, *self.progress)
+        p = p + self.progress
+        p = p[0] if len(p) == 1 else d.composition.parallel(*p)
 
         L = d.supervisor.supremal_sublanguage(plant, p, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
         L = d.composition.observer(L)

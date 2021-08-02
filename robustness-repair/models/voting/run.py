@@ -14,7 +14,7 @@ r = Repair(
     env_p=["env.lts"],
     safety=["p2.lts"],
     preferred={   # rank the preferred behavior by importance
-        PRIORITY3: ["confirm.lts", "vote.lts"],
+        PRIORITY3: ["back.lts"],
         PRIORITY2: [
             # "patch1.lts",
             # "patch2.lts"
