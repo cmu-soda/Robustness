@@ -11,18 +11,6 @@
 //   just plugged in.
 //
 
-//
-// Set of actions that the user of the LTSA tool can control in an
-// animation of this model.
-//
-menu UserControlMenu = {
-    change_settings, clear_rate, confirm_settings, connect_set,
-    dispense_main_med_flow, enter_value, erase_and_unlock_line,
-    flow_unblocked, sound_alarm, lock_unit, plug_in, press_cancel, 
-    press_set, set_rate, silence_alarm, turn_off, unlock_unit, unplug,
-    flow_blocked
-}
-
 //======================
 // Constants and Ranges
 //======================
@@ -30,10 +18,10 @@ menu UserControlMenu = {
 //
 // States of the pump alarm
 //
-const AlarmActivated = 0    // Alarm currently active
-const AlarmSilenced  = 1    // Alarm currently inactive
+const AlarmSilenced = 0
+const AlarmSounds = 1
 
-range AlarmStateT = AlarmActivated .. AlarmSilenced
+range AlarmState = AlarmSilenced .. AlarmSounds
 
 //
 // States of the pump settings
@@ -72,23 +60,28 @@ range PluggedState = Unplugged .. Plugged
 //Battery states of the pump unit
 //
 
-const BatteryCharge = 10 //the battery has charge
-const BatteryEmpty = 11 //battery has no charge
+const BatteryCharge = 12 //the battery has charge
+const BatteryLow = 11
+const BatteryEmpty = 10 //battery has no charge
 
-range BatteryState = BatteryCharge .. BatteryEmpty 
+range BatteryState = BatteryEmpty .. BatteryCharge
+
+//
+//System State
+//
+
+const SystemOff = 13
+const SystemOn = 14
+
+range SystemState = SystemOff .. SystemOn
 
 //=====================
 // Process Definitions
 //=====================
-range NUM_LINE = 1..2
+range NUM_LINE = 1..1
 
 //Initial Pump State
-PUMP = UNPOWERED,
-
-UNPOWERED =
-(
-  plug_in -> POWERED[Plugged][BatteryCharge]
-),
+PUMP_POWER = POWERED[Unplugged][BatteryEmpty],
 
 //Pump has power but not on -- keep track of whether there is any battery and plug state
 POWERED[plug_state:PluggedState][battery_state:BatteryState]  = 
@@ -99,11 +92,11 @@ POWERED[plug_state:PluggedState][battery_state:BatteryState]  =
   when (plug_state == Plugged)
     unplug -> POWERED[Unplugged][battery_state]
   |
-  power_failure -> POWERED[plug_state][battery_state]
+  when (battery_state != BatteryEmpty)
+    turn_on -> POWER_ON[plug_state][battery_state]
   |
-  turn_on -> POWER_ON[plug_state][battery_state]
-  |
-  alarm_silence -> POWERED[plug_state][battery_state]
+  when (plug_state == Plugged && battery_state != BatteryCharge)
+    battery_charge -> POWERED[plug_state][battery_state+1]
 ),
 
 //Pump is on
@@ -113,47 +106,49 @@ POWER_ON[plug_state:PluggedState][battery_state:BatteryState] =
     unplug -> POWER_ON[Unplugged][battery_state]
   |
   when (plug_state == Unplugged)
-    plug_in -> POWER_ON[Plugged][BatteryCharge]
-  |
-  when (plug_state == Unplugged && battery_state == BatteryCharge)
-    battery_dies -> UNPOWERED
+    plug_in -> POWER_ON[Plugged][battery_state]
   |
   turn_off -> POWERED[plug_state][battery_state]
   |
-  power_failure -> POWERED[plug_state][battery_state]
+  when (plug_state == Unplugged && battery_state == BatteryCharge)
+    battery_spent -> POWER_ON[plug_state][BatteryLow]
+  |
+  when (plug_state == Unplugged && battery_state == BatteryLow)
+    power_failure -> POWERED[Unplugged][BatteryEmpty]
+  |
+  when (plug_state == Plugged && battery_state != BatteryCharge)
+    battery_charge -> POWER_ON[plug_state][battery_state+1]
+  |
+  when (plug_state == Unplugged && battery_state == BatteryLow)
+    enable_alarm -> POWER_ON[plug_state][battery_state]
 ).
 
-
-ALARM = ALARM[AlarmActivated], 
-ALARM[alarm_state:AlarmStateT] = 
+ALARM = ALARM[AlarmSilenced],
+ALARM[alarm_state:AlarmState] =
 (
-  when (alarm_state == AlarmActivated)
+  when (alarm_state == AlarmSounds)
+    alarm_rings -> ALARM[alarm_state]
+  |
+  when (alarm_state == AlarmSounds)
     alarm_silence -> ALARM[AlarmSilenced]
   |
-  turn_off -> ALARM[AlarmActivated]
+  enable_alarm -> ALARM[AlarmSounds]
   |
-  battery_dies -> ALARM[AlarmActivated]
-  |
-  power_failure -> ALARM[AlarmActivated]
-  |
-  line[i:NUM_LINE].flow_blocked -> alarm_rings -> fix_flow -> line[i].flow_unblocked -> ALARM[alarm_state]
-). 
+  power_failure -> ALARM
+).
 
+LINE = LINE[LineUnlocked],
 
-LINE = (turn_on -> LINESETUP[ParamsNotSet][LineUnlocked] | unplug -> LINE), 
+LINE[lineLock:LineLockStateT] = (turn_on -> LINESETUP[ParamsNotSet][lineLock]), 
 
 //
 //-Setupmode for the line
 
 LINESETUP[params:ParamsStateT][lineLock:LineLockStateT] = 
 ( 
-  unplug -> LINESETUP[params][lineLock]
+  turn_off -> LINE[lineLock]
   |
-  turn_off -> LINE
-  |
-  battery_dies -> LINE
-  |
-  power_failure -> LINE
+  power_failure -> LINE[lineLock]
   |
   when (params == ParamsNotSet && lineLock == LineUnlocked)
     set_rate -> enter_value -> (
@@ -169,10 +164,10 @@ LINESETUP[params:ParamsStateT][lineLock:LineLockStateT] =
     connect_set -> purge_air -> lock_line -> LINESETUP[params][LineLocked]
   |
   when (lineLock == LineLocked)
-    confirm_settings -> LINEINFUSION[UnitUnlocked]
-  |
-  when (lineLock == LineLocked)
     erase_and_unlock_line -> LINESETUP[params][LineUnlocked]
+  |
+  when (params == ParamsSet && lineLock == LineLocked)
+    confirm_settings -> LINEINFUSION[UnitUnlocked]
 ),
 
 //
@@ -183,13 +178,9 @@ LINESETUP[params:ParamsStateT][lineLock:LineLockStateT] =
 //
 LINEINFUSION[unitLock:UnitLockStateT] =
 (
-  unplug -> LINEINFUSION[unitLock]
+  turn_off -> LINE[LineLocked]
   |
-  turn_off -> LINE
-  |
-  battery_dies -> LINE
-  |
-  power_failure -> LINE
+  power_failure -> LINE[LineLocked]
   |
   when (unitLock == UnitUnlocked)
     change_settings -> LINESETUP[ParamsSet][LineLocked]
@@ -201,21 +192,25 @@ LINEINFUSION[unitLock:UnitLockStateT] =
     unlock_unit -> LINEINFUSION[UnitUnlocked]
   |
   when (unitLock == UnitLocked)
-    dispense_main_med_flow -> (
-      dispense_main_med_flow -> LINEINFUSION[unitLock]
-      |
-      flow_complete -> unlock_unit -> LINESETUP[ParamsNotSet][LineUnlocked]
-    )
+    dispense_main_med_flow -> DISPENSE[SystemOn]
+),
+
+DISPENSE[system_state:SystemState] =
+(
+  dispense_main_med_flow -> DISPENSE[system_state]
   |
-  when (unitLock == UnitLocked)
-    flow_blocked -> flow_unblocked -> LINEINFUSION[unitLock]
+  when (system_state == SystemOn)
+    flow_complete -> unlock_unit -> LINESETUP[ParamsNotSet][LineLocked]
+  |
+  power_failure -> DISPENSE[SystemOff]
+  |
+  when (system_state == SystemOff)
+    turn_on -> LINESETUP[ParamsNotSet][LineLocked]
 ).
 
 ||LINES = (line[NUM_LINE]:LINE)/{
   turn_on/line[NUM_LINE].turn_on,
-  unplug/line[NUM_LINE].unplug,
   turn_off/line[NUM_LINE].turn_off,
-  battery_dies/line[NUM_LINE].battery_dies,
   power_failure/line[NUM_LINE].power_failure}. 
 
-||SYS = (PUMP || LINES || ALARM).
+||SYS = (PUMP_POWER || LINES || ALARM).

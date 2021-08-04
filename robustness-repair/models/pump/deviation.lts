@@ -1,0 +1,51 @@
+range LINES = 1..1
+
+//
+// Set of actions that the user of the LTSA tool can control in an
+// animation of this model.
+//
+menu UserControlMenu = {
+  alarm_silence,
+
+  line[LINES].change_settings,
+  line[LINES].clear_rate,
+  line[LINES].confirm_settings,
+  line[LINES].connect_set,
+  line[LINES].enter_value,
+  line[LINES].erase_and_unlock_line,
+  line[LINES].lock_line,
+  line[LINES].lock_unit,
+  line[LINES].press_cancel,
+  line[LINES].press_set,
+  line[LINES].purge_air,
+  line[LINES].set_rate,
+  line[LINES].unlock_unit,
+
+  plug_in,
+  turn_off,
+  turn_on,
+  unplug
+}
+
+ENV = (
+  alarm_silence -> ENV |
+
+  line[LINES].change_settings -> ENV |
+  line[LINES].clear_rate -> ENV |
+  line[LINES].confirm_settings -> ENV |
+  line[LINES].connect_set -> ENV |
+  line[LINES].enter_value -> ENV |
+  line[LINES].erase_and_unlock_line -> ENV |
+  line[LINES].lock_line -> ENV |
+  line[LINES].lock_unit -> ENV |
+  line[LINES].press_cancel -> ENV |
+  line[LINES].press_set -> ENV |
+  line[LINES].purge_air -> ENV |
+  line[LINES].set_rate -> ENV |
+  line[LINES].unlock_unit -> ENV |
+
+  plug_in -> ENV |
+  turn_off -> ENV |
+  turn_on -> ENV |
+  unplug -> ENV
+)+{unplug}.
