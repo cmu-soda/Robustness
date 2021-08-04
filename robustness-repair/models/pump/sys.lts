@@ -1,0 +1,221 @@
+//
+// 17-651: FSP model of a simple infusion pump
+//
+// ASSUMPTIONS
+// - The user can choose, in the setup phase, which item of info to enter next.
+// - The simple enter_value action is a simple number pad where the user enters
+//   numeric values.
+// - There exist 'set' and 'cancel' buttons, which are the targets of press_set
+//   and press_cancel.
+// - When the user turns the unit off, the unit will be in a state as if it was
+//   just plugged in.
+//
+
+//
+// Set of actions that the user of the LTSA tool can control in an
+// animation of this model.
+//
+menu UserControlMenu = {
+    change_settings, clear_rate, confirm_settings, connect_set,
+    dispense_main_med_flow, enter_value, erase_and_unlock_line,
+    flow_unblocked, sound_alarm, lock_unit, plug_in, press_cancel, 
+    press_set, set_rate, silence_alarm, turn_off, unlock_unit, unplug,
+    flow_blocked
+}
+
+//======================
+// Constants and Ranges
+//======================
+
+//
+// States of the pump alarm
+//
+const AlarmActivated = 0    // Alarm currently active
+const AlarmSilenced  = 1    // Alarm currently inactive
+
+range AlarmStateT = AlarmActivated .. AlarmSilenced
+
+//
+// States of the pump settings
+//
+const ParamsNotSet = 2    // pump parameters not set yet
+const ParamsSet    = 3    // pump parameters already set
+
+range ParamsStateT = ParamsNotSet .. ParamsSet
+
+//
+// Locked/unlocked states of a line with respect to a pump channel
+//
+const LineUnlocked = 4  // line not locked into a pump channel 
+const LineLocked   = 5  // line locked into a pump channel
+
+range LineLockStateT = LineUnlocked .. LineLocked
+
+//
+// Locked/unlocked states of the pump unit
+//
+const UnitUnlocked = 6  // the keypad of the pump is not locked
+const UnitLocked   = 7  // the keypad of the pump is locked
+
+range UnitLockStateT = UnitUnlocked .. UnitLocked
+
+//
+//Plugged/unplugged states of the pump unit
+//
+
+const Unplugged = 8 //the pump is not plugged in
+const Plugged = 9 //the pump is plugged in 
+
+range PluggedState = Unplugged .. Plugged 
+
+//
+//Battery states of the pump unit
+//
+
+const BatteryCharge = 10 //the battery has charge
+const BatteryEmpty = 11 //battery has no charge
+
+range BatteryState = BatteryCharge .. BatteryEmpty 
+
+//=====================
+// Process Definitions
+//=====================
+range NUM_LINE = 1..2
+
+//Initial Pump State
+PUMP = UNPOWERED,
+
+UNPOWERED =
+(
+  plug_in -> POWERED[Plugged][BatteryCharge]
+),
+
+//Pump has power but not on -- keep track of whether there is any battery and plug state
+POWERED[plug_state:PluggedState][battery_state:BatteryState]  = 
+(
+  when (plug_state == Unplugged) 
+    plug_in -> POWERED[Plugged][battery_state]
+  |
+  when (plug_state == Plugged)
+    unplug -> POWERED[Unplugged][battery_state]
+  |
+  power_failure -> POWERED[plug_state][battery_state]
+  |
+  turn_on -> POWER_ON[plug_state][battery_state]
+  |
+  alarm_silence -> POWERED[plug_state][battery_state]
+),
+
+//Pump is on
+POWER_ON[plug_state:PluggedState][battery_state:BatteryState] = 
+(
+  when (plug_state == Plugged)
+    unplug -> POWER_ON[Unplugged][battery_state]
+  |
+  when (plug_state == Unplugged)
+    plug_in -> POWER_ON[Plugged][BatteryCharge]
+  |
+  when (plug_state == Unplugged && battery_state == BatteryCharge)
+    battery_dies -> UNPOWERED
+  |
+  turn_off -> POWERED[plug_state][battery_state]
+  |
+  power_failure -> POWERED[plug_state][battery_state]
+).
+
+
+ALARM = ALARM[AlarmActivated], 
+ALARM[alarm_state:AlarmStateT] = 
+(
+  when (alarm_state == AlarmActivated)
+    alarm_silence -> ALARM[AlarmSilenced]
+  |
+  turn_off -> ALARM[AlarmActivated]
+  |
+  battery_dies -> ALARM[AlarmActivated]
+  |
+  power_failure -> ALARM[AlarmActivated]
+  |
+  line[i:NUM_LINE].flow_blocked -> alarm_rings -> fix_flow -> line[i].flow_unblocked -> ALARM[alarm_state]
+). 
+
+
+LINE = (turn_on -> LINESETUP[ParamsNotSet][LineUnlocked] | unplug -> LINE), 
+
+//
+//-Setupmode for the line
+
+LINESETUP[params:ParamsStateT][lineLock:LineLockStateT] = 
+( 
+  unplug -> LINESETUP[params][lineLock]
+  |
+  turn_off -> LINE
+  |
+  battery_dies -> LINE
+  |
+  power_failure -> LINE
+  |
+  when (params == ParamsNotSet && lineLock == LineUnlocked)
+    set_rate -> enter_value -> (
+      press_set -> LINESETUP[ParamsSet][lineLock]
+      |
+      press_cancel -> LINESETUP[ParamsNotSet][lineLock]
+    )
+  |
+  when (params == ParamsSet && lineLock == LineUnlocked)
+    clear_rate -> LINESETUP[ParamsNotSet][lineLock]
+  |
+  when (params == ParamsSet && lineLock == LineUnlocked)
+    connect_set -> purge_air -> lock_line -> LINESETUP[params][LineLocked]
+  |
+  when (lineLock == LineLocked)
+    confirm_settings -> LINEINFUSION[UnitUnlocked]
+  |
+  when (lineLock == LineLocked)
+    erase_and_unlock_line -> LINESETUP[params][LineUnlocked]
+),
+
+//
+// Pump in infusion mode:
+// - Always be able to turn the unit off, even if locked
+// - Allow the user to lock/unlock the unit
+// - Errors could occur with the pump (e.g., line became pinched or plugged)
+//
+LINEINFUSION[unitLock:UnitLockStateT] =
+(
+  unplug -> LINEINFUSION[unitLock]
+  |
+  turn_off -> LINE
+  |
+  battery_dies -> LINE
+  |
+  power_failure -> LINE
+  |
+  when (unitLock == UnitUnlocked)
+    change_settings -> LINESETUP[ParamsSet][LineLocked]
+  |
+  when (unitLock == UnitUnlocked)
+    lock_unit -> LINEINFUSION[UnitLocked]
+  |
+  when (unitLock == UnitLocked)
+    unlock_unit -> LINEINFUSION[UnitUnlocked]
+  |
+  when (unitLock == UnitLocked)
+    dispense_main_med_flow -> (
+      dispense_main_med_flow -> LINEINFUSION[unitLock]
+      |
+      flow_complete -> unlock_unit -> LINESETUP[ParamsNotSet][LineUnlocked]
+    )
+  |
+  when (unitLock == UnitLocked)
+    flow_blocked -> flow_unblocked -> LINEINFUSION[unitLock]
+).
+
+||LINES = (line[NUM_LINE]:LINE)/{
+  turn_on/line[NUM_LINE].turn_on,
+  unplug/line[NUM_LINE].unplug,
+  turn_off/line[NUM_LINE].turn_off,
+  battery_dies/line[NUM_LINE].battery_dies,
+  power_failure/line[NUM_LINE].power_failure}. 
+
+||SYS = (PUMP || LINES || ALARM).
