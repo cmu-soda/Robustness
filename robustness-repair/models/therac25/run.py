@@ -22,16 +22,16 @@ r = Repair(
     progress=[],
     alphabet=alphabet,
     controllable={  # rank the controllable events by cost
-        PRIORITY3: ["hPressX", "hPressE", "hPressEnter", "hPressB"],
-        PRIORITY2: ["hPressUp", "hPressUp1"],
-        PRIORITY1: ["mFire", "mEBeamLvl", "mXrayLvl","mInPlace", "mOutPlace", "mInitXray","mInitEBeam"],
-        PRIORITY0: []
+        PRIORITY3: ["hPressX", "hPressE", "hPressEnter", "hPressB", "hPressUp", "hPressUp1"],
+        PRIORITY2: ["mEBeamLvl", "mXrayLvl"],
+        PRIORITY1: [],
+        PRIORITY0: ["mFire", "mInPlace", "mOutPlace", "mInitXray","mInitEBeam"]
     },
     observable={    # rank observable events by cost
         PRIORITY3: [],
-        PRIORITY2:  ["hPressX", "hPressE", "hPressEnter", "hPressB"],
-        PRIORITY1: ["hPressUp", "hPressUp1"],
-        PRIORITY0: ["mFire", "mEBeamLvl", "mXrayLvl","mInPlace", "mOutPlace", "mInitXray","mInitEBeam"] 
+        PRIORITY2: ["hPressX", "hPressE", "hPressEnter", "hPressB", "hPressUp", "hPressUp1"],
+        PRIORITY1: ["mEBeamLvl", "mXrayLvl"],
+        PRIORITY0: ["mFire", "mInPlace", "mOutPlace", "mInitXray","mInitEBeam"] 
     }
 )
 
