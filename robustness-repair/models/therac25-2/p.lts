@@ -1,0 +1,27 @@
+const InPlace = 0
+const OutPlace = 1
+range SpreaderState = InPlace .. OutPlace
+
+const NotSet = 2
+const Xray = 3
+const EBeam = 4
+const ToXray = 5
+const ToEBeam = 6
+range BeamState = NotSet .. ToEBeam
+
+P = P[InPlace][NotSet],
+P[spreader:SpreaderState][power:BeamState] = (
+    when (power == NotSet || power == Xray || power == ToEBeam) x -> P[InPlace][Xray]
+    |
+    when (power == NotSet || power == EBeam || power == ToXray) e -> P[OutPlace][EBeam]
+    |
+    when (power == Xray || power == ToEBeam) e -> P[OutPlace][ToEBeam]
+    |
+    when (power == EBeam || power == ToXray) x -> P[InPlace][ToXray]
+    |
+    when (power == ToEBeam) setMode -> P[spreader][EBeam]
+    |
+    when (power == ToXray) setMode -> P[spreader][Xray]
+    |
+    when (power != NotSet && (spreader != OutPlace || power == EBeam || power == ToXray)) b -> P[spreader][power]
+).
