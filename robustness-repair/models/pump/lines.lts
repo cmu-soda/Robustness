@@ -1,16 +1,3 @@
-//
-// 17-651: FSP model of a simple infusion pump
-//
-// ASSUMPTIONS
-// - The user can choose, in the setup phase, which item of info to enter next.
-// - The simple enter_value action is a simple number pad where the user enters
-//   numeric values.
-// - There exist 'set' and 'cancel' buttons, which are the targets of press_set
-//   and press_cancel.
-// - When the user turns the unit off, the unit will be in a state as if it was
-//   just plugged in.
-//
-
 //======================
 // Constants and Ranges
 //======================
@@ -75,67 +62,19 @@ const SystemOn = 14
 
 range SystemState = SystemOff .. SystemOn
 
+//
+// Dispense complete
+//
+
+const Dispensing = 15
+const DispenseDone = 16
+
+range DispenseState = Dispensing .. DispenseDone
+
 //=====================
 // Process Definitions
 //=====================
 range NUM_LINE = 1..1
-
-//Initial Pump State
-PUMP_POWER = POWERED[Unplugged][BatteryEmpty],
-
-//Pump has power but not on -- keep track of whether there is any battery and plug state
-POWERED[plug_state:PluggedState][battery_state:BatteryState]  = 
-(
-  when (plug_state == Unplugged) 
-    plug_in -> POWERED[Plugged][battery_state]
-  |
-  when (plug_state == Plugged)
-    unplug -> POWERED[Unplugged][battery_state]
-  |
-  when (battery_state != BatteryEmpty)
-    turn_on -> POWER_ON[plug_state][battery_state]
-  |
-  when (plug_state == Plugged && battery_state != BatteryCharge)
-    battery_charge -> POWERED[plug_state][battery_state+1]
-),
-
-//Pump is on
-POWER_ON[plug_state:PluggedState][battery_state:BatteryState] = 
-(
-  when (plug_state == Plugged)
-    unplug -> POWER_ON[Unplugged][battery_state]
-  |
-  when (plug_state == Unplugged)
-    plug_in -> POWER_ON[Plugged][battery_state]
-  |
-  turn_off -> POWERED[plug_state][battery_state]
-  |
-  when (plug_state == Unplugged && battery_state == BatteryCharge)
-    battery_spent -> POWER_ON[plug_state][BatteryLow]
-  |
-  when (plug_state == Unplugged && battery_state == BatteryLow)
-    power_failure -> POWERED[Unplugged][BatteryEmpty]
-  |
-  when (plug_state == Plugged && battery_state != BatteryCharge)
-    battery_charge -> POWER_ON[plug_state][battery_state+1]
-  |
-  when (plug_state == Unplugged && battery_state == BatteryLow)
-    enable_alarm -> POWER_ON[plug_state][battery_state]
-).
-
-ALARM = ALARM[AlarmSilenced],
-ALARM[alarm_state:AlarmState] =
-(
-  when (alarm_state == AlarmSounds)
-    alarm_rings -> ALARM[alarm_state]
-  |
-  when (alarm_state == AlarmSounds)
-    alarm_silence -> ALARM[AlarmSilenced]
-  |
-  enable_alarm -> ALARM[AlarmSounds]
-  |
-  power_failure -> ALARM
-).
 
 LINE = LINE[LineUnlocked],
 
@@ -192,17 +131,17 @@ LINEINFUSION[unitLock:UnitLockStateT] =
     unlock_unit -> LINEINFUSION[UnitUnlocked]
   |
   when (unitLock == UnitLocked)
-    dispense_main_med_flow -> DISPENSE[SystemOn]
+    dispense_main_med_flow -> DISPENSE[SystemOn][Dispensing]
 ),
 
-DISPENSE[system_state:SystemState] =
+DISPENSE[system_state:SystemState][dispense:DispenseState] =
 (
-  dispense_main_med_flow -> DISPENSE[system_state]
+  dispense_main_med_flow -> DISPENSE[system_state][DispenseDone]
   |
-  when (system_state == SystemOn)
+  when (system_state == SystemOn && dispense == DispenseDone)
     flow_complete -> unlock_unit -> LINESETUP[ParamsNotSet][LineLocked]
   |
-  power_failure -> DISPENSE[SystemOff]
+  power_failure -> DISPENSE[SystemOff][Dispensing]
   |
   when (system_state == SystemOff)
     turn_on -> LINESETUP[ParamsNotSet][LineLocked]
@@ -211,6 +150,4 @@ DISPENSE[system_state:SystemState] =
 ||LINES = (line[NUM_LINE]:LINE)/{
   turn_on/line[NUM_LINE].turn_on,
   turn_off/line[NUM_LINE].turn_off,
-  power_failure/line[NUM_LINE].power_failure}. 
-
-||SYS = (PUMP_POWER || LINES || ALARM).
+  power_failure/line[NUM_LINE].power_failure}.

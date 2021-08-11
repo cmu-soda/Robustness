@@ -1,0 +1,110 @@
+//======================
+// Constants and Ranges
+//======================
+
+//
+// States of the pump alarm
+//
+const AlarmSilenced = 0
+const AlarmSounds = 1
+
+range AlarmState = AlarmSilenced .. AlarmSounds
+
+//
+// States of the pump settings
+//
+const ParamsNotSet = 2    // pump parameters not set yet
+const ParamsSet    = 3    // pump parameters already set
+
+range ParamsStateT = ParamsNotSet .. ParamsSet
+
+//
+// Locked/unlocked states of a line with respect to a pump channel
+//
+const LineUnlocked = 4  // line not locked into a pump channel 
+const LineLocked   = 5  // line locked into a pump channel
+
+range LineLockStateT = LineUnlocked .. LineLocked
+
+//
+// Locked/unlocked states of the pump unit
+//
+const UnitUnlocked = 6  // the keypad of the pump is not locked
+const UnitLocked   = 7  // the keypad of the pump is locked
+
+range UnitLockStateT = UnitUnlocked .. UnitLocked
+
+//
+//Plugged/unplugged states of the pump unit
+//
+
+const Unplugged = 8 //the pump is not plugged in
+const Plugged = 9 //the pump is plugged in 
+
+range PluggedState = Unplugged .. Plugged 
+
+//
+//Battery states of the pump unit
+//
+
+const BatteryCharge = 12 //the battery has charge
+const BatteryLow = 11
+const BatteryEmpty = 10 //battery has no charge
+
+range BatteryState = BatteryEmpty .. BatteryCharge
+
+//
+//System State
+//
+
+const SystemOff = 13
+const SystemOn = 14
+
+range SystemState = SystemOff .. SystemOn
+
+//=====================
+// Process Definitions
+//=====================
+
+//Initial Pump State
+PUMP_POWER = POWERED[Unplugged][BatteryEmpty],
+
+//Pump has power but not on -- keep track of whether there is any battery and plug state
+POWERED[plug_state:PluggedState][battery_state:BatteryState]  = 
+(
+  when (plug_state == Unplugged) 
+    plug_in -> POWERED[Plugged][battery_state]
+  |
+  when (plug_state == Plugged)
+    unplug -> POWERED[Unplugged][battery_state]
+  |
+  when (battery_state != BatteryEmpty)
+    turn_on -> POWER_ON[plug_state][battery_state]
+  |
+  when (plug_state == Plugged && battery_state != BatteryCharge)
+    battery_charge -> POWERED[plug_state][battery_state+1]
+),
+
+//Pump is on
+POWER_ON[plug_state:PluggedState][battery_state:BatteryState] = 
+(
+  when (plug_state == Plugged)
+    unplug -> POWER_ON[Unplugged][battery_state]
+  |
+  when (plug_state == Unplugged)
+    plug_in -> POWER_ON[Plugged][battery_state]
+  |
+  turn_off -> POWERED[plug_state][battery_state]
+  |
+  when (plug_state == Unplugged && battery_state == BatteryCharge)
+    battery_spent -> POWER_ON[plug_state][BatteryLow]
+  |
+  when (plug_state == Unplugged && battery_state == BatteryLow)
+    power_failure -> POWERED[Unplugged][BatteryEmpty]
+  |
+  when (plug_state == Plugged && battery_state != BatteryCharge)
+    battery_charge -> POWER_ON[plug_state][battery_state+1]
+  |
+  when (plug_state == Unplugged && battery_state == BatteryLow)
+    enable_alarm -> POWER_ON[plug_state][battery_state]
+).

@@ -298,7 +298,7 @@ class Repair:
         preferred = sum(map(lambda x: weight_dict[x], preferred_behavior))
         cost = sum(map(lambda x: weight_dict[x][0], min_controllable)) +\
                sum(map(lambda x: weight_dict[x][1], min_observable))        
-        return preferred, cost 
+        return preferred, cost
     
     def check_preferred(self, minS, controllable, observable, preferred):
         """
@@ -365,13 +365,18 @@ class Repair:
         # find dictionary of weights by actions, preferred behavior and weights assigned by tiers
         weight_dict = self.compute_weights()
 
-        # first synthesize with all aphabet, then find supervisor, then remove unecessary actions, and check which preferred behavior are satisfied
-        alphabet = self.alphabet
-        sup = self._synthesize(alphabet, alphabet)
+        # first synthesize with alphabets that are defined in the priority categories,
+        # then find supervisor, then remove unecessary actions, and check which preferred behavior are satisfied
+        controllable = list(filter(lambda x: weight_dict[x][0] != "c", self.alphabet))
+        observable = list(filter(lambda x: weight_dict[x][1] != "o", self.alphabet))
+        sup = self._synthesize(controllable, observable)
         if sup == None:
             print("Warning: Hard constraint progress property cannot be satisfied.")
             return []
-        minS, controllable, observable = self.remove_unnecessary(sup, alphabet, alphabet)
+        minS, controllable, observable = self.remove_unnecessary(sup, controllable, observable)
+        print("Start search from events:")
+        print("Ec:", controllable)
+        print("Eo:", observable)
         D_max = self.check_preferred(minS, controllable, observable, preferred)
         print("Maximum fulfilled preferred behavior:", D_max)
 
