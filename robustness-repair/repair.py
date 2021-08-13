@@ -7,6 +7,7 @@ import DESops as d
 import igraph
 from lts import StateMachine
 import itertools
+from datetime import datetime
 
 this_file = path.dirname(path.abspath(__file__))
 
@@ -80,15 +81,15 @@ class Repair:
         observable = list(filter(lambda x: weight_dict[x][1] != "o", self.alphabet))
         sup_plant = self._synthesize(controllable, observable)
         if sup_plant == None:
-            print("Warning: No supervisor found with max controllable and observable events.")
+            print(datetime.now(), "Warning: No supervisor found with max controllable and observable events.")
             return []
         D_max = self.check_preferred(sup_plant, controllable, observable, preferred)
-        print("Maximum fulfilled preferred behavior:", D_max)
+        print(datetime.now(), "Maximum fulfilled preferred behavior:", D_max)
 
         minS, controllable, observable = self.remove_unnecessary(sup_plant, controllable, observable)
-        print("Start search from events:")
-        print("Ec:", controllable)
-        print("Eo:", observable)
+        print(datetime.now(), "Start search from events:")
+        print("\tEc:", controllable)
+        print("\tEo:", observable)
 
         # initialize list of controllers
         controllers = []
@@ -133,14 +134,14 @@ class Repair:
                 min_cost = min_cost_bracket
                 controllers.extend(possible_controllers)
                 for c in possible_controllers:
-                    print("New pareto-optimal found:")
+                    print(datetime.now(), "New pareto-optimal found:")
                     print("\tEc:", c["controllable"])
                     print("\tEo:", c["observable"])
                     print("\tPreferred:", c["preferred"])
                     print("\tPreferred Utility:", c["preferred_utility"])
                     print("\tCost:", c["cost"])
             else:
-                print("No new pareto-optimal solution found.")
+                print(datetime.now(), "No new pareto-optimal solution found.")
 
         # composes Mprime for all once we know that these are what we want and updates
         for controller in controllers:
@@ -163,14 +164,22 @@ class Repair:
         key = (tuple(controllable), tuple(observable))
         if key in self.synthesize_cache:
             if self.verbose:
-                print("Synthesize cache hit: ", key)
+                print(datetime.now(), "Synthesize cache hit: ", key)
             return self.synthesize_cache[key]
 
         plant = self.make_Euo_Euc(self.plant, controllable, observable)
         prop = self.make_Euo_Euc(self.prop, controllable, observable)
 
+        if self.verbose == True:
+            print(datetime.now(), "Controller synthesis start...")
         L = d.supervisor.supremal_sublanguage(plant, prop, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
+        if self.verbose == True:
+            print(datetime.now(), "Found supremal sublanguage...")
+            print("\tNumber of states:", L.vcount())
+            print("\tNumber of transitions:", L.ecount())
         L = d.composition.observer(L)
+        if self.verbose == True:
+            print(datetime.now(), "Controller synthesis end")
 
         # return the constructed controller which is admissible and redundant
         # self.synthesize_cache[key] = self.construct_supervisor(plant, L, controllable, observable) if len(L.vs) != 0 else None
@@ -308,7 +317,7 @@ class Repair:
                 if self.check_preferred_cache[key]:
                     fulfilled_preferred.append(p)
                     if self.verbose:
-                        print("Check preferred cache hit:", key)
+                        print(datetime.now(), "Check preferred cache hit:", key)
                 continue
             self.check_preferred_cache[key] = False
 
@@ -330,7 +339,7 @@ class Repair:
         for i in range(len(l3) + 1):
             for j in range(len(l2) + 1):
                 for k in range(len(l1) + 1):
-                    print(f"Weaken the preferred behavior by {i} Essential, {j} Important, and {k} Minor...")
+                    print(datetime.now(), f"Weaken the preferred behavior by {i} Essential, {j} Important, and {k} Minor...")
                     D_rm_set = []
                     # for this partition of lost behavior, find all possible subsets from each category
                     beh_1_subsets = itertools.combinations(l1, k)
@@ -413,7 +422,7 @@ class Repair:
                 # keep only the minimizations which work
                 for event_dict in p_list:
                     if self.verbose:
-                        print("Minimizing with...")
+                        print(datetime.now(), "Minimizing with...")
                         print("\tEc:", event_dict["c"])
                         print("\tEo:", event_dict["o"])
                     # synthesize with the appropriate controllable/observable events
@@ -524,7 +533,7 @@ class Repair:
         if file in self.fsp_cache:
             return self.fsp_cache[file]
 
-        print(f"Read {file}...")
+        print(datetime.now(), f"Read {file}...")
         name = path.basename(file)
         tmp_json = f"tmp/{name}.json"
         with open(tmp_json, "w") as f:

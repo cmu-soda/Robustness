@@ -7,6 +7,8 @@ class StateMachine:
         self.transitions = transitions
         self.alphabet = alphabet
         self.accept = set() if accept == None else accept
+        self._out_trans = None
+        self._all_states = None
     
     def extend_alphabet(self, alphabet):
         new_trans = self.transitions.copy()
@@ -82,19 +84,23 @@ class StateMachine:
             return StateMachine(name, transitions, alphabet, accept)
 
     def out_trans(self):
-        out = {}
-        for t in self.transitions:
-            if t[0] not in out:
-                out[t[0]] = []
-            out[t[0]].append(t)
-        return out
+        if self._out_trans == None:
+            out = {}
+            for t in self.transitions:
+                if t[0] not in out:
+                    out[t[0]] = []
+                out[t[0]].append(t)
+            self._out_trans = out
+        return self._out_trans
     
     def all_states(self):
-        states = set([0])
-        for t in self.transitions:
-            states.add(t[0])
-            states.add(t[2])
-        return states
+        if self._all_states == None:
+            states = set([0])
+            for t in self.transitions:
+                states.add(t[0])
+                states.add(t[2])
+            self._all_states = states
+        return self._all_states
 
     def to_fsm(self, controllable, observable, file=None):
         c = ["c" if a in controllable else "uc" for a in self.alphabet]

@@ -36,6 +36,7 @@ alphabet = [
 ]
 
 r = Repair(
+    verbose=True,
     sys= ["power.lts", "lines.lts", "alarm.lts"],
     env_p = ["deviation.lts"],
     safety =["p.lts"],
@@ -113,7 +114,7 @@ r = Repair(
     }
 )
 
-result = r.synthesize(6)
+result = r.synthesize(3)
 print("Printing M' for each pareto-optimal...")
 for i, c in enumerate(result):
     print("Solution", i)
