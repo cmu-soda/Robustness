@@ -36,7 +36,7 @@ alphabet = [
 ]
 
 r = Repair(
-    verbose=True,
+    alg="fast",
     sys= ["power.lts", "lines.lts", "alarm.lts"],
     env_p = ["deviation.lts"],
     safety =["p.lts"],

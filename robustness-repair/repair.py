@@ -19,7 +19,9 @@ PRIORITY2 = 2
 PRIORITY3 = 3
 
 class Repair:
-    def __init__(self, sys, env_p, safety, preferred, progress, alphabet, controllable, observable, verbose=False):
+    def __init__(self, sys, env_p, safety, preferred, progress, alphabet, controllable, observable, verbose=False, alg="pareto"):
+        assert alg == "pareto" or alg == "fast", "algorithm should be 'pareto' or 'fast'"
+
         self.verbose = verbose
         if path.exists("tmp"):
             shutil.rmtree("tmp")
@@ -55,6 +57,8 @@ class Repair:
         self.controllable = controllable
         # a map from cost to list of observable events
         self.observable = observable
+        # the type of search when minimizing controllable and observable events
+        self.alg = alg
 
         # TODO:
         # assert controllable should be a subset of observable
@@ -134,14 +138,17 @@ class Repair:
                 min_cost = min_cost_bracket
                 controllers.extend(possible_controllers)
                 for c in possible_controllers:
-                    print(datetime.now(), "New pareto-optimal found:")
+                    if self.alg == "pareto":
+                        print(datetime.now(), "New pareto-optimal found:")
+                    else:
+                        print(datetime.now(), "New solution found:")
                     print("\tEc:", c["controllable"])
                     print("\tEo:", c["observable"])
                     print("\tPreferred:", c["preferred"])
                     print("\tPreferred Utility:", c["preferred_utility"])
                     print("\tCost:", c["cost"])
             else:
-                print(datetime.now(), "No new pareto-optimal solution found.")
+                print(datetime.now(), "No new solution found.")
 
         # composes Mprime for all once we know that these are what we want and updates
         for controller in controllers:
@@ -149,11 +156,6 @@ class Repair:
 
         # returns all controllers
         return controllers
-
-    def make_Euo_Euc(self, fsm, controllable, observable):
-        fsm.Euc = set(filter(lambda x: x.label not in controllable, fsm.events))
-        fsm.Euo = set(filter(lambda x: x.label not in observable, fsm.events))
-        return fsm
 
     def _synthesize(self, controllable, observable):
         """
@@ -185,6 +187,12 @@ class Repair:
         # self.synthesize_cache[key] = self.construct_supervisor(plant, L, controllable, observable) if len(L.vs) != 0 else None
         self.synthesize_cache[key] = L if len(L.vs) != 0 else None
         return self.synthesize_cache[key]
+
+    def minimize(self, minS, controllable, observable, preferred):
+        if self.alg == "pareto":
+            return self.minimize_pareto(minS, controllable, observable, preferred)
+        if self.alg == "fast":
+            return self.minimize_fast(minS, controllable, observable, preferred)
 
     def compute_weights(self):
         """
@@ -378,7 +386,7 @@ class Repair:
 
         return cp_list
 
-    def minimize(self, minS, controllable, observable, preferred):
+    def minimize_pareto(self, minS, controllable, observable, preferred):
         """
         Given some set of controllable and observable events and supervisor,
         minimize the supervisor and returns the set of controllable and observable
@@ -389,17 +397,17 @@ class Repair:
         medium_cost_controllable = [c for c in controllable if c in self.controllable[PRIORITY2]] # Medium cost controllable events
         low_cost_controllable = [c for c in controllable if c in self.controllable[PRIORITY1]] # Low cost controllable events
 
-        high_priority_observable = [o for o in observable if o in self.observable[PRIORITY3]] # High cost Observable Events
-        medium_priority_observable = [o for o in observable if o in self.observable[PRIORITY2]] # Medium cost Observable Events
-        low_priority_observable = [o for o in observable if o in self.observable[PRIORITY1]] # Low cost Observable Events
+        high_cost_observable = [o for o in observable if o in self.observable[PRIORITY3]] # High cost Observable Events
+        medium_cost_observable = [o for o in observable if o in self.observable[PRIORITY2]] # Medium cost Observable Events
+        low_cost_observable = [o for o in observable if o in self.observable[PRIORITY1]] # Low cost Observable Events
 
         # Dictionary where events are separated according to priority
         # Key is 0, 1, or 2 where 0 is high cost, 1 is medium cost, and 2 is low cost
         # Value is a list of list where first list is controllable events and the second list is observable events
         actions_dict = {
-            0: [high_cost_controllable, high_priority_observable],
-            1: [medium_cost_controllable, medium_priority_observable],
-            2: [low_cost_controllable, low_priority_observable]
+            0: [high_cost_controllable, high_cost_observable],
+            1: [medium_cost_controllable, medium_cost_observable],
+            2: [low_cost_controllable, low_cost_observable]
         }
 
         # initialize last_gp_list, it is a placeholder which saves the last set of possible minimizations
@@ -440,8 +448,50 @@ class Repair:
             # then use the saved minimizations as the best previous
             if len(gp_list) == 0:
                 gp_list = last_gp_list
-
+        
         return map(lambda x: (x["minS"], x["c"], x["o"]), gp_list)
+
+    def minimize_fast(self, minS, controllable, observable, preferred):
+        high_cost_controllable = [(c, 'c') for c in controllable if c in self.controllable[PRIORITY3]] # High cost controllable events
+        medium_cost_controllable = [(c, 'c') for c in controllable if c in self.controllable[PRIORITY2]] # Medium cost controllable events
+        low_cost_controllable = [(c, 'c') for c in controllable if c in self.controllable[PRIORITY1]] # Low cost controllable events
+
+        high_cost_observable = [(o, 'o') for o in observable if o in self.observable[PRIORITY3]] # High cost Observable Events
+        medium_cost_observable = [(o, 'o') for o in observable if o in self.observable[PRIORITY2]] # Medium cost Observable Events
+        low_cost_observable = [(o, 'o') for o in observable if o in self.observable[PRIORITY1]] # Low cost Observable Events
+
+        search_seq = high_cost_controllable + high_cost_observable +\
+                     medium_cost_controllable + medium_cost_observable +\
+                     low_cost_controllable + low_cost_observable
+        cur_controllable = set(controllable)
+        cur_observable = set(observable)
+        cur_sup_plant = None
+        for e, t in search_seq:
+            if t == 'c' and len(cur_controllable) > 1:
+                tmp_controllable = cur_controllable - set([e])
+                tmp_observable = cur_observable
+            elif t == 'o' and e not in cur_controllable:
+                tmp_controllable = cur_controllable
+                tmp_observable = cur_observable - set([e])
+            else:
+                continue
+            if self.verbose:
+                print(datetime.now(), "Minimizing with...")
+                print("\tEc:", tmp_controllable)
+                print("\tEo:", tmp_observable)
+            # synthesize with the appropriate controllable/observable events
+            sup_plant = self._synthesize(tmp_controllable, tmp_observable)
+            if sup_plant == None:
+                continue
+            # add minimization if preferred behavior maintained
+            if set(self.check_preferred(sup_plant, tmp_controllable, tmp_observable, preferred)) == preferred:
+                cur_sup_plant = sup_plant
+                cur_controllable = tmp_controllable
+                cur_observable = tmp_observable
+        if cur_sup_plant != None:
+            minS = self.construct_supervisor(cur_sup_plant, cur_controllable, cur_observable)
+            minS = self.lts2fsm(minS, cur_controllable, cur_observable)
+        return [(minS, cur_controllable, cur_observable)]
 
     def compute_util_cost(self, preferred_behavior, min_controllable, min_observable, weight_dict):
         """
@@ -478,6 +528,11 @@ class Repair:
         with open(f"tmp/{e}.fsm", "w") as f:
             f.write(fsm)
         return d.read_fsm(f"tmp/{e}.fsm")
+
+    def make_Euo_Euc(self, fsm, controllable, observable):
+        fsm.Euc = set(filter(lambda x: x.label not in controllable, fsm.events))
+        fsm.Euo = set(filter(lambda x: x.label not in observable, fsm.events))
+        return fsm
 
     def file2fsm(self, file, controllable, observable, extend_alphabet=False):
         name = path.basename(file)
