@@ -275,8 +275,8 @@ class Repair:
             for a in can_uo.copy():
                 if [s, sup.alphabet.index(a), s] not in out_trans[s]:
                     can_uo.remove(a)
-        min_controllable = set(controllable) - set(can_uc)
-        min_observable = set(observable) - set(can_uo)
+        min_controllable = (set(controllable) - set(can_uc)).union(self.controllable[PRIORITY0])
+        min_observable = (set(observable) - set(can_uo)).union(self.observable[PRIORITY0])
 
         # Hide unobservable events
         sup = self.lts2fsm(sup, min_controllable, min_observable, name="sup")
