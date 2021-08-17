@@ -162,6 +162,7 @@ class Repair:
         # print statistics
         print(datetime.now(), "Total controller synthesis:", self.total_synthesis, "times.")
         print(datetime.now(), "Total time:", datetime.now() - self.start_time)
+        print(datetime.now(), "Number of solutions:", len(controllers))
 
         # returns all controllers
         return controllers
@@ -185,7 +186,13 @@ class Repair:
 
         if self.verbose == True:
             print(datetime.now(), "Controller synthesis start...")
-        L = d.supervisor.supremal_sublanguage(plant, prop, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
+        # L = d.supervisor.supremal_sublanguage(plant, prop, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
+        
+        L = d.supervisor.offline_VLPPO(plant, prop)
+        L.vs["marked"] = [1 for i in range(L.vcount())]
+        L = d.composition.parallel(L, plant, prop)
+        L = d.supervisor.supremal_sublanguage(plant, L, prefix_closed=False, mode=d.supervisor.Mode.CONTROLLABLE_NORMAL)
+
         if self.verbose == True:
             print(datetime.now(), "Found supremal sublanguage...")
             print("\tNumber of states:", L.vcount())
