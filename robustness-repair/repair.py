@@ -44,6 +44,7 @@ class Repair:
         self.env_p = self.env_p[0] if len(self.env_p) == 1 else d.composition.parallel(*self.env_p)
         # compose the plant
         self.plant = d.composition.parallel(self.sys, self.env_p)
+        print(datetime.now(), "Size of the plant:", self.plant.vcount(), "states,", self.plant.ecount(), "transitions")
         # the model files of the safety property
         self.safety = list(map(lambda x: self.fsp2fsm(x, alphabet, alphabet, extend_alphabet=True), safety))
         # a list of events as progress property
@@ -71,6 +72,10 @@ class Repair:
         """
         Given maximum number n of depth to search, return a list of solutions, prioritizng fulfillment of preferred behavior.
         """
+        # statistics
+        self.total_synthesis = 0
+        self.start_time = datetime.now()
+
         # collect all preferred behavior
         preferred = []
         for key in self.preferred:
@@ -144,8 +149,8 @@ class Repair:
                         print(datetime.now(), "New solution found:")
                     print("\tEc:", c["controllable"])
                     print("\tEo:", c["observable"])
-                    print("\tPreferred:", c["preferred"])
-                    print("\tPreferred Utility:", c["preferred_utility"])
+                    print("\tPreferred Behavior:", c["preferred"])
+                    print("\tPreferred Behavior Utility:", c["preferred_utility"])
                     print("\tCost:", c["cost"])
             else:
                 print(datetime.now(), "No new solution found.")
@@ -153,6 +158,10 @@ class Repair:
         # composes Mprime for all once we know that these are what we want and updates
         for controller in controllers:
             controller["M_prime"] = self.compose_M_prime(controller["M_prime"], controller["controllable"], controller["observable"])
+        
+        # print statistics
+        print(datetime.now(), "Total controller synthesis:", self.total_synthesis, "times.")
+        print(datetime.now(), "Total time:", datetime.now() - self.start_time)
 
         # returns all controllers
         return controllers
@@ -168,6 +177,8 @@ class Repair:
             if self.verbose:
                 print(datetime.now(), "Synthesize cache hit: ", key)
             return self.synthesize_cache[key]
+
+        self.total_synthesis += 1
 
         plant = self.make_Euo_Euc(self.plant, controllable, observable)
         prop = self.make_Euo_Euc(self.prop, controllable, observable)
