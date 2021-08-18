@@ -80,6 +80,7 @@ class Repair:
         preferred = []
         for key in self.preferred:
             preferred.extend(self.preferred[key])
+        print(datetime.now(), "Number of preferred behaviors:", len(preferred))
 
         # find dictionary of weights by actions, preferred behavior and weights assigned by tiers
         weight_dict = self.compute_weights()
@@ -88,6 +89,9 @@ class Repair:
         # then find supervisor, then remove unecessary actions, and check which preferred behavior are satisfied
         controllable = list(filter(lambda x: weight_dict[x][0] != "c", self.alphabet))
         observable = list(filter(lambda x: weight_dict[x][1] != "o", self.alphabet))
+        print(datetime.now(), "Number of controllable events with cost:", len(controllable) - len(self.controllable[PRIORITY0]))
+        print(datetime.now(), "Number of observable events with cost:", len(observable) - len(self.observable[PRIORITY0]))
+
         sup_plant = self._synthesize(controllable, observable)
         if sup_plant == None:
             print(datetime.now(), "Warning: No supervisor found with max controllable and observable events.")
@@ -571,9 +575,7 @@ class Repair:
     def lts2fsm(self, m, controllable, observable, name=None, extend_alphabet=False):
         if extend_alphabet:
             m = m.extend_alphabet(self.alphabet)
-        tmp = f"tmp/{name}.fsm" if name != None else f"tmp/tmp.{random() * 1000_000}.fsm"
-        m.to_fsm(controllable, observable, tmp)
-        return d.read_fsm(tmp)
+        return m.to_fsm(controllable, observable)
 
     def fsp2fsm(self, file, controllable, observable, extend_alphabet=False):
         name = path.basename(file)
@@ -581,9 +583,7 @@ class Repair:
         return self.lts2fsm(m, controllable, observable, extend_alphabet=extend_alphabet, name=name)
 
     def fsm2lts(self, obj, alphabet=None, name=None, extend_alphabet=False):
-        tmp = f"tmp/{name}.fsm" if name != None else f"tmp/tmp.{random() * 1000_000}.fsm"
-        d.write_fsm(tmp, obj)
-        m = StateMachine.from_fsm(tmp, alphabet)
+        m = StateMachine.from_fsm(obj, alphabet, name)
         if extend_alphabet:
             m = m.extend_alphabet(self.alphabet)
         return m

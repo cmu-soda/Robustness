@@ -1,5 +1,6 @@
 import json
 from os import path
+import DESops as d
 
 class StateMachine:
     def __init__(self, name, transitions, alphabet, accept=None):
@@ -38,50 +39,26 @@ class StateMachine:
             return m
 
     @staticmethod
-    def from_fsm(file, alphabet=None):
+    def from_fsm(fsm, alphabet=None, name=None):
         if alphabet == None:
             alphabet = ["_tau_"]
         else:
             assert "_tau_" not in alphabet, "Tau should not be in the alphabet of FSM"
             alphabet = ["_tau_"] + list(alphabet)
-        with open(file) as f:
-            states = []
-            transitions = []
-            accept = set()
-
-            def state_idx(s):
-                if s in states:
-                    return states.index(s)
-                else:
-                    states.append(s)
-                    return len(states) - 1
-            
-            def alphabet_idx(t):
-                if t in alphabet:
-                    return alphabet.index(t)
-                else:
-                    # assert False, "ERROR! All alphabet should be included already."
-                    alphabet.append(t)
-                    return len(alphabet) - 1
-
-            lines = list(filter(lambda x: x != "\n", f.readlines()))
-            i = 1
-            while i < len(lines):
-                line_state = lines[i].strip().split("\t")
-                s = state_idx(line_state[0])
-                if line_state[1] == "1": # marked
-                    accept.add(s)
-                for _ in range(int(line_state[2])):
-                    i += 1
-                    line_t = lines[i].strip().split("\t")
-                    t = alphabet_idx(line_t[0])
-                    ss = state_idx(line_t[1])
-                    transitions.append([s, t, ss])
-                i += 1
-
-            name = path.basename(file)
-            name = name[:name.index(".")]
-            return StateMachine(name, transitions, alphabet, accept)
+        
+        def alphabet_idx(t):
+            if t in alphabet:
+                return alphabet.index(t)
+            else:
+                # assert False, "ERROR! All alphabet should be included already."
+                alphabet.append(t)
+                return len(alphabet) - 1
+        
+        transitions = []
+        for edge in fsm.es:
+            transitions.append([edge.source, alphabet_idx(edge['label'].label), edge.target])
+        accept = set(filter(lambda x: fsm.vs["marked"][x], range(fsm.vcount())))
+        return StateMachine(name, transitions, alphabet, accept)
 
     def out_trans(self):
         if self._out_trans == None:
@@ -102,26 +79,14 @@ class StateMachine:
             self._all_states = states
         return self._all_states
 
-    def to_fsm(self, controllable, observable, file=None):
-        c = ["c" if a in controllable else "uc" for a in self.alphabet]
-        o = ["o" if a in observable else "uo" for a in self.alphabet]
-        all_states = self.all_states()
-        fsm = f"{len(all_states)}\n"
-
-        out_trans = self.out_trans()
-        for s in out_trans:
-            fsm += "\n"
-            trans = out_trans[s]
-            fsm += f"State{s}\t{1 if s in self.accept else 0}\t{len(trans)}\n"
-            for t in trans:
-                fsm += f"{self.alphabet[t[1]]}\tState{t[2]}\t{c[t[1]]}\t{o[t[1]]}\n"
-        
-        for s in all_states - out_trans.keys():
-            fsm += f"\nState{s}\t{1 if s in self.accept else 0}\t0\n"
-        
-        if file != None:
-            with open(file, "w") as f:
-                f.write(fsm)
+    def to_fsm(self, controllable, observable):
+        fsm = d.DFA()
+        fsm.add_vertices(max(self.all_states()) + 1)
+        for t in self.transitions:
+            fsm.add_edge(t[0], t[2], d.Event(self.alphabet[t[1]]))
+        fsm.vs["marked"] = [1 if i in self.accept else 0 for i in range(fsm.vcount())]
+        fsm.Euc = set(filter(lambda e: e.label not in controllable, fsm.events))
+        fsm.Euo = set(filter(lambda e: e.label not in observable, fsm.events))
         return fsm
     
     def to_json(self, file=None):
