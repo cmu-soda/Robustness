@@ -1,5 +1,3 @@
-range P_LINES = 1..1
-
-P = (line[P_LINES].set_rate -> RATE_SET | power_failure -> P),
-RATE_SET = (line[P_LINES].set_rate -> RATE_SET | power_failure -> P | line[P_LINES].dispense_main_med_flow -> DISPENSE),
-DISPENSE = (line[P_LINES].dispense_main_med_flow -> DISPENSE | line[P_LINES].flow_complete -> P | power_failure -> P).
+P = (line[1].set_rate -> RATE_SET | power_failure -> P),
+RATE_SET = (line[1].set_rate -> RATE_SET | power_failure -> P | line[1].dispense_main_med_flow -> DISPENSE),
+DISPENSE = (line[1].dispense_main_med_flow -> DISPENSE | line[1].flow_complete -> P | power_failure -> P).

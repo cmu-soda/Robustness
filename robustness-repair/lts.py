@@ -82,8 +82,12 @@ class StateMachine:
     def to_fsm(self, controllable, observable):
         fsm = d.DFA()
         fsm.add_vertices(max(self.all_states()) + 1)
-        for t in self.transitions:
-            fsm.add_edge(t[0], t[2], d.Event(self.alphabet[t[1]]))
+        fsm.add_edges(
+            [(t[0], t[2]) for t in self.transitions],
+            [d.Event(self.alphabet[t[1]]) for t in self.transitions]
+        )
+        # for t in self.transitions:
+        #     fsm.add_edge(t[0], t[2], d.Event(self.alphabet[t[1]]))
         fsm.vs["marked"] = [1 if i in self.accept else 0 for i in range(fsm.vcount())]
         fsm.Euc = set(filter(lambda e: e.label not in controllable, fsm.events))
         fsm.Euo = set(filter(lambda e: e.label not in observable, fsm.events))
