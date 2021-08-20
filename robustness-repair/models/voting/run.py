@@ -37,7 +37,7 @@ r = Repair(
 )
 
 result = r.synthesize(6)
-print("Printing M' for each pareto-optimal...")
-for i, c in enumerate(result):
-    print("Solution", i)
-    print(r.fsm2fsp(c["M_prime"], c["observable"], name="M"))
+# print("Printing M' for each pareto-optimal...")
+# for i, c in enumerate(result):
+#     print("Solution", i)
+#     print(r.fsm2fsp(c["M_prime"], c["observable"], name="M"))

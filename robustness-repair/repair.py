@@ -92,11 +92,11 @@ class Repair:
         print(datetime.now(), "Number of controllable events with cost:", len(controllable) - len(self.controllable[PRIORITY0]))
         print(datetime.now(), "Number of observable events with cost:", len(observable) - len(self.observable[PRIORITY0]))
 
-        sup_plant = self._synthesize(controllable, observable)
+        sup_plant, sup_plant_raw = self._synthesize(controllable, observable)
         if sup_plant == None:
             print(datetime.now(), "Warning: No supervisor found with max controllable and observable events.")
             return []
-        D_max = self.check_preferred(sup_plant, controllable, observable, preferred)
+        D_max = self.check_preferred(sup_plant_raw, controllable, observable, preferred)
         print(datetime.now(), "Maximum fulfilled preferred behavior:", D_max)
 
         minS, controllable, observable = self.remove_unnecessary(sup_plant, controllable, observable)
@@ -201,13 +201,12 @@ class Repair:
             print(datetime.now(), "Found supremal sublanguage...")
             print("\tNumber of states:", L.vcount())
             print("\tNumber of transitions:", L.ecount())
-        L = d.composition.observer(L)
+
+        L_observed = d.composition.observer(L)
         if self.verbose == True:
             print(datetime.now(), "Controller synthesis end")
 
-        # return the constructed controller which is admissible and redundant
-        # self.synthesize_cache[key] = self.construct_supervisor(plant, L, controllable, observable) if len(L.vs) != 0 else None
-        self.synthesize_cache[key] = L if len(L.vs) != 0 else None
+        self.synthesize_cache[key] = (L_observed, L) if len(L.vs) != 0 else (None, None)
         return self.synthesize_cache[key]
 
     def minimize(self, minS, controllable, observable, preferred):
@@ -351,9 +350,8 @@ class Repair:
                 continue
             self.check_preferred_cache[key] = False
 
-            p_fsm = self.fsp2fsm(p, controllable, observable)
-            sup_plant.Euo = p_fsm.Euo.union(sup_plant.events - p_fsm.events)
-            sup_plant.Euc = p_fsm.Euc.union(sup_plant.events - p_fsm.events)
+            p_fsm = self.fsp2fsm(p, self.alphabet, self.alphabet)
+            sup_plant.Euo = sup_plant.events - p_fsm.events
             sup_plant_observed = d.composition.observer(sup_plant)
             if d.compare_language(d.composition.parallel(sup_plant_observed, p_fsm), p_fsm):
                 fulfilled_preferred.append(p)
@@ -456,11 +454,11 @@ class Repair:
                         print("\tEc:", event_dict["c"])
                         print("\tEo:", event_dict["o"])
                     # synthesize with the appropriate controllable/observable events
-                    sup_plant = self._synthesize(event_dict["c"], event_dict["o"])
+                    sup_plant, sup_plant_raw = self._synthesize(event_dict["c"], event_dict["o"])
                     if sup_plant == None:
                         continue
                     # add minimization if preferred behavior maintained
-                    if set(self.check_preferred(sup_plant, event_dict["c"], event_dict["o"], preferred)) == preferred:
+                    if set(self.check_preferred(sup_plant_raw, event_dict["c"], event_dict["o"], preferred)) == preferred:
                         minS = self.construct_supervisor(sup_plant, event_dict["c"], event_dict["o"])
                         minS = self.lts2fsm(minS, event_dict["c"], event_dict["o"])
                         event_dict["minS"] = minS #update the minS
@@ -502,11 +500,11 @@ class Repair:
                 print("\tEc:", tmp_controllable)
                 print("\tEo:", tmp_observable)
             # synthesize with the appropriate controllable/observable events
-            sup_plant = self._synthesize(tmp_controllable, tmp_observable)
+            sup_plant, sup_plant_raw = self._synthesize(tmp_controllable, tmp_observable)
             if sup_plant == None:
                 continue
             # add minimization if preferred behavior maintained
-            if set(self.check_preferred(sup_plant, tmp_controllable, tmp_observable, preferred)) == preferred:
+            if set(self.check_preferred(sup_plant_raw, tmp_controllable, tmp_observable, preferred)) == preferred:
                 cur_sup_plant = sup_plant
                 cur_controllable = tmp_controllable
                 cur_observable = tmp_observable
