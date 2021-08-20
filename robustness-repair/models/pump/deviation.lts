@@ -10,14 +10,9 @@ menu UserControlMenu = {
   line[LINES].change_settings,
   line[LINES].clear_rate,
   line[LINES].confirm_settings,
-  line[LINES].connect_set,
-  line[LINES].enter_value,
   line[LINES].erase_and_unlock_line,
   line[LINES].lock_line,
   line[LINES].lock_unit,
-  line[LINES].press_cancel,
-  line[LINES].press_set,
-  line[LINES].purge_air,
   line[LINES].set_rate,
   line[LINES].unlock_unit,
 
@@ -33,14 +28,9 @@ ENV = (
   line[LINES].change_settings -> ENV |
   line[LINES].clear_rate -> ENV |
   line[LINES].confirm_settings -> ENV |
-  line[LINES].connect_set -> ENV |
-  line[LINES].enter_value -> ENV |
   line[LINES].erase_and_unlock_line -> ENV |
   line[LINES].lock_line -> ENV |
   line[LINES].lock_unit -> ENV |
-  line[LINES].press_cancel -> ENV |
-  line[LINES].press_set -> ENV |
-  line[LINES].purge_air -> ENV |
   line[LINES].set_rate -> ENV |
   line[LINES].unlock_unit -> ENV |
 

@@ -1,0 +1,2 @@
+T = (plug_in -> battery_charge -> battery_charge -> turn_on -> line[1].dispense_main_med_flow -> T1),
+T1 = (line[1].dispense_main_med_flow -> T1 | line[1].flow_complete -> END).

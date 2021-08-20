@@ -90,17 +90,13 @@ LINESETUP[params:ParamsStateT][lineLock:LineLockStateT] =
   power_failure -> LINE[lineLock]
   |
   when (params == ParamsNotSet && lineLock == LineUnlocked)
-    set_rate -> enter_value -> (
-      press_set -> LINESETUP[ParamsSet][lineLock]
-      |
-      press_cancel -> LINESETUP[ParamsNotSet][lineLock]
-    )
+    set_rate -> LINESETUP[ParamsSet][lineLock]
   |
   when (params == ParamsSet && lineLock == LineUnlocked)
     clear_rate -> LINESETUP[ParamsNotSet][lineLock]
   |
   when (params == ParamsSet && lineLock == LineUnlocked)
-    connect_set -> purge_air -> lock_line -> LINESETUP[params][LineLocked]
+    lock_line -> LINESETUP[params][LineLocked]
   |
   when (lineLock == LineLocked)
     erase_and_unlock_line -> LINESETUP[params][LineUnlocked]
@@ -131,7 +127,7 @@ LINEINFUSION[unitLock:UnitLockStateT] =
     unlock_unit -> LINEINFUSION[UnitUnlocked]
   |
   when (unitLock == UnitLocked)
-    dispense_main_med_flow -> DISPENSE[SystemOn][Dispensing]
+    start_dispense -> DISPENSE[SystemOn][Dispensing]
 ),
 
 DISPENSE[system_state:SystemState][dispense:DispenseState] =
@@ -145,6 +141,9 @@ DISPENSE[system_state:SystemState][dispense:DispenseState] =
   |
   when (system_state == SystemOff)
     turn_on -> LINESETUP[ParamsNotSet][LineLocked]
+  |
+  when (system_state == SystemOn)
+    turn_off -> LINE[LineLocked]
 ).
 
 ||LINES = (line[NUM_LINE]:LINE)/{
