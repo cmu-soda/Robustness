@@ -37,7 +37,7 @@ r = Repair(
     env_p = ["deviation.lts"],
     safety =["p.lts"],
     preferred={   # rank the preferred behavior by importance
-        PRIORITY3: ["ideal.lts"],
+        PRIORITY3: ["ideal.lts", "recover.lts"],
         PRIORITY2: [],
         PRIORITY1: [],  
         PRIORITY0: []
@@ -75,6 +75,8 @@ r = Repair(
             "battery_spent",
             "plug_in",
             "unplug",
+            "turn_off",
+            "turn_on",
         ],
         PRIORITY2: [
             # Events of the line that are related to the physical world have moderate cost to observe
@@ -85,8 +87,6 @@ r = Repair(
             # Has moderate cost to observe some system events in other modules
             "alarm_silence",
             "enable_alarm",
-            "turn_off",
-            "turn_on",
         ],
         PRIORITY1: [],
         PRIORITY0: [
@@ -103,7 +103,7 @@ r = Repair(
 )
 
 result = r.synthesize(3)
-print("Printing M' for each pareto-optimal...")
-for i, c in enumerate(result):
-    print("Solution", i)
-    print(r.fsm2fsp(c["M_prime"], c["observable"], name="M"))
+# print("Printing M' for each pareto-optimal...")
+# for i, c in enumerate(result):
+#     print("Solution", i)
+#     print(r.fsm2fsp(c["M_prime"], c["observable"], name="M"))

@@ -1,0 +1,3 @@
+R = (plug_in -> R1),
+R1 = (line[1].start_dispense -> DISPENSE | power_failure -> R | plug_in -> R1),
+DISPENSE = (line[1].dispense_main_med_flow -> DISPENSE | power_failure -> R).
