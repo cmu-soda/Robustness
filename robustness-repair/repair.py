@@ -180,7 +180,7 @@ class Repair:
         key = (tuple(controllable), tuple(observable))
         if key in self.synthesize_cache:
             if self.verbose:
-                print(datetime.now(), "Synthesize cache hit: ", key)
+                print(datetime.now(), "Synthesize cache hit.")
             return self.synthesize_cache[key]
 
         self.total_synthesis += 1
@@ -303,7 +303,7 @@ class Repair:
         sup = self.lts2fsm(sup, min_controllable, min_observable, name="sup")
         sup = d.composition.observer(sup)
 
-        return sup, min_controllable, min_observable
+        return sup, sorted(min_controllable), sorted(min_observable)
 
     def construct_supervisor(self, sup_plant, controllable, observable):
         # Convert Sp/G to a StateMachine object
@@ -333,7 +333,7 @@ class Repair:
                     new_trans.append([sc, sup_plant.alphabet.index(a), sc])
         return StateMachine("sup", new_trans, sup_plant.alphabet, sup_plant.accept)
 
-    def check_preferred(self, sup_plant, controllable, observable, preferred):
+    def check_preferred(self, sup_plant, controllable, observable, preferred, fail_stop=False):
         """
         Given some sup_plant (i.e., sup||M||E' = M'||E'), a set of controllable events, a set of observable events,
         and a set of preferred behavior, checks how much preferred behavior is satisfied
@@ -346,7 +346,9 @@ class Repair:
                 if self.check_preferred_cache[key]:
                     fulfilled_preferred.append(p)
                     if self.verbose:
-                        print(datetime.now(), "Check preferred cache hit:", key)
+                        print(datetime.now(), "Check preferred cache hit.")
+                elif fail_stop:
+                    return False
                 continue
             self.check_preferred_cache[key] = False
 
@@ -356,8 +358,10 @@ class Repair:
             if d.compare_language(d.composition.parallel(sup_plant_observed, p_fsm), p_fsm):
                 fulfilled_preferred.append(p)
                 self.check_preferred_cache[key] = True
+            elif fail_stop:
+                return False
 
-        return fulfilled_preferred
+        return True if fail_stop else fulfilled_preferred
 
     def next_least_to_remove(self, D_max):
         # trim out the preferred behaviors that could never be satisfied
@@ -450,15 +454,15 @@ class Repair:
                 # keep only the minimizations which work
                 for event_dict in p_list:
                     if self.verbose:
-                        print(datetime.now(), "Minimizing with...")
-                        print("\tEc:", event_dict["c"])
-                        print("\tEo:", event_dict["o"])
+                        print(datetime.now(), "Minimize by removing...")
+                        print("\tEc:", set(controllable) - set(event_dict["c"]))
+                        print("\tEo:", set(observable) - set(event_dict["o"]))
                     # synthesize with the appropriate controllable/observable events
                     sup_plant, sup_plant_raw = self._synthesize(event_dict["c"], event_dict["o"])
                     if sup_plant == None:
                         continue
                     # add minimization if preferred behavior maintained
-                    if set(self.check_preferred(sup_plant_raw, event_dict["c"], event_dict["o"], preferred)) == preferred:
+                    if self.check_preferred(sup_plant_raw, event_dict["c"], event_dict["o"], preferred, fail_stop=True):
                         minS = self.construct_supervisor(sup_plant, event_dict["c"], event_dict["o"])
                         minS = self.lts2fsm(minS, event_dict["c"], event_dict["o"])
                         event_dict["minS"] = minS #update the minS
@@ -496,15 +500,15 @@ class Repair:
             else:
                 continue
             if self.verbose:
-                print(datetime.now(), "Minimizing with...")
-                print("\tEc:", tmp_controllable)
-                print("\tEo:", tmp_observable)
+                print(datetime.now(), "Minimize by removing...")
+                print("\tEc:", set(controllable) - set(tmp_controllable))
+                print("\tEo:", set(observable) - set(tmp_observable))
             # synthesize with the appropriate controllable/observable events
             sup_plant, sup_plant_raw = self._synthesize(tmp_controllable, tmp_observable)
             if sup_plant == None:
                 continue
             # add minimization if preferred behavior maintained
-            if set(self.check_preferred(sup_plant_raw, tmp_controllable, tmp_observable, preferred)) == preferred:
+            if self.check_preferred(sup_plant_raw, tmp_controllable, tmp_observable, preferred, fail_stop=True):
                 cur_sup_plant = sup_plant
                 cur_controllable = tmp_controllable
                 cur_observable = tmp_observable
