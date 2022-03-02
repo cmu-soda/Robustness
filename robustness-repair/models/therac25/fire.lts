@@ -1,3 +1,0 @@
-FIRE = (hPressX -> SELECTION
-       |hPressE -> SELECTION), 
-SELECTION = (mFire -> FIRE). 

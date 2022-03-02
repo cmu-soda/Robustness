@@ -47,9 +47,9 @@ class NetworkProtocolTest {
     val r = cal.computeRobustness()
     assertEquals(listOf(
         Pair(listOf("send[1]", "rec[0]"), listOf("input", "send[1]", "trans.corrupt", "rec[0]")),
-        Pair(listOf("send[1]", "rec[1]", "ack[1]", "getack[0]"), listOf("input", "send[1]", "rec[1]", "output", "ack[1]", "ack.corrupt", "getack[0]")),
-        Pair(listOf("send[1]", "rec[1]", "ack[0]", "getack[1]"), listOf("input", "send[1]", "rec[1]", "output", "ack[0]", "ack.corrupt", "getack[1]")),
-        Pair(listOf("send[0]", "rec[1]"), listOf("input", "send[0]", "trans.corrupt", "rec[1]"))
+        Pair(listOf("send[0]", "rec[1]"), listOf("input", "send[0]", "trans.corrupt", "rec[1]")),
+        Pair(listOf("send[0]", "rec[0]", "ack[1]", "getack[0]"), listOf("input", "send[0]", "rec[0]", "output", "ack[1]", "ack.corrupt", "getack[0]")),
+        Pair(listOf("send[0]", "rec[0]", "ack[0]", "getack[1]"), listOf("input", "send[0]", "rec[0]", "output", "ack[0]", "ack.corrupt", "getack[1]"))
     ), r)
   }
 }

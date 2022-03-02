@@ -1,4 +1,0 @@
-EM = (password -> P1),
-P1 = (select -> P2),
-P2 = (vote -> P3 | back -> P1),
-P3 = (confirm -> END | back -> P2).

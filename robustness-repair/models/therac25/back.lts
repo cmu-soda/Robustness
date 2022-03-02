@@ -1,4 +1,0 @@
-UP = (hPressX -> hPressUp -> UP
-     |hPressE -> hPressUp -> UP). 
-
-

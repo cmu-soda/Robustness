@@ -1,3 +1,0 @@
-P = (line[1].set_rate -> RATE_SET | power_failure -> P),
-RATE_SET = (line[1].set_rate -> RATE_SET | power_failure -> P | line[1].dispense_main_med_flow -> DISPENSE),
-DISPENSE = (line[1].dispense_main_med_flow -> DISPENSE | line[1].flow_complete -> P | power_failure -> P).

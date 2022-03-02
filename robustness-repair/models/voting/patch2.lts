@@ -1,1 +1,0 @@
-PATCH = (v.enter -> password -> eo.enter -> select -> v.enter -> select -> confirm -> END).
