@@ -259,6 +259,7 @@ class Corina02Test {
 
     val cal = Corina02(sys, env, p)
     val wa = cal.weakestAssumption("WA")
+    // FIXME: the different test results are caused by \alphaWA = \alphaCommon + (\alphaP - \alphaInternal)
 //    assertWA(wa, "WA = (hPressBrew -> WA | hLowerHandle -> WA_6 | hPlaceMug -> WA_1),\n" +
 //        "WA_1 = (hPressBrew -> WA_1 | hLowerHandle -> WA_2 | hTakeMug -> WA),\n" +
 //        "WA_2 = (hPressBrew -> WA_3 | hLiftHandle -> WA_1 | hTakeMug -> WA_6),\n" +
@@ -300,6 +301,7 @@ class Corina02Test {
 
     val cal = Corina02(sys, env, p)
     val wa = cal.weakestAssumption("COFFEE")
+    // FIXME: the different test results are caused by \alphaWA = \alphaCommon + (\alphaP - \alphaInternal)
 //    assertWA(wa, "COFFEE = (hLiftHandle -> COFFEE_4 | hPlaceMug -> COFFEE_1),\n" +
 //        "COFFEE_1 = (hLiftHandle -> COFFEE_3 | hPressBrew -> COFFEE_2 | hTakeMug -> COFFEE),\n" +
 //        "COFFEE_2 = (mBrewDone -> COFFEE_1),\n" +

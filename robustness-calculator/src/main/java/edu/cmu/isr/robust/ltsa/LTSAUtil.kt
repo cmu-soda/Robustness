@@ -186,12 +186,18 @@ fun combineSpecs(vararg specs: String): String {
 private fun escapeEvent(e: String): String {
   if (e == "tau")
     return "_tau_"
-  val idx = e.lastIndexOf('.')
-  val suffix = e.substring(idx + 1)
-  if (suffix.toIntOrNull() != null) {
-    return "${e.substring(0, idx)}[$suffix]"
+
+  var escaped = e
+  var lastIdx = e.length
+  while (true) {
+    val idx = escaped.substring(0, lastIdx).lastIndexOf('.')
+    if (idx == -1)
+      return escaped
+    val suffix = escaped.substring(idx + 1, lastIdx)
+    if (suffix.toIntOrNull() != null)
+      escaped = "${escaped.substring(0, idx)}[$suffix]${escaped.substring(lastIdx)}"
+    lastIdx = idx
   }
-  return e
 }
 
 /**
