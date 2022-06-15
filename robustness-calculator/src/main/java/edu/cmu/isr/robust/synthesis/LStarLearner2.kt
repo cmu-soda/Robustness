@@ -31,6 +31,7 @@ import edu.cmu.isr.robust.util.StateMachine
 import edu.cmu.isr.robust.util.Trace
 import edu.cmu.isr.robust.wa.Corina02WithIO
 
+@Deprecated("This is a deprecated attempt using L* to robustify a system.")
 class LStarLearner2(
   private val sys: String,
   private val env: String,

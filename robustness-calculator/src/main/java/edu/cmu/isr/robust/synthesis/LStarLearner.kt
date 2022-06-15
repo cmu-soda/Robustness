@@ -40,6 +40,7 @@ import net.automatalib.words.Word
 import net.automatalib.words.impl.Alphabets
 import java.lang.StringBuilder
 
+@Deprecated("This is a deprecated attempt using L* to robustify a system.")
 class LStarLearner(private val sys: String, private val dev: String, private val p: String) {
 
   private val alphabetSys: Set<String>

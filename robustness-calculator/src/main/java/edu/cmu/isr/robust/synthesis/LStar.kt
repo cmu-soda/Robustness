@@ -30,6 +30,7 @@ import java.lang.Exception
 
 private typealias DFA = List<Triple<String, String, String>>
 
+@Deprecated("This is a deprecated attempt using L* to robustify a system.")
 class LStar(
   private val alphabet: List<String>,
   private val mqOracle: (Trace) -> Boolean,

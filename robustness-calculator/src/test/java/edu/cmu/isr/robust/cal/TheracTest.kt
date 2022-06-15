@@ -88,7 +88,11 @@ class TheracTest {
     val cal2 = EOFMRobustCal.create(sys, ps, therac, config.initialValues, config.world, config.relabels)
     cal2.nameOfWA = "WA1"
 
+    println("========================>\nCompute Delta(M, E, P_w) - Delta(M, E, P_s)")
     cal1.robustnessComparedTo(cal2.getWA(), "WA1")
+
+    println("========================>\nCompute Delta(M, E, P_s) - Delta(M, E, P_w)")
+    cal2.robustnessComparedTo(cal1.getWA(), "WA")
   }
 
 }
