@@ -104,6 +104,9 @@ fun CompositeState.propertyCheck(): Trace? {
 }
 
 /**
+ * FIXME: The LTSA tool will return either deadlock or safety property violation when both errors exist,
+ * depending on which one has a shorter error trace.
+ *
  * This behaves the same as the Check -> Safety option in the LTSA tool.
  * @return A list of actions leading to a deadlock.
  */
